@@ -1,10 +1,10 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { ErrorNote } from '@/components/ui/Display';
 import { TextField } from '@/components/ui/Form';
 import { useAuth } from '@/context/AuthContext';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import styles from '@/pages/AuthPage.module.css';
 
 function Frame({ children, footer }: { children: ReactNode; footer: ReactNode }) {
@@ -83,6 +83,26 @@ export function ResetPasswordPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // A link works once, for an hour. Ask the server before showing the form, so a used link says so at once.
+  const [dead, setDead] = useState('');
+  const [checking, setChecking] = useState(Boolean(token));
+
+  useEffect(() => {
+    if (!token) return;
+    let current = true;
+    api
+      .post('/auth/reset-check', { token })
+      .catch((cause: unknown) => {
+        // Only a definite "no" hides the form. If the server cannot be reached, submitting will report it.
+        if (current && cause instanceof ApiError && cause.status === 400) setDead(cause.message);
+      })
+      .finally(() => {
+        if (current) setChecking(false);
+      });
+    return () => {
+      current = false;
+    };
+  }, [token]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -101,7 +121,13 @@ export function ResetPasswordPage() {
     <Frame footer={<Link to="/forgot-password">Ask for a new link</Link>}>
       <form className={styles.form} onSubmit={submit}>
         <h2 className={styles.heading}>Choose a new password</h2>
-        {token ? (
+        {checking ? (
+          <p className={styles.note} role="status">
+            Checking your link…
+          </p>
+        ) : dead ? (
+          <ErrorNote>{dead}</ErrorNote>
+        ) : token ? (
           <>
             <TextField
               label="New password"

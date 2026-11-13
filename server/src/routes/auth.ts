@@ -32,6 +32,7 @@ const guestLimit = rateLimit(5, 60 * 60 * 1000);
 const passwordLimit = rateLimit(10, 15 * 60 * 1000);
 const forgotLimit = rateLimit(5, 60 * 60 * 1000);
 const resetLimit = rateLimit(10, 60 * 60 * 1000);
+const resetCheckLimit = rateLimit(30, 60 * 60 * 1000);
 
 authRouter.post('/register', registerLimit, async (req, res) => {
   const { email, password, name } = parse(registration, req.body);
@@ -147,10 +148,20 @@ authRouter.post('/forgot', forgotLimit, async (req, res) => {
   res.json({ message: 'If that email has an account, a link to choose a new password is on its way.' });
 });
 
+const RESET_LINK_DEAD = 'This link has expired or was already used. Ask for a new one.';
+
+/** Lets the reset page say straight away that a link is used up, instead of after the new password is typed. */
+authRouter.post('/reset-check', resetCheckLimit, async (req, res) => {
+  const { token } = parse(z.object({ token: z.string().min(1).max(2000) }), req.body);
+  const user = await userForReset(token);
+  if (!user || user.isGuest) throw new HttpError(400, RESET_LINK_DEAD);
+  res.status(204).end();
+});
+
 authRouter.post('/reset', resetLimit, async (req, res) => {
   const { token, password } = parse(z.object({ token: z.string().min(1).max(2000), password: newPassword }), req.body);
   const user = await userForReset(token);
-  if (!user || user.isGuest) throw new HttpError(400, 'This link has expired or was already used. Ask for a new one.');
+  if (!user || user.isGuest) throw new HttpError(400, RESET_LINK_DEAD);
   // Raising the version makes the link single-use and signs out every device that knew the old password.
   const updated = await revokeSessions(user.id, { passwordHash: await bcrypt.hash(password, 10) });
   res.json({ token: signToken(updated), user: publicUser(updated) });
