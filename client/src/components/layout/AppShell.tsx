@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  ClipboardList, Cog, Eye, LayoutDashboard, LayoutGrid, LogOut, Menu, Package, PanelLeftClose, PanelLeftOpen, Plus, Settings, ShoppingCart,
+  ClipboardList, Cog, Eye, History, LayoutDashboard, LayoutGrid, LogOut, Menu, Package, PanelLeftClose, PanelLeftOpen, Plus, Settings, ShoppingCart,
   Sunrise, Wrench, type LucideIcon,
 } from 'lucide-react';
 import { DailyReport, useDailyReport } from '@/components/report/DailyReport';
@@ -79,7 +79,7 @@ function FocusBar() {
 
 export function AppShell() {
   const { user, logout } = useAuth();
-  const { workspace, workspaces, select, canEdit } = useWorkspace();
+  const { workspace, workspaces, select, canOperate } = useWorkspace();
   const { data: dashboard } = useWsQuery<Dashboard>('/dashboard');
   const { data: maintenance } = useWsQuery<MaintenanceData>('/maintenance');
   const { data: reorder } = useWsQuery<ReorderData>('/reorder');
@@ -108,6 +108,7 @@ export function AppShell() {
     { to: '/maintenance', label: 'Maintenance', icon: Wrench, primary: true, alert: overdue },
     { to: '/machines', label: 'Machines', icon: Cog, primary: false },
     { to: '/reorder', label: 'Reorder', icon: ShoppingCart, primary: false, alert: toReorder },
+    { to: '/activity', label: 'Activity', icon: History, primary: false },
     { to: '/settings', label: 'Settings', icon: Settings, primary: false },
   ];
 
@@ -210,7 +211,7 @@ export function AppShell() {
       <header className={styles.topbar}>
         <img src="/icon.svg" alt="" width={26} height={26} />
         <span className={styles.topbarTitle}>{workspace?.name}</span>
-        {!canEdit && (
+        {!canOperate && (
           <Badge tone="info" icon={Eye}>
             View only
           </Badge>
@@ -219,7 +220,7 @@ export function AppShell() {
 
       <main className={styles.main}>
         <div className={styles.content}>
-          {!canEdit && (
+          {!canOperate && (
             <p className={styles.viewerNote}>
               <Eye size={16} aria-hidden /> You have view-only access to this workspace.
             </p>

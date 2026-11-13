@@ -18,7 +18,10 @@ interface WorkspaceValue {
   retry: () => void;
   select: (id: string) => void;
   reload: () => Promise<Workspace[]>;
+  /** Admins and owners: change the inventory, set-up and records, and delete things. */
   canEdit: boolean;
+  /** Operators and up: run jobs, log usage and maintenance, load slots, reply to requests. */
+  canOperate: boolean;
   isOwner: boolean;
   /** Prefix a path with the current workspace: wsPath('/items') -> '/workspaces/<id>/items'. Null when there is none. */
   wsPath: (path: string) => string | null;
@@ -127,7 +130,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       },
       select,
       reload,
-      canEdit: workspace ? workspace.role !== 'viewer' : false,
+      canEdit: workspace?.role === 'admin' || workspace?.role === 'owner',
+      canOperate: workspace ? workspace.role !== 'viewer' : false,
       isOwner: workspace?.role === 'owner',
       wsPath: (path) => (workspace ? `/workspaces/${workspace.id}${path}` : null),
       money: (amount) => formatMoney(amount, workspace?.currency ?? 'GBP'),

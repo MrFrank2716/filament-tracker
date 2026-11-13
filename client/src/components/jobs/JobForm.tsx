@@ -10,6 +10,7 @@ import { useWorkspace } from '@/context/WorkspaceContext';
 import type { Catalog } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
 import { formatQuantity, parseNumber } from '@/lib/format';
+import { PRIORITY } from '@/lib/status';
 import type { Item, Job } from '@/lib/types';
 import styles from '@/components/jobs/Jobs.module.css';
 
@@ -36,6 +37,7 @@ export function JobForm({ catalog, items, job, defaultMachineId, onClose }: Prop
   const [duration, setDuration] = useState(job?.durationHours ? String(job.durationHours) : '');
   const [extraCost, setExtraCost] = useState(job?.extraCost ? String(job.extraCost) : '');
   const [notes, setNotes] = useState(job?.notes ?? '');
+  const [priority, setPriority] = useState(String(job?.priority ?? 0));
   const [lines, setLines] = useState<Line[]>(
     job?.usages.map((u) => ({ itemId: u.itemId, quantity: u.quantity ? String(u.quantity) : '', hours: u.hours ? String(u.hours) : '' })) ?? [],
   );
@@ -76,6 +78,7 @@ export function JobForm({ catalog, items, job, defaultMachineId, onClose }: Prop
       durationHours: Math.max(0, hours),
       extraCost: Math.max(0, parseNumber(extraCost) ?? 0),
       notes,
+      priority: Number(priority),
       usages: lines.map((l) => ({ itemId: l.itemId, quantity: Math.max(0, parseNumber(l.quantity) ?? 0), hours: Math.max(0, parseNumber(l.hours) ?? 0) })),
     };
     const ok = await run(async () => {
@@ -114,7 +117,16 @@ export function JobForm({ catalog, items, job, defaultMachineId, onClose }: Prop
               </option>
             ))}
           </SelectField>
-          <NumberField label="Run time" value={duration} onChange={setDuration} suffix="h" placeholder="0" hint="Added to the machine's hours when finished." />
+          <NumberField label="Run time" value={duration} onChange={setDuration} suffix="h" placeholder="0" hint="Added to the machine's hours when finished, and used to estimate the queue." />
+          <SelectField label="Priority" value={priority} onChange={setPriority}>
+            {Object.entries(PRIORITY)
+              .sort(([a], [b]) => Number(b) - Number(a))
+              .map(([value, { label }]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+          </SelectField>
         </FormGrid>
 
         <div className={styles.lines}>

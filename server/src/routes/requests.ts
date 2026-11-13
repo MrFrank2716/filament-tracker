@@ -6,6 +6,10 @@ import { prisma } from '@/db';
 import { HttpError, notFound, param, parse } from '@/http';
 import { rateLimit } from '@/rateLimit';
 import { notifyWorkspace } from '@/realtime';
+import { endOfQueue } from '@/routes/jobs';
+import { describeActivity } from '@/services/activity';
+import { estimateJob } from '@/services/queue';
+import { canMoveTo, emailComment, emailStatus } from '@/services/requestStatus';
 import { assertInWorkspace } from '@/services/stock';
 import { cleanFileName, newToken, receiveFiles, removeStored, storedPath, uploadedFiles, uploadLimits } from '@/services/uploads';
 
@@ -13,8 +17,10 @@ import { cleanFileName, newToken, receiveFiles, removeStored, storedPath, upload
  * Outside job requests.
  *
  * Someone without an account opens the workspace's request link, describes the job and attaches files.
- * The request waits in a queue until an editor has checked the files and approves it (creating a planned job),
- * asks for changes (the requester can send new files), or rejects it. The requester follows it on a progress link.
+ * The request waits in a queue until an admin has checked the files and approves it (creating a planned job),
+ * asks for changes (the requester can send new files), or rejects it. Once approved it follows its job:
+ * in progress when the job starts, done when it completes. Both sides can comment. The requester follows
+ * everything on a progress link and is emailed when the status changes or a member comments.
  */
 
 const OPEN = ['pending', 'changes_requested'];
@@ -34,6 +40,15 @@ const submissionInput = z.object({
 });
 
 const resubmitInput = z.object({ message: text(2000).optional() });
+
+const commentInput = z.object({ body: text(2000).min(1, 'Write a message first') });
+
+const statusInput = z.object({ status: z.enum(['in_progress', 'done']) });
+
+const commentSelect = { id: true, authorName: true, fromRequester: true, body: true, createdAt: true } as const;
+
+/** A leaked progress link cannot fill the database with messages. */
+const MAX_COMMENTS_PER_REQUEST = 200;
 
 const reviewInput = z.object({
   decision: z.enum(['approve', 'changes', 'reject']),
@@ -132,10 +147,13 @@ publicRequestsRouter.get('/track/:token', async (req, res) => {
       files: { orderBy: { createdAt: 'asc' }, select: { name: true, size: true } },
       machine: { select: { name: true } },
       workspace: { select: { name: true } },
-      job: { select: { status: true } },
+      job: { select: { id: true, status: true } },
+      comments: { orderBy: { createdAt: 'asc' }, select: commentSelect },
     },
   });
   if (!request) throw notFound('Request');
+  const jobOpen = request.job && (request.job.status === 'planned' || request.job.status === 'in_progress');
+  const estimate = jobOpen ? await estimateJob(prisma, request.workspaceId, request.job!.id) : null;
   const ahead =
     request.status === 'pending'
       ? await prisma.jobRequest.count({ where: { workspaceId: request.workspaceId, status: 'pending', createdAt: { lt: request.createdAt } } })
@@ -152,9 +170,25 @@ publicRequestsRouter.get('/track/:token', async (req, res) => {
     machineName: request.machine?.name ?? null,
     jobStatus: request.job?.status ?? null,
     ahead,
+    estimate,
+    comments: request.comments,
     files: request.files,
     limits: uploadLimits,
   });
+});
+
+/** The requester writes back, whatever the status. */
+publicRequestsRouter.post('/track/:token/comments', submitLimit, async (req, res) => {
+  const { body } = parse(commentInput, req.body ?? {});
+  const request = await prisma.jobRequest.findUnique({ where: { trackToken: param(req, 'token') }, include: { _count: { select: { comments: true } } } });
+  if (!request) throw notFound('Request');
+  if (request._count.comments >= MAX_COMMENTS_PER_REQUEST) throw new HttpError(409, 'This request has too many messages. Contact the workshop directly.');
+  const comment = await prisma.jobRequestComment.create({
+    data: { requestId: request.id, authorName: request.requesterName, fromRequester: true, body },
+    select: commentSelect,
+  });
+  notifyWorkspace(request.workspaceId);
+  res.status(201).json(comment);
 });
 
 /** Answering "changes requested": new files and an optional message put the request back in the queue. */
@@ -172,12 +206,12 @@ publicRequestsRouter.post('/track/:token/resubmit', submitLimit, viaTrackLink, r
     // Claimed conditionally so a double submit cannot add the files twice.
     const claimed = await prisma.jobRequest.updateMany({
       where: { id: request.id, status: 'changes_requested' },
-      data: {
-        status: 'pending',
-        details: message ? `${request.details}\n\nReply from ${request.requesterName}:\n${message}`.trim().slice(0, 12_000) : request.details,
-      },
+      data: { status: 'pending' },
     });
     if (claimed.count !== 1) throw new HttpError(409, 'This request is not waiting for changes');
+    if (message) {
+      await prisma.jobRequestComment.create({ data: { requestId: request.id, authorName: request.requesterName, fromRequester: true, body: message } });
+    }
     if (files.length) await prisma.jobRequestFile.createMany({ data: files.map((file) => ({ ...file, requestId: request.id })) });
   });
   notifyWorkspace(req.workspaceId);
@@ -191,12 +225,15 @@ const requestInclude = {
   machine: { select: { id: true, name: true } },
   job: { select: { id: true, name: true, status: true } },
   reviewedBy: { select: { name: true } },
+  comments: { orderBy: { createdAt: 'asc' }, select: commentSelect },
 } satisfies Prisma.JobRequestInclude;
 
 type RequestRow = Prisma.JobRequestGetPayload<{ include: typeof requestInclude }>;
 
 /** The progress link is a secret between the requester and whoever handles the queue. */
 const present = ({ trackToken, ...request }: RequestRow, canEdit: boolean) => (canEdit ? { ...request, trackToken } : request);
+
+const memberName = async (userId: string) => (await prisma.user.findUnique({ where: { id: userId }, select: { name: true } }))?.name ?? 'The workshop';
 
 export function registerRequestRoutes(router: Router): void {
   router.get('/job-requests', async (req, res) => {
@@ -228,8 +265,9 @@ export function registerRequestRoutes(router: Router): void {
     const workspaceId = req.workspaceId;
     if (decision === 'changes' && !note) throw new HttpError(400, 'Say what needs changing, so the requester knows what to send');
 
-    const request = await prisma.jobRequest.findFirst({ where: { id, workspaceId } });
+    const request = await prisma.jobRequest.findFirst({ where: { id, workspaceId }, include: { workspace: { select: { name: true } } } });
     if (!request) throw notFound('Request');
+    const reviewer = await memberName(req.userId);
     const jobMachineId = machineId === undefined ? request.machineId : machineId;
     if (decision === 'approve') await assertInWorkspace(prisma, workspaceId, { machine: jobMachineId });
 
@@ -253,16 +291,51 @@ export function registerRequestRoutes(router: Router): void {
             machineId: jobMachineId,
             name: request.title,
             durationHours,
+            queuePosition: await endOfQueue(tx, workspaceId, jobMachineId),
             notes: [`Requested by ${request.requesterName} (${request.requesterEmail}).`, request.details].filter(Boolean).join('\n\n').slice(0, 5000),
             createdById: req.userId,
           },
         });
         await tx.jobRequest.update({ where: { id }, data: { jobId: job.id, machineId: jobMachineId } });
       }
+      // The note joins the conversation, so the requester reads one thread.
+      if (note) await tx.jobRequestComment.create({ data: { requestId: id, userId: req.userId, authorName: reviewer, body: note } });
     });
+
+    emailStatus(request, decision === 'approve' ? 'approved' : decision === 'reject' ? 'rejected' : 'changes_requested', note);
+    const verb = decision === 'approve' ? 'Approved' : decision === 'reject' ? 'Rejected' : 'Asked for changes to';
+    describeActivity(`${verb} request ${request.title}`, { type: 'jobRequest', id });
 
     const updated = await prisma.jobRequest.findUniqueOrThrow({ where: { id }, include: requestInclude });
     res.json(present(updated, true));
+  });
+
+  /** Move an approved request along by hand, for work not run as a job here. */
+  router.post('/job-requests/:id/status', async (req, res) => {
+    const { status } = parse(statusInput, req.body);
+    const id = param(req, 'id');
+    const request = await prisma.jobRequest.findFirst({ where: { id, workspaceId: req.workspaceId }, include: { workspace: { select: { name: true } } } });
+    if (!request) throw notFound('Request');
+    if (!canMoveTo(request.status, status)) {
+      throw new HttpError(409, status === 'in_progress' ? 'Only an approved request can be started' : 'Only an approved or started request can be marked done');
+    }
+    const moved = await prisma.jobRequest.updateMany({ where: { id, status: request.status }, data: { status } });
+    if (moved.count !== 1) throw new HttpError(409, 'This request changed meanwhile. Reload and try again.');
+    emailStatus(request, status);
+    describeActivity(`Marked request ${request.title} ${status === 'done' ? 'done' : 'in progress'}`, { type: 'jobRequest', id });
+    res.json(present(await prisma.jobRequest.findUniqueOrThrow({ where: { id }, include: requestInclude }), req.role !== 'viewer'));
+  });
+
+  router.post('/job-requests/:id/comments', async (req, res) => {
+    const { body } = parse(commentInput, req.body);
+    const id = param(req, 'id');
+    const request = await prisma.jobRequest.findFirst({ where: { id, workspaceId: req.workspaceId }, include: { workspace: { select: { name: true } } } });
+    if (!request) throw notFound('Request');
+    const authorName = await memberName(req.userId);
+    const comment = await prisma.jobRequestComment.create({ data: { requestId: id, userId: req.userId, authorName, body }, select: commentSelect });
+    emailComment(request, authorName, body);
+    describeActivity(`Commented on request ${request.title}`, { type: 'jobRequest', id });
+    res.status(201).json(comment);
   });
 
   /** Removes the request and its files. A job already created from it stays. */
@@ -294,6 +367,7 @@ export function registerRequestRoutes(router: Router): void {
     const current = await prisma.workspace.findUniqueOrThrow({ where: { id: req.workspaceId }, select: { requestToken: true } });
     const requestToken = !enabled ? null : renew || !current.requestToken ? newToken() : current.requestToken;
     await prisma.workspace.update({ where: { id: req.workspaceId }, data: { requestToken } });
+    describeActivity(!enabled ? 'Turned the request link off' : renew ? 'Replaced the request link' : 'Turned the request link on', { type: 'requestLink', id: null });
     res.json(await link(req.workspaceId, true));
   });
 }

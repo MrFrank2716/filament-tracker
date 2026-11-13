@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Download, Inbox, Link2, MessageSquareReply, Trash2, X } from 'lucide-react';
+import { Check, CheckCheck, Download, Inbox, Link2, MessageSquareReply, Play, Trash2, X } from 'lucide-react';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Badge, Card, EmptyState, ErrorNote, Muted, SectionTitle } from '@/components/ui/Display';
 import { FormGrid, NumberField, SelectField, TextAreaField } from '@/components/ui/Form';
+import { CommentThread } from '@/components/requests/CommentThread';
 import { Modal, useConfirm } from '@/components/ui/Modal';
 import { useAction, useToast } from '@/components/ui/Toast';
 import { useWorkspace } from '@/context/WorkspaceContext';
@@ -11,7 +12,7 @@ import type { Catalog } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
 import { formatBytes, formatDate, parseNumber } from '@/lib/format';
 import { JOB_STATUS, REQUEST_STATUS } from '@/lib/status';
-import type { JobRequest, RequestFile, RequestLink } from '@/lib/types';
+import type { JobRequest, RequestComment, RequestFile, RequestLink } from '@/lib/types';
 import styles from '@/components/requests/Requests.module.css';
 
 type Decision = 'approve' | 'changes' | 'reject';
@@ -26,14 +27,14 @@ interface RequestQueueProps {
 
 /** Outside job requests: the ones waiting to be checked in the order they arrived, then the rest. */
 export function RequestQueue({ requests, link, catalog, machineName }: RequestQueueProps) {
-  const { canEdit, isOwner } = useWorkspace();
+  const { canEdit, canOperate, isOwner } = useWorkspace();
   const [reviewing, setReviewing] = useState<{ request: JobRequest; decision: Decision } | null>(null);
 
   const waiting = requests.filter((request) => request.status === 'pending');
   const withRequester = requests.filter((request) => request.status === 'changes_requested');
-  const done = requests
-    .filter((request) => request.status === 'approved' || request.status === 'rejected')
-    .sort((a, b) => (b.reviewedAt ?? b.createdAt).localeCompare(a.reviewedAt ?? a.createdAt));
+  const latest = (a: JobRequest, b: JobRequest) => (b.reviewedAt ?? b.createdAt).localeCompare(a.reviewedAt ?? a.createdAt);
+  const underway = requests.filter((request) => request.status === 'approved' || request.status === 'in_progress').sort(latest);
+  const done = requests.filter((request) => request.status === 'done' || request.status === 'rejected').sort(latest);
 
   if (requests.length === 0) {
     return (
@@ -46,7 +47,7 @@ export function RequestQueue({ requests, link, catalog, machineName }: RequestQu
   }
 
   const card = (request: JobRequest, position?: number) => (
-    <RequestCard key={request.id} request={request} position={position} canEdit={canEdit} onDecide={(decision) => setReviewing({ request, decision })} />
+    <RequestCard key={request.id} request={request} position={position} canEdit={canEdit} canOperate={canOperate} onDecide={(decision) => setReviewing({ request, decision })} />
   );
 
   return (
@@ -63,9 +64,15 @@ export function RequestQueue({ requests, link, catalog, machineName }: RequestQu
           {withRequester.map((request) => card(request))}
         </>
       )}
+      {underway.length > 0 && (
+        <>
+          <SectionTitle count={underway.length}>Approved and in progress</SectionTitle>
+          {underway.map((request) => card(request))}
+        </>
+      )}
       {done.length > 0 && (
         <>
-          <SectionTitle count={done.length}>Checked</SectionTitle>
+          <SectionTitle count={done.length}>Done or not accepted</SectionTitle>
           {done.map((request) => card(request))}
         </>
       )}
@@ -92,7 +99,7 @@ export function RequestFiles({ requestId, files }: { requestId: string; files: R
   );
 }
 
-function RequestCard({ request, position, canEdit, onDecide }: { request: JobRequest; position?: number; canEdit: boolean; onDecide: (decision: Decision) => void }) {
+function RequestCard({ request, position, canEdit, canOperate, onDecide }: { request: JobRequest; position?: number; canEdit: boolean; canOperate: boolean; onDecide: (decision: Decision) => void }) {
   const { wsPath } = useWorkspace();
   const { run, busy } = useAction();
   const confirm = useConfirm();
@@ -141,7 +148,8 @@ function RequestCard({ request, position, canEdit, onDecide }: { request: JobReq
         {request.details && <p className={styles.details}>{request.details}</p>}
         <RequestFiles requestId={request.id} files={request.files} />
 
-        {request.reviewNote && (
+        {/* Older requests kept the review note apart; newer ones put it in the conversation. */}
+        {request.reviewNote && request.comments.length === 0 && (
           <div className={styles.note}>
             <span className={styles.noteLabel}>
               {request.reviewedBy ? `${request.reviewedBy.name} replied` : 'Reply'}
@@ -157,8 +165,22 @@ function RequestCard({ request, position, canEdit, onDecide }: { request: JobReq
           </Muted>
         )}
 
+        <CommentThread
+          comments={request.comments}
+          canWrite={canOperate}
+          placeholder={`Message ${request.requesterName}. They are emailed and see it on their progress link.`}
+          onSend={(body) => api.post<RequestComment>(wsPath(`/job-requests/${request.id}/comments`)!, { body })}
+        />
+
+        {canOperate && !canEdit && (request.status === 'approved' || request.status === 'in_progress') && (
+          <div className={styles.actions}>
+            <StatusButtons request={request} />
+          </div>
+        )}
+
         {canEdit && (
           <div className={styles.actions}>
+            <StatusButtons request={request} />
             {open && (
               <Button variant="primary" icon={Check} onClick={() => onDecide('approve')} disabled={busy}>
                 Approve
@@ -184,6 +206,27 @@ function RequestCard({ request, position, canEdit, onDecide }: { request: JobReq
         )}
       </div>
     </Card>
+  );
+}
+
+/** Approved requests follow their job; these move one along by hand (e.g. work not run as a job here). */
+function StatusButtons({ request }: { request: JobRequest }) {
+  const { wsPath } = useWorkspace();
+  const { run, busy } = useAction();
+  const set = (status: 'in_progress' | 'done', message: string) => run(() => api.post(wsPath(`/job-requests/${request.id}/status`)!, { status }), message);
+  return (
+    <>
+      {request.status === 'approved' && (
+        <Button icon={Play} onClick={() => set('in_progress', 'Marked in progress. The requester was emailed.')} disabled={busy}>
+          Mark in progress
+        </Button>
+      )}
+      {(request.status === 'approved' || request.status === 'in_progress') && (
+        <Button icon={CheckCheck} onClick={() => set('done', 'Marked done. The requester was emailed.')} disabled={busy}>
+          Mark done
+        </Button>
+      )}
+    </>
   );
 }
 
@@ -256,7 +299,7 @@ function ReviewDialog({ request, decision, catalog, onClose }: { request: JobReq
         </>
       )}
       <TextAreaField label={copy.noteLabel} value={note} onChange={setNote} rows={3} maxLength={2000} placeholder={copy.notePlaceholder} autoFocus />
-      {decision !== 'approve' && <Muted>The requester sees this on their progress link. There is no email, so pass the link on if they need a nudge.</Muted>}
+      <Muted>The requester is emailed about the decision, with this message, and sees both on their progress link.</Muted>
       {error && <ErrorNote>{error}</ErrorNote>}
     </Modal>
   );

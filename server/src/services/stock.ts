@@ -1,5 +1,6 @@
 import type { Db } from '@/db';
 import { HttpError } from '@/http';
+import { noteMovement } from '@/services/activity';
 
 export const round = (value: number, places = 4): number => {
   const factor = 10 ** places;
@@ -10,7 +11,7 @@ interface MoveInput {
   workspaceId: string;
   itemId: string;
   delta: number;
-  reason: 'initial' | 'restock' | 'adjust' | 'job' | 'maintenance' | 'import';
+  reason: 'initial' | 'restock' | 'adjust' | 'job' | 'maintenance' | 'import' | 'undo';
   note?: string;
   jobId?: string | null;
   userId?: string | null;
@@ -28,9 +29,10 @@ export async function moveStock(db: Db, { workspaceId, itemId, delta, reason, no
   const applied = round(balance - item.quantity);
   if (applied === 0) return item;
   const updated = await db.item.update({ where: { id: itemId }, data: { quantity: balance } });
-  await db.stockMovement.create({
+  const movement = await db.stockMovement.create({
     data: { workspaceId, itemId, delta: applied, balanceAfter: balance, reason, note, jobId, userId },
   });
+  noteMovement(movement.id);
   return updated;
 }
 

@@ -37,11 +37,13 @@ interface SubUnitPanelProps {
   catalog: Catalog;
   itemById: Map<string, Item>;
   canEdit: boolean;
+  /** Loading and unloading slots: operators may, without editing the attachment itself. */
+  canLoad?: boolean;
   onEdit: () => void;
   onSlot: (slot: Slot) => void;
 }
 
-export function SubUnitPanel({ subUnit, catalog, itemById, canEdit, onEdit, onSlot }: SubUnitPanelProps) {
+export function SubUnitPanel({ subUnit, catalog, itemById, canEdit, canLoad = canEdit, onEdit, onSlot }: SubUnitPanelProps) {
   return (
     <section className={styles.subUnit}>
       <header className={styles.subUnitHead}>
@@ -85,7 +87,7 @@ export function SubUnitPanel({ subUnit, catalog, itemById, canEdit, onEdit, onSl
                 )}
               </>
             );
-            return canEdit ? (
+            return canLoad ? (
               <button key={slot.id} type="button" className={`${styles.slot} ${item ? '' : styles.slotIsEmpty}`} onClick={() => onSlot(slot)}>
                 {content}
               </button>

@@ -8,6 +8,7 @@ import { ToastProvider } from '@/components/ui/Toast';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { FocusProvider } from '@/context/FocusContext';
 import { useWorkspace, WorkspaceProvider } from '@/context/WorkspaceContext';
+import { ActivityPage } from '@/pages/ActivityPage';
 import { AuthPage } from '@/pages/AuthPage';
 import { InventoryPage } from '@/pages/InventoryPage';
 import { JobsPage } from '@/pages/JobsPage';
@@ -75,6 +76,7 @@ export function App() {
                     <Route path="jobs" element={<JobsPage />} />
                     <Route path="maintenance" element={<MaintenancePage />} />
                     <Route path="reorder" element={<ReorderPage />} />
+                    <Route path="activity" element={<ActivityPage />} />
                     <Route path="settings" element={<SettingsPage />} />
                   </Route>
                 </Route>

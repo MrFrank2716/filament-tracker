@@ -1,4 +1,4 @@
-export type Role = 'owner' | 'editor' | 'viewer';
+export type Role = 'owner' | 'admin' | 'operator' | 'viewer';
 export type FieldValue = string | number | boolean | null;
 export type FieldType = 'text' | 'number' | 'select' | 'boolean' | 'color' | 'date';
 export type MachineStatus = 'ready' | 'in_use' | 'needs_service' | 'offline';
@@ -223,6 +223,10 @@ export interface Job {
   toolingCost: number;
   machineCost: number;
   totalCost: number;
+  /** -1 low, 0 normal, 1 high, 2 urgent. */
+  priority: number;
+  queuePosition: number;
+  startedAt: string | null;
   createdAt: string;
   completedAt: string | null;
   machine: { id: string; name: string; hourlyCost: number } | null;
@@ -232,7 +236,15 @@ export interface Job {
   request: { id: string; requesterName: string; requesterEmail: string; files: RequestFile[] } | null;
 }
 
-export type RequestStatus = 'pending' | 'changes_requested' | 'approved' | 'rejected';
+export type RequestStatus = 'pending' | 'changes_requested' | 'approved' | 'in_progress' | 'done' | 'rejected';
+
+export interface RequestComment {
+  id: string;
+  authorName: string;
+  fromRequester: boolean;
+  body: string;
+  createdAt: string;
+}
 
 export interface RequestFile {
   id: string;
@@ -257,6 +269,7 @@ export interface JobRequest {
   job: { id: string; name: string; status: JobStatus } | null;
   reviewedBy: { name: string } | null;
   files: RequestFile[];
+  comments: RequestComment[];
 }
 
 export interface UploadLimits {
@@ -293,8 +306,51 @@ export interface TrackedRequest {
   jobStatus: JobStatus | null;
   /** Requests still waiting that were sent before this one. */
   ahead: number;
+  /** Where the job made from it stands in its machine's queue, while it is open. */
+  estimate: { ahead: number; estimatedStart: string | null; estimatedFinish: string | null; paused: boolean } | null;
+  comments: RequestComment[];
   files: Array<{ name: string; size: number }>;
   limits: UploadLimits;
+}
+
+/** One entry of the workspace's activity log. */
+export interface Activity {
+  id: string;
+  userId: string | null;
+  userName: string;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  summary: string;
+  createdAt: string;
+  undoneAt: string | null;
+  /** True when this viewer may undo it now. */
+  undoable: boolean;
+}
+
+export interface QueuedJob {
+  id: string;
+  name: string;
+  status: JobStatus;
+  priority: number;
+  queuePosition: number;
+  durationHours: number;
+  startedAt: string | null;
+  createdAt: string;
+  remainingHours: number;
+  estimatedStart: string | null;
+  estimatedFinish: string | null;
+  requesterName: string | null;
+}
+
+/** A machine's open jobs in run order. machine is null for jobs not on a machine yet. */
+export interface MachineQueue {
+  machine: { id: string; name: string; status: MachineStatus } | null;
+  paused: boolean;
+  unestimated: number;
+  totalHours: number;
+  clearsAt: string | null;
+  jobs: QueuedJob[];
 }
 
 export interface Dashboard {

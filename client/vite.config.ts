@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// The API the dev server forwards to. Set API_PORT to run a second copy next to one already on 4000.
+const apiPort = process.env.API_PORT ?? '4000';
+
 export default defineConfig({
   plugins: [
     react(),
@@ -35,8 +38,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:4000',
-      '/socket.io': { target: 'http://localhost:4000', ws: true },
+      '/api': `http://localhost:${apiPort}`,
+      '/socket.io': { target: `http://localhost:${apiPort}`, ws: true },
     },
   },
 });

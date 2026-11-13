@@ -116,3 +116,43 @@
   color: var(--color-text-muted);
   white-space: pre-wrap;
 }
+
+/* Print queue: one list per machine, in run order. */
+.queues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.queueNumber {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  border: var(--border);
+  border-radius: var(--radius-md);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-medium);
+}
+
+.queueItem {
+  display: flex;
+  align-items: center;
+  border-bottom: var(--border);
+}
+
+.queueItem:last-child {
+  border-bottom: 0;
+}
+
+.queueItem > :first-child {
+  flex: 1;
+  min-width: 0;
+  border-bottom: 0;
+}
+
+.queueMove {
+  display: inline-flex;
+  flex-direction: column;
+  padding-right: var(--space-2);
+}

@@ -32,7 +32,7 @@ function stepsFor(item: Item, unit: Unit | undefined): number[] {
 }
 
 export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut }: Props) {
-  const { wsPath, canEdit, money } = useWorkspace();
+  const { wsPath, canEdit, canOperate, money } = useWorkspace();
   const { run, busy } = useAction();
   const confirm = useConfirm();
   const { data: movements } = useWsQuery<Movement[]>(`/items/${item.id}/movements`);
@@ -121,7 +121,7 @@ export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut }: Props
           {item.minQuantity > 0 ? `minimum ${formatQuantity(item.minQuantity, unit)}` : ''}
         </Muted>
 
-        {canEdit && (
+        {canOperate && (
           <>
             <div className={styles.steps}>
               {stepsFor(item, unit)
@@ -132,7 +132,7 @@ export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut }: Props
                     {formatNumber(step, 1)}
                   </Button>
                 ))}
-              {stepsFor(item, unit).map((step) => (
+              {canEdit && stepsFor(item, unit).map((step) => (
                 <Button key={`plus-${step}`} size="lg" icon={Plus} disabled={busy} onClick={() => adjust(step)} aria-label={`Add ${step} ${unit?.symbol ?? ''}`}>
                   {formatNumber(step, 1)}
                 </Button>
@@ -145,7 +145,14 @@ export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut }: Props
                 void setTo();
               }}
             >
-              <NumberField label="Counted or weighed? Set the exact amount" value={exact} onChange={setExact} suffix={unit?.symbol} placeholder={String(item.quantity)} />
+              <NumberField
+                label="Counted or weighed? Set the exact amount"
+                value={exact}
+                onChange={setExact}
+                suffix={unit?.symbol}
+                placeholder={String(item.quantity)}
+                hint={canEdit ? undefined : 'Operators can only lower the amount. Ask an admin to add stock.'}
+              />
               <Button type="submit" variant="primary" disabled={busy || parseNumber(exact) === null}>
                 Set
               </Button>

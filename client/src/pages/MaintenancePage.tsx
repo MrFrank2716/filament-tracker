@@ -45,7 +45,7 @@ function dueFigure(entry: ScheduleEntry): string {
 type Tab = 'schedule' | 'tasks' | 'history';
 
 export function MaintenancePage() {
-  const { canEdit } = useWorkspace();
+  const { canEdit, canOperate } = useWorkspace();
   const catalog = useCatalog();
   const { items } = useItems();
   const { data: all, error } = useWsQuery<MaintenanceData>('/maintenance');
@@ -115,7 +115,7 @@ export function MaintenancePage() {
                   trailing={
                     <>
                       <Figure tone={tone}>{dueFigure(entry)}</Figure>
-                      {canEdit && (
+                      {canOperate && (
                         <Button size="sm" icon={Check} onClick={() => setCompleting(entry)}>
                           Done
                         </Button>

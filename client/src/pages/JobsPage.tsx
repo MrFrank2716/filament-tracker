@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Ban, Check, ClipboardList, Pencil, Play, Plus, Trash2, X } from 'lucide-react';
 import { JobForm } from '@/components/jobs/JobForm';
+import { PrintQueue } from '@/components/jobs/PrintQueue';
 import { RequestFiles, RequestQueue } from '@/components/requests/RequestQueue';
 import { Button } from '@/components/ui/Button';
 import { Badge, EmptyState, ErrorNote, Figure, List, Loading, Muted, PageHeader, Row, SectionTitle, Tabs } from '@/components/ui/Display';
@@ -12,20 +13,21 @@ import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import { useCatalog, useItems } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
 import { formatDate, formatHours, formatQuantity } from '@/lib/format';
-import { JOB_STATUS } from '@/lib/status';
-import type { Job, JobRequest, RequestLink } from '@/lib/types';
+import { JOB_STATUS, PRIORITY } from '@/lib/status';
+import type { Job, JobRequest, MachineQueue, RequestLink } from '@/lib/types';
 import styles from '@/components/jobs/Jobs.module.css';
 
 type Tab = 'open' | 'requests' | 'history';
 const isOpen = (job: Job) => job.status === 'planned' || job.status === 'in_progress';
 
 export function JobsPage() {
-  const { canEdit, wsPath, money } = useWorkspace();
+  const { canEdit, canOperate, wsPath, money } = useWorkspace();
   const catalog = useCatalog();
   const { items } = useItems();
   const { data: allJobs, error } = useWsQuery<Job[]>('/jobs');
   const { data: allRequests } = useWsQuery<JobRequest[]>('/job-requests');
   const { data: requestLink } = useWsQuery<RequestLink>('/request-link');
+  const { data: queues } = useWsQuery<MachineQueue[]>('/queue');
   const { machine } = useMachineFocus();
   const { run, busy } = useAction();
   const confirm = useConfirm();
@@ -80,9 +82,9 @@ export function JobsPage() {
     <>
       <PageHeader
         title="Jobs"
-        subtitle={machine ? `Jobs on ${machine.name}, and requests that asked for it.` : 'Finishing a job takes its material from stock and adds tool and machine hours.'}
+        subtitle={machine ? `The queue on ${machine.name}, and requests that asked for it.` : 'Open jobs queue per machine by priority, with estimated finish times. Finishing a job takes its material from stock.'}
         actions={
-          canEdit && (
+          canOperate && (
             <Button variant="primary" icon={Plus} onClick={() => setForm({})}>
               New job
             </Button>
@@ -92,7 +94,7 @@ export function JobsPage() {
 
       <Tabs
         tabs={[
-          { id: 'open', label: 'Open', count: open.length },
+          { id: 'open', label: 'Queue', count: open.length },
           { id: 'requests', label: 'Requests', count: requests.filter((request) => request.status === 'pending').length },
           { id: 'history', label: 'History', count: history.length },
         ]}
@@ -102,9 +104,21 @@ export function JobsPage() {
 
       {tab === 'requests' ? (
         <RequestQueue requests={requests} link={requestLink} catalog={catalog} machineName={machine?.name} />
+      ) : tab === 'open' ? (
+        <PrintQueue
+          queues={queues}
+          jobs={allJobs}
+          machineId={machine?.id}
+          onOpen={setViewId}
+          empty={
+            <EmptyState icon={ClipboardList} title="No open jobs" action={canOperate && <Button variant="primary" icon={Plus} onClick={() => setForm({})}>New job</Button>}>
+              Plan a job to check you have the material, or log one you have just finished.
+            </EmptyState>
+          }
+        />
       ) : shown.length === 0 ? (
-        <EmptyState icon={ClipboardList} title={tab === 'open' ? 'No open jobs' : 'No finished jobs yet'} action={canEdit && tab === 'open' && <Button variant="primary" icon={Plus} onClick={() => setForm({})}>New job</Button>}>
-          {tab === 'open' ? 'Plan a job to check you have the material, or log one you have just finished.' : 'Finished, failed and cancelled jobs appear here with their cost.'}
+        <EmptyState icon={ClipboardList} title="No finished jobs yet">
+          Finished, failed and cancelled jobs appear here with their cost.
         </EmptyState>
       ) : (
         <List>
@@ -137,11 +151,13 @@ export function JobsPage() {
           size="lg"
           onClose={() => setViewId(null)}
           footer={
-            canEdit ? (
+            canOperate ? (
               <>
-                <Button variant="danger" icon={Trash2} onClick={() => remove(viewing)} disabled={busy}>
-                  Delete
-                </Button>
+                {canEdit && (
+                  <Button variant="danger" icon={Trash2} onClick={() => remove(viewing)} disabled={busy}>
+                    Delete
+                  </Button>
+                )}
                 {isOpen(viewing) && (
                   <>
                     <Button icon={Ban} onClick={() => act(viewing, 'cancel', {}, 'Job cancelled')} disabled={busy}>
@@ -169,6 +185,7 @@ export function JobsPage() {
         >
           <div className={styles.meta}>
             <Badge tone={JOB_STATUS[viewing.status].tone}>{JOB_STATUS[viewing.status].label}</Badge>
+            {viewing.priority !== 0 && <Badge tone={PRIORITY[viewing.priority].tone}>{PRIORITY[viewing.priority].label} priority</Badge>}
             {viewing.machine && <span>{viewing.machine.name}</span>}
             <Figure>{formatHours(viewing.durationHours)}</Figure>
             <Muted>

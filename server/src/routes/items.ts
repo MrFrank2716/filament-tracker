@@ -189,6 +189,8 @@ export function registerItemRoutes(router: Router): void {
       if (!current) throw notFound('Item');
       if (mode === 'set' && value < 0) throw new HttpError(400, 'Quantity cannot be negative');
       const delta = mode === 'set' ? round(value - current.quantity) : value;
+      // Operators log what they use; adding stock or correcting it upwards is an inventory change.
+      if (req.role === 'operator' && delta > 0) throw new HttpError(403, 'Operators can log usage but not add stock. Ask an admin.');
       await moveStock(tx, {
         workspaceId, itemId: id, delta, note, userId: req.userId,
         reason: reason ?? (delta > 0 && mode === 'delta' ? 'restock' : 'adjust'),

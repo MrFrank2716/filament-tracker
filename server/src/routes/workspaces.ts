@@ -4,6 +4,7 @@ import { prisma } from '@/db';
 import { ownerOnly, requireAuth, ROLES, workspaceGuard } from '@/auth';
 import { HttpError, notFound, param, parse } from '@/http';
 import { broadcastChanges } from '@/realtime';
+import { recordActivity } from '@/services/activity';
 import { importSnapshot, snapshotSchema } from '@/services/snapshot';
 import { removeWorkspaceUploads } from '@/services/uploads';
 import { getTemplate, listTemplates } from '@/templates';
@@ -67,7 +68,7 @@ workspacesRouter.post('/workspaces', async (req, res) => {
   res.status(201).json({ ...workspace, role: 'owner' });
 });
 
-/** Any member, including a viewer, may leave. Registered before the guard, which blocks viewer writes. */
+/** Any member, including a viewer, may leave. Registered before the guard, which limits viewer and operator writes. */
 workspacesRouter.post('/workspaces/:wid/leave', async (req, res) => {
   const workspaceId = param(req, 'wid');
   const membership = await prisma.membership.findUnique({
@@ -83,7 +84,7 @@ workspacesRouter.post('/workspaces/:wid/leave', async (req, res) => {
 });
 
 const scoped = Router({ mergeParams: true });
-workspacesRouter.use('/workspaces/:wid', workspaceGuard, broadcastChanges, scoped);
+workspacesRouter.use('/workspaces/:wid', workspaceGuard, broadcastChanges, recordActivity, scoped);
 export const workspaceScope = scoped;
 
 // The request-link secret has its own route (/request-link); it is left out of the plain workspace record.
