@@ -1,0 +1,221 @@
+/* ---- Custom field: colour ------------------------------------------- */
+.colorControl {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--tap-target);
+}
+
+.colorInput {
+  width: 3rem;
+  height: var(--tap-target);
+  padding: 2px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.colorValue {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* ---- Form sections --------------------------------------------------- */
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-4);
+  border: var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.legend {
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--color-text-muted);
+}
+
+.details {
+  border: var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.summary {
+  min-height: var(--tap-target);
+  padding: var(--space-3) var(--space-4);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.detailsBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+/* ---- Search box ------------------------------------------------------ */
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-target);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-faint);
+}
+
+.search:focus-within {
+  outline: 2px solid var(--color-focus);
+  border-color: transparent;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.5rem;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font-size: max(1rem, var(--text-md));
+  outline: none;
+}
+
+.searchInput::placeholder {
+  color: var(--color-text-faint);
+}
+
+/* ---- Item sheet ------------------------------------------------------ */
+.sheetHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sheetHeadText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.sheetType {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.stock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-sunken);
+}
+
+.stockFigure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.stockValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-display);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.stockLow {
+  color: var(--color-danger);
+}
+
+.stockUnit {
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.exact {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: var(--space-2);
+}
+
+.life {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
+}
+
+.fact dt {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--color-text-muted);
+}
+
+.fact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.history {
+  display: flex;
+  flex-direction: column;
+}
+
+.move {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  gap: 0 var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: var(--border);
+}
+
+.move:last-child {
+  border-bottom: 0;
+}
+
+.move > :last-child {
+  grid-column: 2;
+}
+
+.moveText {
+  overflow-wrap: anywhere;
+}

@@ -1,0 +1,123 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--tap-target);
+  padding: 0 var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-md);
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background-color var(--duration) var(--ease),
+    border-color var(--duration) var(--ease),
+    transform var(--duration) var(--ease),
+    opacity var(--duration-exit) var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Press lands instantly; only the release eases back. */
+.button:active:not(:disabled) {
+  transform: translateY(1px);
+  transition-duration: 0ms;
+}
+
+/*
+ * Buttons are disabled while a request runs. Greying them at once makes the whole screen blink on every
+ * quick save, so the grey only shows once the wait has lasted 150 ms. A button disabled from the start
+ * has no state change to transition, so it is grey straight away.
+ */
+.button:disabled {
+  opacity: 0.5;
+  transition: opacity var(--duration) var(--ease) 150ms;
+}
+
+.sm {
+  min-height: 2rem;
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-sm);
+}
+
+/* Small buttons look 32 px tall; on touch screens an invisible margin makes the target 44 px. */
+@media (pointer: coarse) {
+  .sm {
+    position: relative;
+  }
+
+  .sm::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+.lg {
+  min-height: 3.25rem;
+  padding: 0 var(--space-6);
+  font-size: var(--text-lg);
+}
+
+.block {
+  width: 100%;
+}
+
+.iconOnly {
+  padding: 0;
+  width: var(--tap-target);
+}
+
+.iconOnly.sm {
+  width: 2rem;
+}
+
+.iconOnly.lg {
+  width: 3.25rem;
+}
+
+.primary {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.secondary {
+  background: var(--color-surface);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+}
+
+.danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.danger:hover:not(:disabled) {
+  border-color: var(--color-danger);
+}

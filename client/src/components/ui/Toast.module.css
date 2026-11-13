@@ -1,0 +1,60 @@
+.region {
+  position: fixed;
+  inset: auto auto calc(var(--tabbar-height) + var(--space-4) + env(safe-area-inset-bottom)) 50%;
+  z-index: 100;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  overflow: visible;
+}
+
+.region:popover-open {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: min(28rem, calc(100vw - var(--space-8)));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-text);
+  color: var(--color-bg);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  box-shadow: var(--shadow-md);
+  animation: pop var(--duration-enter) var(--ease);
+  transition:
+    opacity var(--duration-exit) var(--ease),
+    transform var(--duration-exit) var(--ease);
+}
+
+.leaving {
+  opacity: 0;
+  transform: translateY(0.25rem);
+}
+
+.danger {
+  background: var(--color-danger);
+  color: var(--color-surface);
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
+@media (min-width: 56rem) {
+  .region {
+    bottom: var(--space-6);
+  }
+}

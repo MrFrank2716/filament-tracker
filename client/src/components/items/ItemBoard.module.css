@@ -1,0 +1,193 @@
+/*
+ * Board: columns side by side, each scrolling on its own so the
+ * sideways scrollbar stays within reach however long a column gets.
+ */
+.board {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+  /* Phones: bleed to the screen edges so the next column peeks in, and snap column by column. */
+  margin-inline: calc(var(--space-4) * -1);
+  padding-inline: var(--space-4);
+  padding-bottom: var(--space-2);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--space-4);
+  overscroll-behavior-x: contain;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 min(84vw, 20rem);
+  min-width: 0;
+  max-height: calc(100dvh - var(--tabbar-height) - 6rem - env(safe-area-inset-bottom));
+  border: var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-sunken);
+  scroll-snap-align: start;
+}
+
+.columnHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 3.25rem;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border-bottom: var(--border);
+}
+
+.columnHeading {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.columnTitle {
+  font-size: var(--text-md);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.columnHint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.columnCount {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.columnBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  padding: var(--space-2);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+.columnEmpty {
+  padding: var(--space-5) var(--space-2);
+  color: var(--color-text-faint);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sectionLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--color-text-muted);
+}
+
+.sectionCount {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
+  color: var(--color-text-faint);
+}
+
+/* ---- Card ------------------------------------------------------------ */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color var(--duration) var(--ease);
+}
+
+/* No lift on hover: the edge darkens, nothing moves. */
+.card:hover {
+  border-color: var(--color-border-strong);
+}
+
+.cardFlagged {
+  box-shadow: inset 4px 0 0 var(--color-danger);
+}
+
+.cardTitle {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+}
+
+.cardTitle svg {
+  margin-top: 0.1em;
+}
+
+.cardName {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cardLine {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+}
+
+.cardGauge {
+  display: block;
+  width: 4.5rem;
+}
+
+/* ---- Desktop --------------------------------------------------------- */
+@media (min-width: 56rem) {
+  .board {
+    margin-inline: 0;
+    padding-inline: 0;
+    scroll-snap-type: none;
+  }
+
+  .column {
+    flex: 1 0 16.5rem;
+    max-width: 24rem;
+    max-height: calc(100dvh - 5rem);
+  }
+}

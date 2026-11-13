@@ -1,0 +1,180 @@
+/*
+ * Design tokens. Components only ever reference these variables,
+ * so a theme change happens here and nowhere else.
+ *
+ * Direction: "shop-floor instrument". Cool concrete surfaces, graphite
+ * actions, and colour reserved for state. The orange needle is the one
+ * brand moment and appears only on gauges and the logo.
+ */
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces */
+  --color-bg: #eceef0;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #e2e5e8;
+  --color-surface-hover: #f3f4f6;
+  --color-border: #d3d7dc;
+  --color-border-strong: #a9afb6;
+
+  /* Text */
+  --color-text: #14171a;
+  --color-text-muted: #545b62;
+  /* 4.6:1 on the sunken surface, 5:1 on bg: AA for small text everywhere it sits */
+  --color-text-faint: #5f666e;
+
+  /* Actions and selection: graphite, so colour stays free to mean state */
+  --color-accent: #14171a;
+  --color-accent-hover: #2c3136;
+  --color-accent-soft: #dfe2e6;
+  --color-on-accent: #ffffff;
+  --color-focus: #1f6feb;
+
+  /* The gauge needle and brand mark. Nothing else uses it. */
+  --color-needle: #c2410c;
+
+  /* Status */
+  --color-ok: #1f7a4a;
+  --color-ok-soft: #dff0e6;
+  --color-warn: #8a5a00;
+  --color-warn-soft: #f8ecd0;
+  --color-danger: #b3261e;
+  --color-danger-soft: #f9e0dd;
+  --color-info: #2457b8;
+  --color-info-soft: #e1eafa;
+
+  /* Category tones (item types pick one by name) */
+  --tone-slate: #55606d;
+  --tone-slate-soft: #e3e7eb;
+  --tone-red: #b3261e;
+  --tone-red-soft: #f9e0dd;
+  --tone-orange: #b8400d;
+  --tone-orange-soft: #f9e6dc;
+  --tone-amber: #8a5a00;
+  --tone-amber-soft: #f8ecd0;
+  --tone-green: #1f7a4a;
+  --tone-green-soft: #dff0e6;
+  --tone-teal: #0e7372;
+  --tone-teal-soft: #d8eeee;
+  --tone-blue: #2457b8;
+  --tone-blue-soft: #e1eafa;
+  --tone-violet: #6b41b8;
+  --tone-violet-soft: #ebe4f8;
+  --tone-pink: #a82c68;
+  --tone-pink-soft: #f7e1eb;
+
+  /* Type: Archivo for words, Plex Mono for every number */
+  --font-sans: 'Archivo Variable', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, monospace;
+  --font-data: var(--font-mono);
+  --stretch-display: 87%;
+  --text-label: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-display: 2.25rem;
+  --weight-regular: 420;
+  --weight-medium: 540;
+  --weight-bold: 650;
+  --leading-tight: 1.15;
+  --leading-normal: 1.45;
+  --tracking-label: 0.08em;
+
+  /* Space (4px grid) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* Shape: tight corners, nothing above 8px */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+  --border: 1px solid var(--color-border);
+
+  /* Elevation: hairlines do the work; shadows only for things that float */
+  --shadow-sm: none;
+  --shadow-md: 0 4px 14px rgb(15 20 25 / 10%);
+  --shadow-lg: 0 18px 48px rgb(15 20 25 / 22%);
+  --backdrop: rgb(12 14 16 / 50%);
+
+  /* Layout */
+  --sidebar-width: 15rem;
+  --sidebar-rail-width: 4.5rem;
+  --tabbar-height: 3.75rem;
+  --tap-target: 2.75rem;
+  --content-max: 72rem;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --duration: 140ms;
+  --duration-gauge: 240ms;
+  /* Enters take a little longer than exits: arriving things need reading, leaving things do not. */
+  --duration-enter: 160ms;
+  --duration-exit: 100ms;
+  --indent-step: var(--space-4);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #0f1113;
+    --color-surface: #171a1d;
+    --color-surface-sunken: #22262a;
+    --color-surface-hover: #1d2124;
+    --color-border: #2e3338;
+    --color-border-strong: #4a5057;
+
+    --color-text: #eceef0;
+    --color-text-muted: #9aa1a8;
+    --color-text-faint: #8a9199;
+
+    --color-accent: #eceef0;
+    --color-accent-hover: #ffffff;
+    --color-accent-soft: #2a2f34;
+    --color-on-accent: #0f1113;
+    --color-focus: #6ea8ff;
+
+    --color-needle: #ff8a4c;
+
+    --color-ok: #5fcf90;
+    --color-ok-soft: #15301f;
+    --color-warn: #f2b655;
+    --color-warn-soft: #382a0e;
+    --color-danger: #ff8478;
+    --color-danger-soft: #3d1917;
+    --color-info: #82adff;
+    --color-info-soft: #172646;
+
+    --tone-slate: #aab4c0;
+    --tone-slate-soft: #252a30;
+    --tone-red: #ff8478;
+    --tone-red-soft: #3d1917;
+    --tone-orange: #ff8a4c;
+    --tone-orange-soft: #3a2214;
+    --tone-amber: #f2b655;
+    --tone-amber-soft: #382a0e;
+    --tone-green: #5fcf90;
+    --tone-green-soft: #15301f;
+    --tone-teal: #4fd0cd;
+    --tone-teal-soft: #10302f;
+    --tone-blue: #82adff;
+    --tone-blue-soft: #172646;
+    --tone-violet: #b79cff;
+    --tone-violet-soft: #2a2046;
+    --tone-pink: #ff8fc0;
+    --tone-pink-soft: #3d172a;
+
+    --shadow-md: 0 4px 14px rgb(0 0 0 / 45%);
+    --shadow-lg: 0 18px 48px rgb(0 0 0 / 60%);
+    --backdrop: rgb(0 0 0 / 60%);
+  }
+}

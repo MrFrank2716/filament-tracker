@@ -1,0 +1,131 @@
+.dialog {
+  width: min(34rem, calc(100vw - var(--space-8)));
+  max-height: min(90dvh, 52rem);
+  padding: 0;
+  border: var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.dialog {
+  --rise: 0.5rem;
+}
+
+/* Enter: panel and backdrop arrive together. The exit is a fading copy (see .ghost and Modal.tsx). */
+.dialog[open] {
+  display: flex;
+  animation: rise var(--duration-enter) var(--ease);
+}
+
+.dialog[open]::backdrop {
+  animation: fade var(--duration-enter) var(--ease);
+}
+
+/* The closing copy: same box and place, outside the top layer, its backdrop drawn as a shadow. */
+.dialog.ghost {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  box-shadow:
+    var(--shadow-lg),
+    0 0 0 100vmax var(--backdrop);
+  pointer-events: none;
+  animation: none;
+  transition:
+    opacity var(--duration-exit) var(--ease),
+    transform var(--duration-exit) var(--ease);
+}
+
+.dialog.leaving {
+  opacity: 0;
+  transform: translateY(0.25rem);
+}
+
+.lg {
+  width: min(46rem, calc(100vw - var(--space-8)));
+}
+
+.dialog::backdrop {
+  background: var(--backdrop);
+}
+
+.frame {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
+  border-bottom: var(--border);
+}
+
+.title {
+  font-size: var(--text-lg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  padding-bottom: max(var(--space-3), env(safe-area-inset-bottom));
+  border-top: var(--border);
+  background: var(--color-surface);
+}
+
+.message {
+  color: var(--color-text-muted);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--rise));
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Phones: full-width bottom sheet, thumb-reachable actions. */
+@media (max-width: 40rem) {
+  .dialog,
+  .lg {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 92dvh;
+    margin: auto 0 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-bottom: 0;
+    --rise: 0.75rem;
+  }
+
+  .footer > * {
+    flex: 1 1 auto;
+  }
+}

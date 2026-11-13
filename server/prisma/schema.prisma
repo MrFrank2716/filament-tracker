@@ -1,0 +1,426 @@
+// Filament Tracker data model.
+// Deliberately generic: categories, units, machines and item fields are rows, not columns.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  memberships     Membership[]
+  stockMovements  StockMovement[]
+  maintenanceLogs MaintenanceLog[]
+  jobs            Job[]
+  reviewedRequests JobRequest[]
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  currency    String   @default("GBP")
+  /// Secret part of the public "request a job" link. Null while outside requests are switched off.
+  requestToken String? @unique
+  createdAt   DateTime @default(now())
+
+  jobRequests      JobRequest[]
+  members          Membership[]
+  units            Unit[]
+  suppliers        Supplier[]
+  locations        Location[]
+  itemTypes        ItemType[]
+  items            Item[]
+  machineTypes     MachineType[]
+  machines         Machine[]
+  subUnits         SubUnit[]
+  maintenanceTasks MaintenanceTask[]
+  jobs             Job[]
+  stockMovements   StockMovement[]
+}
+
+/// role: "owner" | "editor" | "viewer"
+model Membership {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        String
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+}
+
+/// User-defined unit of measure (g, m, pcs, sheets, ml ...).
+model Unit {
+  id          String @id @default(cuid())
+  workspaceId String
+  name        String
+  symbol      String
+  /// Decimal places shown and accepted when entering quantities.
+  decimals    Int    @default(0)
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  itemTypes ItemType[]
+  items     Item[]
+
+  @@unique([workspaceId, symbol])
+}
+
+model Supplier {
+  id          String @id @default(cuid())
+  workspaceId String
+  name        String
+  website     String @default("")
+  email       String @default("")
+  notes       String @default("")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  items     Item[]
+
+  @@unique([workspaceId, name])
+}
+
+/// Hierarchy: any depth. `kind` is free text (Room, Shelf, Bin ...). `code` is the label printed as QR/barcode.
+model Location {
+  id          String  @id @default(cuid())
+  workspaceId String
+  name        String
+  kind        String  @default("")
+  code        String  @default("")
+  parentId    String?
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parent    Location?  @relation("LocationTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Location[] @relation("LocationTree")
+  items     Item[]
+  machines  Machine[]
+}
+
+/// A user-defined category of item. Custom fields hang off it.
+model ItemType {
+  id            String  @id @default(cuid())
+  workspaceId   String
+  name          String
+  /// Lucide icon name chosen from the icon picker.
+  icon          String  @default("Package")
+  /// Token palette name (see client tokens), not a raw colour.
+  color         String  @default("slate")
+  defaultUnitId String?
+  /// When true, items of this type accrue usage hours from jobs (tooling) instead of only being consumed.
+  tracksLife    Boolean @default(false)
+  sortOrder     Int     @default(0)
+
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  defaultUnit Unit?         @relation(fields: [defaultUnitId], references: [id], onDelete: SetNull)
+  fields      CustomField[]
+  items       Item[]
+
+  @@unique([workspaceId, name])
+}
+
+/// fieldType: "text" | "number" | "select" | "boolean" | "color" | "date"
+model CustomField {
+  id              String  @id @default(cuid())
+  itemTypeId      String
+  key             String
+  label           String
+  fieldType       String
+  unit            String  @default("")
+  /// JSON array of strings, used by "select".
+  options         Json
+  required        Boolean @default(false)
+  showInList      Boolean @default(true)
+  /// Numeric fields flagged here describe the physical size of a piece and drive the "will it fit" search.
+  isSizeDimension Boolean @default(false)
+  sortOrder       Int     @default(0)
+
+  itemType ItemType @relation(fields: [itemTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([itemTypeId, key])
+}
+
+model Item {
+  id          String   @id @default(cuid())
+  workspaceId String
+  itemTypeId  String
+  name        String
+  sku         String   @default("")
+  quantity    Float    @default(0)
+  /// Quantity when full/new (e.g. 1000 g spool). Optional; enables a fill gauge.
+  capacity    Float?
+  minQuantity Float    @default(0)
+  /// Cost per one unit of `unit`.
+  unitCost    Float    @default(0)
+  unitId      String?
+  supplierId  String?
+  locationId  String?
+  notes       String   @default("")
+  /// Custom field values keyed by CustomField.key.
+  fields      Json
+  /// Tool life: hours accrued from jobs, expected life, and a manual/automatic wear flag.
+  usageHours  Float    @default(0)
+  lifeHours   Float?
+  wearFlag    Boolean  @default(false)
+  /// Offcut / remnant of another item.
+  isRemnant   Boolean  @default(false)
+  parentId    String?
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace          Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  itemType           ItemType         @relation(fields: [itemTypeId], references: [id], onDelete: Restrict)
+  unit               Unit?            @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  supplier           Supplier?        @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  location           Location?        @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  parent             Item?            @relation("ItemRemnants", fields: [parentId], references: [id], onDelete: SetNull)
+  remnants           Item[]           @relation("ItemRemnants")
+  compatibleMachines Machine[]        @relation("ItemMachineCompatibility")
+  slot               Slot?
+  movements          StockMovement[]
+  jobUsages          JobUsage[]
+  maintenanceParts   MaintenancePart[]
+
+  @@index([workspaceId, itemTypeId])
+}
+
+model MachineType {
+  id          String @id @default(cuid())
+  workspaceId String
+  name        String
+  icon        String @default("Cog")
+
+  workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  machines         Machine[]
+  maintenanceTasks MaintenanceTask[]
+
+  @@unique([workspaceId, name])
+}
+
+/// status: "ready" | "in_use" | "needs_service" | "offline"
+model Machine {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  machineTypeId String?
+  name          String
+  manufacturer  String   @default("")
+  model         String   @default("")
+  serial        String   @default("")
+  status        String   @default("ready")
+  usageHours    Float    @default(0)
+  /// Running cost per hour, added to job cost.
+  hourlyCost    Float    @default(0)
+  locationId    String?
+  notes         String   @default("")
+  createdAt     DateTime @default(now())
+
+  workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  machineType      MachineType?      @relation(fields: [machineTypeId], references: [id], onDelete: SetNull)
+  location         Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  compatibleItems  Item[]            @relation("ItemMachineCompatibility")
+  subUnits         SubUnit[]
+  maintenanceTasks MaintenanceTask[]
+  maintenanceLogs  MaintenanceLog[]
+  jobs             Job[]
+  jobRequests      JobRequest[]
+}
+
+/// Hardware attached to a machine (multi-material feeder, tool changer, dryer ...).
+model SubUnit {
+  id          String  @id @default(cuid())
+  workspaceId String
+  machineId   String?
+  name        String
+  kind        String  @default("")
+  /// JSON array of { label, value, unit } - user-defined readings such as humidity.
+  readings    Json
+  statusNote  String  @default("")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  machine   Machine?  @relation(fields: [machineId], references: [id], onDelete: SetNull)
+  slots     Slot[]
+}
+
+model Slot {
+  id        String  @id @default(cuid())
+  subUnitId String
+  position  Int
+  label     String  @default("")
+  itemId    String? @unique
+
+  subUnit SubUnit @relation(fields: [subUnitId], references: [id], onDelete: Cascade)
+  item    Item?   @relation(fields: [itemId], references: [id], onDelete: SetNull)
+
+  @@unique([subUnitId, position])
+}
+
+/// Recurring schedule. Attach to one machine, or to a machine type to cover every machine of that type.
+/// Due when either interval elapses (date and/or usage hours) since the last log for that machine.
+model MaintenanceTask {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  name          String
+  description   String   @default("")
+  machineId     String?
+  machineTypeId String?
+  intervalDays  Float?
+  intervalHours Float?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  machine     Machine?         @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  machineType MachineType?     @relation(fields: [machineTypeId], references: [id], onDelete: Cascade)
+  logs        MaintenanceLog[]
+}
+
+model MaintenanceLog {
+  id             String   @id @default(cuid())
+  taskId         String
+  machineId      String
+  performedAt    DateTime @default(now())
+  hoursAtService Float    @default(0)
+  notes          String   @default("")
+  userId         String?
+
+  task    MaintenanceTask   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  machine Machine           @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  user    User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  parts   MaintenancePart[]
+
+  @@index([taskId, machineId, performedAt])
+}
+
+model MaintenancePart {
+  id       String @id @default(cuid())
+  logId    String
+  itemId   String
+  quantity Float
+
+  log  MaintenanceLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+  item Item           @relation(fields: [itemId], references: [id], onDelete: Cascade)
+}
+
+/// status: "planned" | "in_progress" | "completed" | "failed" | "cancelled"
+model Job {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  machineId     String?
+  name          String
+  status        String    @default("planned")
+  durationHours Float     @default(0)
+  notes         String    @default("")
+  /// Anything not captured by materials/tooling/machine time (labour, outsourcing ...).
+  extraCost     Float     @default(0)
+  /// Snapshots written when the job is completed.
+  materialCost  Float     @default(0)
+  toolingCost   Float     @default(0)
+  machineCost   Float     @default(0)
+  totalCost     Float     @default(0)
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  completedAt   DateTime?
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  machine   Machine?   @relation(fields: [machineId], references: [id], onDelete: SetNull)
+  createdBy User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  usages    JobUsage[]
+  movements StockMovement[]
+  request   JobRequest?
+
+  @@index([workspaceId, status])
+}
+
+/// A job asked for by someone outside the workspace, through the public request link.
+/// It waits in a queue until an editor checks the files and approves it (which creates a planned Job),
+/// asks for changes, or rejects it.
+/// status: "pending" | "changes_requested" | "approved" | "rejected"
+model JobRequest {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  /// The machine the requester asked for, if any.
+  machineId      String?
+  title          String
+  details        String    @default("")
+  requesterName  String
+  requesterEmail String
+  status         String    @default("pending")
+  /// What the reviewer told the requester.
+  reviewNote     String    @default("")
+  reviewedById   String?
+  reviewedAt     DateTime?
+  /// Secret part of the link the requester follows progress with.
+  trackToken     String    @unique
+  jobId          String?   @unique
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  workspace  Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  machine    Machine?         @relation(fields: [machineId], references: [id], onDelete: SetNull)
+  reviewedBy User?            @relation(fields: [reviewedById], references: [id], onDelete: SetNull)
+  job        Job?             @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  files      JobRequestFile[]
+
+  @@index([workspaceId, status])
+}
+
+/// A file sent with a request. The bytes live on disk under UPLOAD_DIR/<workspaceId>/<storedName>.
+model JobRequestFile {
+  id         String   @id @default(cuid())
+  requestId  String
+  /// The name the requester's file had, cleaned up. Shown and used for downloads.
+  name       String
+  /// Random name on disk, so an uploaded name can never choose where a file is written.
+  storedName String
+  size       Int
+  createdAt  DateTime @default(now())
+
+  request JobRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+/// One line of a job: `quantity` is consumed from stock, `hours` is added to the item's tool life.
+model JobUsage {
+  id       String @id @default(cuid())
+  jobId    String
+  itemId   String
+  quantity Float  @default(0)
+  hours    Float  @default(0)
+  /// Snapshot written on completion.
+  cost     Float  @default(0)
+
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+}
+
+/// Audit trail of every stock change. reason: "initial" | "restock" | "adjust" | "job" | "maintenance" | "import"
+model StockMovement {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  itemId       String
+  delta        Float
+  balanceAfter Float
+  reason       String
+  note         String   @default("")
+  jobId        String?
+  userId       String?
+  createdAt    DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  item      Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  job       Job?      @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([itemId, createdAt])
+}

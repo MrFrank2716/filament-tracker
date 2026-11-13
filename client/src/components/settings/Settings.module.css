@@ -1,0 +1,344 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.rail {
+  display: none;
+}
+
+.sectionSelect {
+  max-width: 20rem;
+}
+
+@media (min-width: 48rem) {
+  .layout {
+    display: grid;
+    grid-template-columns: 11rem minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-6);
+  }
+
+  .rail {
+    position: sticky;
+    top: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    border-left: var(--border);
+  }
+
+  .sectionSelect {
+    display: none;
+  }
+}
+
+.railLink {
+  min-height: 2.25rem;
+  margin-left: -1px;
+  padding: var(--space-1) var(--space-3);
+  border: 0;
+  border-left: 2px solid transparent;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+}
+
+.railLink:hover {
+  color: var(--color-text);
+}
+
+.railActive,
+.railActive:hover {
+  border-left-color: var(--color-accent);
+  color: var(--color-text);
+  font-weight: var(--weight-medium);
+}
+
+.general {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.danger {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/*
+ * Nested locations: a spacer before the row text steps the name and its details in together, ending in a
+ * guide line. Deeper than four levels stays at four so names keep their room.
+ */
+.depth {
+  align-self: stretch;
+  flex-shrink: 0;
+  border-right: var(--border);
+}
+
+.depth-1 {
+  width: 0;
+}
+
+.depth-2 {
+  width: var(--indent-step);
+}
+
+.depth-3 {
+  width: calc(var(--indent-step) * 2);
+}
+
+.depth-4 {
+  width: calc(var(--indent-step) * 3);
+}
+
+/* ---- Icon and tone pickers ------------------------------------------ */
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  grid-column: 1 / -1;
+}
+
+.pickerLabel {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+}
+
+.iconGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.5rem, 1fr));
+  gap: var(--space-1);
+}
+
+.iconOption {
+  display: grid;
+  place-items: center;
+  height: 2.5rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+}
+
+.iconOption:hover {
+  color: var(--color-text);
+}
+
+.optionSelected.iconOption {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.toneRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.toneOption {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 2px solid transparent;
+  border-radius: var(--radius-pill);
+  background: currentcolor;
+  outline-offset: 2px;
+}
+
+.optionSelected.toneOption {
+  outline: 2px solid var(--color-text);
+}
+
+.tone-slate {
+  color: var(--tone-slate);
+}
+
+.tone-red {
+  color: var(--tone-red);
+}
+
+.tone-orange {
+  color: var(--tone-orange);
+}
+
+.tone-amber {
+  color: var(--tone-amber);
+}
+
+.tone-green {
+  color: var(--tone-green);
+}
+
+.tone-teal {
+  color: var(--tone-teal);
+}
+
+.tone-blue {
+  color: var(--tone-blue);
+}
+
+.tone-violet {
+  color: var(--tone-violet);
+}
+
+.tone-pink {
+  color: var(--tone-pink);
+}
+
+/* ---- Category editor ------------------------------------------------- */
+.typePreview {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-lg);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fieldCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.fieldTop {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: var(--space-2);
+}
+
+.fieldFlags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-5);
+}
+
+.fieldTools {
+  display: flex;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+/* ---- Members --------------------------------------------------------- */
+.members {
+  display: flex;
+  flex-direction: column;
+  border: var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.member {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 3.5rem;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: var(--border);
+}
+
+.member:last-child {
+  border-bottom: 0;
+}
+
+.memberText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.roleSelect {
+  min-height: 2.25rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.roles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.roles dt {
+  font-weight: var(--weight-bold);
+  text-transform: capitalize;
+}
+
+.roles dd {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.invite {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.invite > button {
+  margin-top: 1.375rem;
+}
+
+/* ---- Import / export ------------------------------------------------- */
+.dataGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: var(--space-3);
+}
+
+.dataCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+}
+
+.dataCard strong {
+  color: var(--color-text);
+}
+
+.dataCard code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.fileInput {
+  display: none;
+}

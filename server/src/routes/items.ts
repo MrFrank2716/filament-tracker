@@ -1,0 +1,212 @@
+import type { Router } from 'express';
+import type { CustomField, Prisma } from '@prisma/client';
+import { z } from 'zod';
+import { prisma, type Json } from '@/db';
+import { HttpError, notFound, param, parse } from '@/http';
+import { assertInWorkspace, moveStock, round } from '@/services/stock';
+
+type FieldValue = string | number | boolean | null;
+
+const itemInput = z.object({
+  itemTypeId: z.string().min(1),
+  name: z.string().trim().min(1, 'Give the item a name').max(200),
+  sku: z.string().trim().max(100).optional(),
+  quantity: z.number().min(0).optional(),
+  capacity: z.number().positive().nullable().optional(),
+  minQuantity: z.number().min(0).optional(),
+  unitCost: z.number().min(0).optional(),
+  unitId: z.string().nullable().optional(),
+  supplierId: z.string().nullable().optional(),
+  locationId: z.string().nullable().optional(),
+  notes: z.string().max(5000).optional(),
+  fields: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+  usageHours: z.number().min(0).optional(),
+  lifeHours: z.number().positive().nullable().optional(),
+  wearFlag: z.boolean().optional(),
+  isRemnant: z.boolean().optional(),
+  parentId: z.string().nullable().optional(),
+  compatibleMachineIds: z.array(z.string()).optional(),
+});
+
+const adjustInput = z.object({
+  mode: z.enum(['delta', 'set']),
+  value: z.number(),
+  reason: z.enum(['restock', 'adjust']).optional(),
+  note: z.string().trim().max(300).optional(),
+});
+
+const itemInclude = {
+  compatibleMachines: { select: { id: true } },
+  slot: { select: { position: true, label: true, subUnit: { select: { id: true, name: true, machineId: true } } } },
+} satisfies Prisma.ItemInclude;
+
+type ItemRow = Prisma.ItemGetPayload<{ include: typeof itemInclude }>;
+
+const present = ({ compatibleMachines, ...item }: ItemRow) => ({
+  ...item,
+  compatibleMachineIds: compatibleMachines.map((m) => m.id),
+});
+
+/** Coerce and validate custom field values against the type's field definitions. Unknown keys are dropped. */
+export function normalizeFields(definitions: CustomField[], input: Record<string, FieldValue>): Record<string, FieldValue> {
+  const output: Record<string, FieldValue> = {};
+  for (const field of definitions) {
+    const raw = input[field.key];
+    const empty = raw === undefined || raw === null || raw === '';
+    if (empty) {
+      if (field.required) throw new HttpError(400, `${field.label} is required`);
+      continue;
+    }
+    switch (field.fieldType) {
+      case 'number': {
+        const value = typeof raw === 'number' ? raw : Number(raw);
+        if (!Number.isFinite(value)) throw new HttpError(400, `${field.label} must be a number`);
+        output[field.key] = value;
+        break;
+      }
+      case 'boolean':
+        output[field.key] = raw === true || raw === 'true' || raw === 'yes' || raw === '1' || raw === 1;
+        break;
+      case 'select': {
+        const options = Array.isArray(field.options) ? field.options.map(String) : [];
+        const match = options.find((o) => o.toLowerCase() === String(raw).toLowerCase());
+        if (!match) throw new HttpError(400, `${field.label} must be one of: ${options.join(', ')}`);
+        output[field.key] = match;
+        break;
+      }
+      case 'color':
+        if (!/^#[0-9a-f]{6}$/i.test(String(raw))) throw new HttpError(400, `${field.label} must be a colour like #1a2b3c`);
+        output[field.key] = String(raw).toLowerCase();
+        break;
+      default:
+        output[field.key] = String(raw).slice(0, 500);
+    }
+  }
+  return output;
+}
+
+export function registerItemRoutes(router: Router): void {
+  router.get('/items', async (req, res) => {
+    const items = await prisma.item.findMany({
+      where: { workspaceId: req.workspaceId, archived: false },
+      orderBy: { name: 'asc' },
+      include: itemInclude,
+    });
+    res.json(items.map(present));
+  });
+
+  router.post('/items', async (req, res) => {
+    const { compatibleMachineIds = [], fields = {}, ...data } = parse(itemInput, req.body);
+    const workspaceId = req.workspaceId;
+    await assertInWorkspace(prisma, workspaceId, {
+      itemType: data.itemTypeId, unit: data.unitId, supplier: data.supplierId,
+      location: data.locationId, item: data.parentId, machine: compatibleMachineIds,
+    });
+    const type = await prisma.itemType.findUniqueOrThrow({ where: { id: data.itemTypeId }, include: { fields: true } });
+
+    const item = await prisma.$transaction(async (tx) => {
+      const created = await tx.item.create({
+        data: {
+          ...data,
+          workspaceId,
+          unitId: data.unitId === undefined ? type.defaultUnitId : data.unitId,
+          fields: normalizeFields(type.fields, fields) as Json,
+          compatibleMachines: { connect: compatibleMachineIds.map((id) => ({ id })) },
+        },
+      });
+      if (created.quantity > 0) {
+        await tx.stockMovement.create({
+          data: { workspaceId, itemId: created.id, delta: created.quantity, balanceAfter: created.quantity, reason: 'initial', userId: req.userId },
+        });
+      }
+      return tx.item.findUniqueOrThrow({ where: { id: created.id }, include: itemInclude });
+    });
+    res.status(201).json(present(item));
+  });
+
+  router.patch('/items/:id', async (req, res) => {
+    const { compatibleMachineIds, fields, quantity, ...data } = parse(itemInput.partial(), req.body);
+    const id = param(req, 'id');
+    const workspaceId = req.workspaceId;
+    const existing = await prisma.item.findFirst({ where: { id, workspaceId } });
+    if (!existing) throw notFound('Item');
+    if (data.parentId === id) throw new HttpError(400, 'An item cannot be an offcut of itself');
+    await assertInWorkspace(prisma, workspaceId, {
+      itemType: data.itemTypeId, unit: data.unitId, supplier: data.supplierId,
+      location: data.locationId, item: data.parentId, machine: compatibleMachineIds,
+    });
+
+    let normalized: Record<string, FieldValue> | undefined;
+    if (fields || (data.itemTypeId && data.itemTypeId !== existing.itemTypeId)) {
+      const type = await prisma.itemType.findUniqueOrThrow({
+        where: { id: data.itemTypeId ?? existing.itemTypeId },
+        include: { fields: true },
+      });
+      normalized = normalizeFields(type.fields, fields ?? (existing.fields as Record<string, FieldValue>));
+    }
+
+    const item = await prisma.$transaction(async (tx) => {
+      await tx.item.update({
+        where: { id },
+        data: {
+          ...data,
+          ...(normalized ? { fields: normalized as Json } : {}),
+          ...(compatibleMachineIds ? { compatibleMachines: { set: compatibleMachineIds.map((machineId) => ({ id: machineId })) } } : {}),
+        },
+      });
+      // Editing the quantity on the form is still a stock change and must be audited.
+      if (quantity !== undefined && quantity !== existing.quantity) {
+        await moveStock(tx, { workspaceId, itemId: id, delta: quantity - existing.quantity, reason: 'adjust', note: 'Edited on item form', userId: req.userId });
+      }
+      return tx.item.findUniqueOrThrow({ where: { id }, include: itemInclude });
+    });
+    res.json(present(item));
+  });
+
+  router.delete('/items/:id', async (req, res) => {
+    const id = param(req, 'id');
+    const existing = await prisma.item.findFirst({ where: { id, workspaceId: req.workspaceId }, include: { _count: { select: { jobUsages: true } } } });
+    if (!existing) throw notFound('Item');
+    if (existing._count.jobUsages > 0) {
+      // Keep job history and costs intact: retire the item instead of erasing it.
+      await prisma.$transaction([
+        prisma.slot.updateMany({ where: { itemId: id }, data: { itemId: null } }),
+        prisma.item.update({ where: { id }, data: { archived: true } }),
+      ]);
+    } else {
+      await prisma.item.delete({ where: { id } });
+    }
+    res.status(204).end();
+  });
+
+  /** Fast workbench adjustment: +/- a delta, or set the exact amount after weighing/counting. */
+  router.post('/items/:id/adjust', async (req, res) => {
+    const { mode, value, reason, note } = parse(adjustInput, req.body);
+    const id = param(req, 'id');
+    const workspaceId = req.workspaceId;
+    const item = await prisma.$transaction(async (tx) => {
+      const current = await tx.item.findFirst({ where: { id, workspaceId } });
+      if (!current) throw notFound('Item');
+      if (mode === 'set' && value < 0) throw new HttpError(400, 'Quantity cannot be negative');
+      const delta = mode === 'set' ? round(value - current.quantity) : value;
+      await moveStock(tx, {
+        workspaceId, itemId: id, delta, note, userId: req.userId,
+        reason: reason ?? (delta > 0 && mode === 'delta' ? 'restock' : 'adjust'),
+      });
+      return tx.item.findUniqueOrThrow({ where: { id }, include: itemInclude });
+    });
+    res.json(present(item));
+  });
+
+  router.get('/items/:id/movements', async (req, res) => {
+    const id = param(req, 'id');
+    await assertInWorkspace(prisma, req.workspaceId, { item: id });
+    const movements = await prisma.stockMovement.findMany({
+      where: { itemId: id },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: { user: { select: { name: true } }, job: { select: { id: true, name: true } } },
+    });
+    res.json(movements);
+  });
+}

@@ -1,0 +1,411 @@
+/* ---- Public pages: sending a request and following it ---------------- */
+.page {
+  display: grid;
+  justify-items: center;
+  min-height: 100dvh;
+  padding: var(--space-6) var(--space-4) var(--space-10);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: min(100%, 36rem);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.brandTitle {
+  font-size: var(--text-2xl);
+  letter-spacing: -0.015em;
+}
+
+/* Which workshop this is, as a label above the title. */
+.brandSub {
+  order: -1;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--color-surface);
+  border: var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.sheetTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-lg);
+  overflow-wrap: anywhere;
+}
+
+/* ---- Progress track: the gauge, as steps --------------------------- */
+.track {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding-right: var(--space-2);
+}
+
+.trackStep {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: 0.25rem;
+}
+
+/* The tick at the start of each step. */
+.trackStep::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 0.875rem;
+  background: var(--color-border-strong);
+}
+
+.trackSegment {
+  display: block;
+  height: 5px;
+  margin-top: 0.25rem;
+  background: var(--color-surface-sunken);
+}
+
+.trackStep:last-child .trackSegment {
+  visibility: hidden;
+}
+
+.trackFilled .trackSegment {
+  background: var(--color-text);
+}
+
+.trackLabel {
+  padding-right: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+@media (min-width: 30rem) {
+  .trackLabel {
+    padding-right: var(--space-3);
+    font-size: var(--text-label);
+    letter-spacing: 0.04em;
+  }
+}
+
+.track-done::before {
+  background: var(--color-text);
+}
+
+.track-done .trackLabel {
+  color: var(--color-text);
+}
+
+/* The step in hand gets the needle. */
+.track-current::before {
+  left: -0.5px;
+  width: 2px;
+  height: 1.125rem;
+  background: var(--color-needle);
+}
+
+.track-current .trackLabel {
+  color: var(--color-text);
+}
+
+.track-blocked-warn::before,
+.track-blocked-danger::before {
+  width: 2px;
+  height: 1.125rem;
+}
+
+.track-blocked-warn::before {
+  background: var(--color-warn);
+}
+
+.track-blocked-danger::before {
+  background: var(--color-danger);
+}
+
+.track-blocked-warn .trackLabel {
+  color: var(--color-warn);
+}
+
+.track-blocked-danger .trackLabel {
+  color: var(--color-danger);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.lead {
+  color: var(--color-text-muted);
+}
+
+.statusRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.done {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  color: var(--color-ok);
+}
+
+.doneText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--color-text);
+}
+
+.linkBox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.linkText {
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+/* A reply is a quote, not a state: an ink rule, no fill. */
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1) 0 var(--space-1) var(--space-4);
+  border-left: 2px solid var(--color-text);
+}
+
+.noteLabel {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+}
+
+.noteText,
+.details {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.details {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
+}
+
+.facts dt {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.reply {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.reply > div {
+  align-self: stretch;
+}
+
+.footnote {
+  color: var(--color-text-faint);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+/* ---- File picker and file lists -------------------------------------- */
+.picker {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.fileInput {
+  display: none;
+}
+
+.pickerHint {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.fileList {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  border: var(--border);
+  border-radius: var(--radius-md);
+}
+
+.file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 2.75rem;
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+  border-bottom: var(--border);
+}
+
+.file:last-child {
+  border-bottom: 0;
+}
+
+.fileName {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.fileMeta {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.fileBad .fileMeta {
+  color: var(--color-danger);
+  font-family: var(--font-sans);
+}
+
+.fileButton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-1) var(--space-3);
+  border: 0;
+  border-bottom: var(--border);
+  background: none;
+  color: inherit;
+  text-align: left;
+  transition: background-color var(--duration) var(--ease);
+}
+
+.fileButton:last-child {
+  border-bottom: 0;
+}
+
+.fileButton:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
+/* ---- Review queue (inside the app) ----------------------------------- */
+.queue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Waiting on the workshop: the amber bar, same as any row that needs action. */
+.queue .requestWaiting {
+  box-shadow: inset 4px 0 0 var(--color-warn);
+}
+
+.request {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.requestHead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.position {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  min-width: 2.25rem;
+  height: 2rem;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.requestTitle {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.requestName {
+  font-size: var(--text-lg);
+  overflow-wrap: anywhere;
+}
+
+.requestMeta {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
