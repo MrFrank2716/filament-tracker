@@ -20,8 +20,8 @@ declare global {
   }
 }
 
-export function signToken(userId: string): string {
-  return jwt.sign({ sub: userId }, env.JWT_SECRET, { expiresIn: '30d' });
+export function signToken(userId: string, expiresIn: `${number}d` = '30d'): string {
+  return jwt.sign({ sub: userId }, env.JWT_SECRET, { expiresIn });
 }
 
 export function verifyToken(token: string): string | null {
