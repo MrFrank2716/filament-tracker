@@ -74,7 +74,7 @@ app.use(errorHandler);
 const server = createServer(app);
 const io = attachRealtime(server);
 server.listen(env.PORT, () => {
-  console.log(`Filament Tracker API listening on http://localhost:${env.PORT}`);
+  console.log(`Wrkbench API listening on http://localhost:${env.PORT}`);
   scheduleGuestCleanup();
 });
 

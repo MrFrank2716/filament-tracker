@@ -1,4 +1,4 @@
-# Filament Tracker
+# Wrkbench
 
 A configurable workshop inventory and maintenance manager. It started as a 3D printing filament tracker and works for any maker space, home workshop, school lab or small business: categories, fields, units, machines and maintenance schedules are all data you define, not code.
 

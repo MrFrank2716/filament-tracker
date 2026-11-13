@@ -177,7 +177,7 @@ export function AppShell() {
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
           <img className={styles.brandIcon} src="/icon.svg" alt="" width={28} height={28} />
-          <span className={styles.brandName}>Filament Tracker</span>
+          <span className={styles.brandName}>Wrkbench</span>
           <IconButton
             className={styles.sidebarToggle}
             icon={collapsed ? PanelLeftOpen : PanelLeftClose}
