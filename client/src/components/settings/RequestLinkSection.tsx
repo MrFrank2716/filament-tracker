@@ -56,7 +56,7 @@ export function RequestLinkSection() {
     <>
       <SectionTitle action={<Badge tone={link.enabled ? 'ok' : 'neutral'}>{link.enabled ? 'On' : 'Off'}</Badge>}>Job requests from outside</SectionTitle>
       <Muted>
-        Anyone with the link can describe a job and send files, without an account. Requests wait under Jobs, in the Requests tab, until an editor has checked the files and approves them, asks for changes or rejects them. Nothing becomes a job until then.
+        Anyone with the link can describe a job and send files, without an account. Requests wait under Jobs, in the Requests tab, until an admin has checked the files and approves them, asks for changes or rejects them. Nothing becomes a job until then.
       </Muted>
 
       <div className={styles.general}>
@@ -100,7 +100,7 @@ export function RequestLinkSection() {
           </>
         )}
 
-        {link.enabled && !url && <Muted>Outside requests are on. {canEdit ? '' : 'Ask an editor or owner for the link.'}</Muted>}
+        {link.enabled && !url && <Muted>Outside requests are on. {canEdit ? '' : 'Ask an admin or owner for the link.'}</Muted>}
       </div>
 
       <Muted>

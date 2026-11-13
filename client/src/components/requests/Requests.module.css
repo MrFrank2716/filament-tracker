@@ -409,3 +409,42 @@
   flex-wrap: wrap;
   gap: var(--space-2);
 }
+
+/* Conversation on a request: members and the requester, newest last. */
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.comments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comment {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1) 0 var(--space-1) var(--space-4);
+  border-left: 2px solid var(--color-text-muted);
+}
+
+.commentMine {
+  border-left-color: var(--color-text);
+}
+
+.commentForm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.commentForm > :first-child {
+  align-self: stretch;
+}

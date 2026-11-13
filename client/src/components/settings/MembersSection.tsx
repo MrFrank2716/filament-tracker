@@ -13,7 +13,8 @@ import styles from '@/components/settings/Settings.module.css';
 
 const ROLE_HELP: Record<Role, string> = {
   owner: 'Everything, including members, settings and deleting the workspace.',
-  editor: 'Add and change stock, machines, jobs and maintenance.',
+  admin: 'Add, change and delete stock, machines, jobs and maintenance. Review requests and undo stock edits.',
+  operator: 'Run jobs, log what was used and maintenance done, load spools, reply to requests. Cannot add stock, edit the inventory or delete anything.',
   viewer: 'Look only. Good for students or visitors.',
 };
 
@@ -24,7 +25,7 @@ export function MembersSection() {
   const { run, busy } = useAction();
   const confirm = useConfirm();
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<Role>('editor');
+  const [role, setRole] = useState<Role>('operator');
 
   if (error) return <ErrorNote>{error}</ErrorNote>;
   if (!members) return <Loading />;
@@ -59,7 +60,8 @@ export function MembersSection() {
                 onChange={(e) => run(() => api.patch(wsPath(`/members/${member.id}`)!, { role: e.target.value }), 'Role updated')}
               >
                 <option value="owner">Owner</option>
-                <option value="editor">Editor</option>
+                <option value="admin">Admin</option>
+                <option value="operator">Operator</option>
                 <option value="viewer">Viewer</option>
               </select>
             ) : (
@@ -89,7 +91,8 @@ export function MembersSection() {
         >
           <TextField label="Add someone by email" type="email" value={email} onChange={setEmail} placeholder="name@example.com" hint="They need to have created an account first." />
           <SelectField label="Role" value={role} onChange={(value) => setRole(value as Role)}>
-            <option value="editor">Editor</option>
+            <option value="operator">Operator</option>
+            <option value="admin">Admin</option>
             <option value="viewer">Viewer</option>
             <option value="owner">Owner</option>
           </SelectField>

@@ -1,12 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { Link2Off, RefreshCw, Send } from 'lucide-react';
+import { CommentThread } from '@/components/requests/CommentThread';
 import { FilePicker, filesProblem } from '@/components/requests/FilePicker';
 import { Button } from '@/components/ui/Button';
 import { EmptyState, ErrorNote, Loading } from '@/components/ui/Display';
 import { TextAreaField } from '@/components/ui/Form';
 import { api } from '@/lib/api';
-import { formatBytes, formatDate } from '@/lib/format';
+import { formatBytes, formatDate, formatDateTime } from '@/lib/format';
 import { JOB_STATUS, REQUEST_STATUS } from '@/lib/status';
 import { refreshAll, useQuery } from '@/lib/store';
 import { Frame } from '@/pages/SubmitRequestPage';
@@ -26,6 +27,8 @@ function progressOf(request: TrackedRequest): Progress {
   if (request.status === 'pending') return { at: 1 };
   if (request.status === 'changes_requested') return { at: 2, blocked: { label: 'Changes needed', tone: 'warn' } };
   if (request.status === 'rejected') return { at: 2, blocked: { label: 'Not accepted', tone: 'danger' } };
+  if (request.status === 'done') return { at: 4 };
+  if (request.status === 'in_progress' && request.jobStatus !== 'failed' && request.jobStatus !== 'cancelled') return { at: 3 };
   if (request.jobStatus === 'in_progress') return { at: 3 };
   if (request.jobStatus === 'completed') return { at: 4 };
   if (request.jobStatus === 'failed') return { at: 3, blocked: { label: 'Failed', tone: 'danger' } };
@@ -137,16 +140,23 @@ export function TrackRequestPage() {
               ? 'Your files are next to be checked. Nothing is made until the request is approved.'
               : `${request.ahead} request${request.ahead === 1 ? ' is' : 's are'} ahead of yours. Nothing is made until the request is approved.`)}
           {request.status === 'changes_requested' && 'The workshop has looked at your files and needs something changed before it can accept the job.'}
-          {request.status === 'approved' &&
-            (request.jobStatus === 'completed'
-              ? 'Done. Contact the workshop to collect it.'
-              : request.jobStatus === 'in_progress'
-                ? 'Being made now. This page updates when it is done.'
-                : 'Accepted. This page updates when it is being made.')}
+          {request.status === 'approved' && 'Accepted. You will get an email when it is being made.'}
+          {request.status === 'in_progress' && 'Being made now. You will get an email when it is done.'}
+          {request.status === 'done' && 'Done. Contact the workshop to collect it.'}
           {request.status === 'rejected' && 'The workshop was not able to accept this job.'}
         </p>
 
-        {request.reviewNote && (
+        {request.estimate && (
+          <p className={styles.lead}>
+            {request.estimate.paused
+              ? 'The machine it is booked on is paused at the moment, so there is no time estimate yet.'
+              : request.estimate.estimatedFinish
+                ? `${request.estimate.ahead === 0 ? 'Next up' : `${request.estimate.ahead} job${request.estimate.ahead === 1 ? '' : 's'} ahead of it`}. Estimated ready around ${formatDateTime(request.estimate.estimatedFinish)}.`
+                : null}
+          </p>
+        )}
+
+        {request.reviewNote && request.comments.length === 0 && (
           <div className={styles.note}>
             <span className={styles.noteLabel}>From {request.workspaceName}</span>
             <p className={styles.noteText}>{request.reviewNote}</p>
@@ -163,6 +173,17 @@ export function TrackRequestPage() {
             </Button>
           </form>
         )}
+
+        <CommentThread
+          comments={request.comments}
+          canWrite
+          viewer="requester"
+          placeholder="Ask the workshop something or add details"
+          onSend={async (body) => {
+            await api.post(`/public/track/${token}/comments`, { body });
+            refreshAll();
+          }}
+        />
 
         <dl className={styles.facts}>
           <div>

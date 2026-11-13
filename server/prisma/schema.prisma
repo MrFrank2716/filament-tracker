@@ -24,6 +24,8 @@ model User {
   maintenanceLogs MaintenanceLog[]
   jobs            Job[]
   reviewedRequests JobRequest[]
+  requestComments  JobRequestComment[]
+  activities       ActivityLog[]
 }
 
 model Workspace {
@@ -48,9 +50,12 @@ model Workspace {
   maintenanceTasks MaintenanceTask[]
   jobs             Job[]
   stockMovements   StockMovement[]
+  activities       ActivityLog[]
 }
 
-/// role: "owner" | "editor" | "viewer"
+/// role: "owner" | "admin" | "operator" | "viewer"
+/// Owners also manage members and the workspace itself. Admins change everything else.
+/// Operators run jobs and log what they use, but cannot change the inventory or delete anything.
 model Membership {
   id          String   @id @default(cuid())
   userId      String
@@ -332,6 +337,10 @@ model Job {
   machineCost   Float     @default(0)
   totalCost     Float     @default(0)
   createdById   String?
+  /// Print queue: higher priority runs first on its machine, then queuePosition (set by dragging), then age.
+  priority      Int       @default(0)
+  queuePosition Int       @default(0)
+  startedAt     DateTime?
   createdAt     DateTime  @default(now())
   completedAt   DateTime?
 
@@ -348,7 +357,8 @@ model Job {
 /// A job asked for by someone outside the workspace, through the public request link.
 /// It waits in a queue until an editor checks the files and approves it (which creates a planned Job),
 /// asks for changes, or rejects it.
-/// status: "pending" | "changes_requested" | "approved" | "rejected"
+/// status: "pending" | "changes_requested" | "approved" | "in_progress" | "done" | "rejected"
+/// in_progress and done follow the job made from it, and can also be set by hand.
 model JobRequest {
   id             String    @id @default(cuid())
   workspaceId    String
@@ -374,8 +384,27 @@ model JobRequest {
   reviewedBy User?            @relation(fields: [reviewedById], references: [id], onDelete: SetNull)
   job        Job?             @relation(fields: [jobId], references: [id], onDelete: SetNull)
   files      JobRequestFile[]
+  comments   JobRequestComment[]
 
   @@index([workspaceId, status])
+}
+
+/// A message on a request, from a member or from the requester (through their progress link).
+/// The requester sees every comment.
+model JobRequestComment {
+  id            String   @id @default(cuid())
+  requestId     String
+  /// Null when the requester wrote it, or when the member has since been deleted.
+  userId        String?
+  authorName    String
+  fromRequester Boolean  @default(false)
+  body          String
+  createdAt     DateTime @default(now())
+
+  request JobRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user    User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([requestId, createdAt])
 }
 
 /// A file sent with a request. The bytes live on disk under UPLOAD_DIR/<workspaceId>/<storedName>.
@@ -406,7 +435,7 @@ model JobUsage {
   item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
 }
 
-/// Audit trail of every stock change. reason: "initial" | "restock" | "adjust" | "job" | "maintenance" | "import"
+/// Audit trail of every stock change. reason: "initial" | "restock" | "adjust" | "job" | "maintenance" | "import" | "undo"
 model StockMovement {
   id           String   @id @default(cuid())
   workspaceId  String
@@ -425,4 +454,31 @@ model StockMovement {
   user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([itemId, createdAt])
+}
+
+/// Who changed what and when: one row per successful change a member makes.
+/// Stock edits list the movements they made in `movementIds`, which is what lets them be undone.
+model ActivityLog {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String?
+  /// Kept so the log still reads right after the member is removed.
+  userName    String    @default("")
+  /// Short kind such as "item.adjust", "job.finish", "member.add".
+  action      String
+  /// What it happened to ("item", "job", "machine" ...) and its id, when there is one.
+  entityType  String    @default("")
+  entityId    String?
+  /// A sentence for people: "Adjusted PLA Black by -120".
+  summary     String
+  /// JSON array of StockMovement ids made by this change.
+  movementIds Json
+  undoneAt    DateTime?
+  undoneById  String?
+  createdAt   DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
 }

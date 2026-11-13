@@ -12,6 +12,12 @@ const schema = z.object({
   UPLOAD_DIR: z.string().min(1).default('uploads'),
   UPLOAD_MAX_MB: z.coerce.number().positive().max(2048).default(50),
   UPLOAD_MAX_FILES: z.coerce.number().int().positive().max(50).default(5),
+  // Status emails to people who sent a job request. Without SMTP_URL they are printed to the log instead.
+  // e.g. smtps://user:pass@smtp.example.com:465
+  SMTP_URL: z.string().optional(),
+  MAIL_FROM: z.string().default('Wrkbench <no-reply@localhost>'),
+  // Where the app is reached, for links in emails. Defaults to CLIENT_ORIGIN.
+  APP_URL: z.string().optional(),
   UPLOAD_EXTENSIONS: z.string().default('3mf,stl,step,stp,obj,amf,gcode,nc,svg,dxf,pdf,png,jpg,jpeg,txt'),
 });
 

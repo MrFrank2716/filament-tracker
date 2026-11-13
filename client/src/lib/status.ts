@@ -21,7 +21,16 @@ export const REQUEST_STATUS: Record<RequestStatus, { label: string; tone: Status
   pending: { label: 'Waiting to be checked', tone: 'warn' },
   changes_requested: { label: 'Changes needed', tone: 'info' },
   approved: { label: 'Approved', tone: 'ok' },
+  in_progress: { label: 'In progress', tone: 'info' },
+  done: { label: 'Done', tone: 'ok' },
   rejected: { label: 'Not accepted', tone: 'danger' },
+};
+
+export const PRIORITY: Record<number, { label: string; tone: StatusTone }> = {
+  [-1]: { label: 'Low', tone: 'neutral' },
+  0: { label: 'Normal', tone: 'neutral' },
+  1: { label: 'High', tone: 'warn' },
+  2: { label: 'Urgent', tone: 'danger' },
 };
 
 export const DUE_STATUS: Record<DueStatus, { label: string; tone: StatusTone }> = {
@@ -38,6 +47,7 @@ export const MOVEMENT_REASON: Record<string, string> = {
   job: 'Used in job',
   maintenance: 'Used in service',
   import: 'Imported',
+  undo: 'Undone',
 };
 
 /** "3 days overdue · 12 h left" - whichever clocks the task runs on. */

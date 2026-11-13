@@ -23,7 +23,7 @@ type Dialog =
   | { kind: 'slot'; subUnit: SubUnit; slot: Slot; picking: boolean };
 
 export function MachinesPage() {
-  const { canEdit, wsPath, money } = useWorkspace();
+  const { canEdit, canOperate, wsPath, money } = useWorkspace();
   const catalog = useCatalog();
   const { items } = useItems();
   const subUnits = useWsQuery<SubUnit[]>('/sub-units');
@@ -51,6 +51,7 @@ export function MachinesPage() {
       catalog={catalog}
       itemById={itemById}
       canEdit={canEdit}
+      canLoad={canOperate}
       onEdit={() => setDialog({ kind: 'subUnit', subUnit })}
       onSlot={(slot) => setDialog({ kind: 'slot', subUnit, slot, picking: !slot.itemId })}
     />

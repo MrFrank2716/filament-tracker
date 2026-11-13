@@ -1,9 +1,16 @@
 import type { Router } from 'express';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { prisma } from '@/db';
+import { prisma, type Db } from '@/db';
 import { HttpError, notFound, param, parse } from '@/http';
+import { followJob } from '@/services/requestStatus';
 import { assertInWorkspace, moveStock, round } from '@/services/stock';
+
+/** New jobs, and jobs moved to another machine, join the end of that machine's queue. */
+export async function endOfQueue(db: Db, workspaceId: string, machineId: string | null | undefined): Promise<number> {
+  const last = await db.job.aggregate({ where: { workspaceId, machineId: machineId ?? null, status: { in: ['planned', 'in_progress'] } }, _max: { queuePosition: true } });
+  return (last._max.queuePosition ?? -1) + 1;
+}
 
 const usageInput = z.object({
   itemId: z.string().min(1),
@@ -17,6 +24,8 @@ const jobInput = z.object({
   durationHours: z.number().min(0).max(10_000).optional(),
   notes: z.string().max(5000).optional(),
   extraCost: z.number().min(0).optional(),
+  /** -1 low, 0 normal, 1 high, 2 urgent. */
+  priority: z.number().int().min(-1).max(2).optional(),
   usages: z.array(usageInput).max(60).optional(),
 });
 
@@ -93,7 +102,13 @@ export function registerJobRoutes(router: Router): void {
     const lines = mergeUsages(usages);
     await assertInWorkspace(prisma, req.workspaceId, { machine: data.machineId, item: lines.map((l) => l.itemId) });
     const job = await prisma.job.create({
-      data: { ...data, workspaceId: req.workspaceId, createdById: req.userId, usages: { create: lines } },
+      data: {
+        ...data,
+        workspaceId: req.workspaceId,
+        createdById: req.userId,
+        queuePosition: await endOfQueue(prisma, req.workspaceId, data.machineId),
+        usages: { create: lines },
+      },
       include: jobInclude,
     });
     res.status(201).json(present(job));
@@ -111,7 +126,11 @@ export function registerJobRoutes(router: Router): void {
     await assertInWorkspace(prisma, req.workspaceId, { machine: data.machineId, item: lines?.map((l) => l.itemId) });
     const job = await prisma.job.update({
       where: { id },
-      data: { ...data, ...(lines ? { usages: { deleteMany: {}, create: lines } } : {}) },
+      data: {
+        ...data,
+        ...(data.machineId !== undefined && data.machineId !== existing.machineId ? { queuePosition: await endOfQueue(prisma, req.workspaceId, data.machineId) } : {}),
+        ...(lines ? { usages: { deleteMany: {}, create: lines } } : {}),
+      },
       include: jobInclude,
     });
     res.json(present(job));
@@ -123,11 +142,12 @@ export function registerJobRoutes(router: Router): void {
     if (!existing) throw notFound('Job');
     if (existing.status !== 'planned') throw new HttpError(409, 'Only planned jobs can be started');
     const [job] = await prisma.$transaction([
-      prisma.job.update({ where: { id }, data: { status: 'in_progress' }, include: jobInclude }),
+      prisma.job.update({ where: { id }, data: { status: 'in_progress', startedAt: new Date() }, include: jobInclude }),
       ...(existing.machineId
         ? [prisma.machine.updateMany({ where: { id: existing.machineId, status: 'ready' }, data: { status: 'in_use' } })]
         : []),
     ]);
+    await followJob(id, 'in_progress');
     res.json(present(job));
   });
 
@@ -178,6 +198,8 @@ export function registerJobRoutes(router: Router): void {
       },
       { timeout: 30_000 },
     );
+    // A failed run is not the requester's job done: it stays where it is until someone reruns it or sets it by hand.
+    if (outcome === 'completed') await followJob(id, 'done');
     res.json(present(job));
   });
 
