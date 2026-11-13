@@ -37,7 +37,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
         <div className={styles.brand}>
           <img src="/icon.svg" alt="" width={44} height={44} />
           <div>
-            <h1 className={styles.title}>Filament Tracker</h1>
+            <h1 className={styles.title}>Wrkbench</h1>
             <p className={styles.tagline}>Know what is in stock, where it is, and what needs attention.</p>
           </div>
         </div>

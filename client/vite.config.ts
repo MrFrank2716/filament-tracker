@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'icon-maskable.svg'],
       manifest: {
-        name: 'Filament Tracker',
-        short_name: 'Tracker',
+        name: 'Wrkbench',
+        short_name: 'Wrkbench',
         description: 'Workshop inventory and maintenance manager',
         theme_color: '#14171a',
         background_color: '#eceef0',
