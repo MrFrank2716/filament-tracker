@@ -10,6 +10,7 @@ import { FocusProvider } from '@/context/FocusContext';
 import { useWorkspace, WorkspaceProvider } from '@/context/WorkspaceContext';
 import { ActivityPage } from '@/pages/ActivityPage';
 import { AuthPage } from '@/pages/AuthPage';
+import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/PasswordResetPages';
 import { InventoryPage } from '@/pages/InventoryPage';
 import { JobsPage } from '@/pages/JobsPage';
 import { OverviewPage } from '@/pages/MachineOverviewPage';
@@ -64,6 +65,8 @@ export function App() {
               <Routes>
                 <Route path="/login" element={<AuthPage mode="login" />} />
                 <Route path="/register" element={<AuthPage mode="register" />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
                 {/* Open to anyone holding the link: sending a job request and following its progress. */}
                 <Route path="/submit/:token" element={<SubmitRequestPage />} />
                 <Route path="/request/:token" element={<TrackRequestPage />} />

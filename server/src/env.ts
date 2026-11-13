@@ -12,8 +12,10 @@ const schema = z.object({
   UPLOAD_DIR: z.string().min(1).default('uploads'),
   UPLOAD_MAX_MB: z.coerce.number().positive().max(2048).default(50),
   UPLOAD_MAX_FILES: z.coerce.number().int().positive().max(50).default(5),
-  // Status emails to people who sent a job request. Without SMTP_URL they are printed to the log instead.
-  // e.g. smtps://user:pass@smtp.example.com:465
+  // Emails: password reset links, and status updates to people who sent a job request.
+  // RESEND_API_KEY sends over HTTPS, which works on hosts that block outgoing SMTP (it wins when both are set).
+  // SMTP_URL is the alternative, e.g. smtps://user:pass@smtp.example.com:465. With neither, emails are printed to the log.
+  RESEND_API_KEY: z.string().optional(),
   SMTP_URL: z.string().optional(),
   MAIL_FROM: z.string().default('Wrkbench <no-reply@localhost>'),
   // Where the app is reached, for links in emails. Defaults to CLIENT_ORIGIN.

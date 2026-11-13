@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/db';
 import { importSnapshot } from '@/services/snapshot';
-import { removeWorkspaceUploads } from '@/services/uploads';
+import { removeUsers } from '@/services/accounts';
 import { getTemplate } from '@/templates';
 
 /**
@@ -46,18 +46,8 @@ export async function removeExpiredGuests(): Promise<number> {
   const cutoff = new Date(Date.now() - GUEST_DAYS * 24 * 60 * 60 * 1000);
   const expired = await prisma.user.findMany({ where: { isGuest: true, createdAt: { lt: cutoff } }, select: { id: true } });
   if (expired.length === 0) return 0;
-  const ids = expired.map((user) => user.id);
-
-  const workspaces = await prisma.workspace.findMany({
-    where: { members: { some: { userId: { in: ids } }, every: { userId: { in: ids } } } },
-    select: { id: true },
-  });
-  for (const { id } of workspaces) {
-    await prisma.workspace.delete({ where: { id } });
-    await removeWorkspaceUploads(id);
-  }
-  await prisma.user.deleteMany({ where: { id: { in: ids } } });
-  return ids.length;
+  await removeUsers(expired.map((user) => user.id));
+  return expired.length;
 }
 
 export function scheduleGuestCleanup(): void {

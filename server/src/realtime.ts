@@ -2,7 +2,7 @@ import type { Server as HttpServer } from 'node:http';
 import type { RequestHandler } from 'express';
 import { Server } from 'socket.io';
 import { env } from '@/env';
-import { getRole, verifyToken } from '@/auth';
+import { getRole, userForSession } from '@/auth';
 
 let io: Server | null = null;
 
@@ -13,10 +13,13 @@ export function attachRealtime(server: HttpServer): Server {
   io = created;
 
   io.use((socket, next) => {
-    const userId = verifyToken(String(socket.handshake.auth?.token ?? ''));
-    if (!userId) return next(new Error('unauthorized'));
-    socket.data.userId = userId;
-    next();
+    userForSession(String(socket.handshake.auth?.token ?? ''))
+      .then((user) => {
+        if (!user) return next(new Error('unauthorized'));
+        socket.data.userId = user.id;
+        next();
+      })
+      .catch(() => next(new Error('unauthorized')));
   });
 
   io.on('connection', (socket) => {

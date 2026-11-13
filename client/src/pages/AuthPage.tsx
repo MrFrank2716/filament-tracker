@@ -61,6 +61,11 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
             hint={registering ? 'At least 8 characters.' : undefined}
             required
           />
+          {!registering && (
+            <p className={styles.forgot}>
+              <Link to="/forgot-password">Forgot password?</Link>
+            </p>
+          )}
           {error && <ErrorNote>{error}</ErrorNote>}
           <Button type="submit" variant="primary" size="lg" block disabled={busy}>
             {registering ? 'Create account' : 'Sign in'}
