@@ -18,6 +18,7 @@ import { registerMaintenanceRoutes } from '@/routes/maintenance';
 import { registerReportRoutes } from '@/routes/reports';
 import { publicRequestsRouter, registerRequestRoutes } from '@/routes/requests';
 import { registerTransferRoutes } from '@/routes/transfer';
+import { scheduleGuestCleanup } from '@/services/guests';
 import { workspaceScope, workspacesRouter } from '@/routes/workspaces';
 
 const app = express();
@@ -74,6 +75,7 @@ const server = createServer(app);
 const io = attachRealtime(server);
 server.listen(env.PORT, () => {
   console.log(`Wrkbench API listening on http://localhost:${env.PORT}`);
+  scheduleGuestCleanup();
 });
 
 // A redeploy sends SIGTERM: stop taking requests, let open ones finish, then release the database.

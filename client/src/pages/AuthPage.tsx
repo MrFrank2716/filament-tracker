@@ -7,28 +7,33 @@ import { useAuth } from '@/context/AuthContext';
 import styles from '@/pages/AuthPage.module.css';
 
 export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
-  const { user, login, register } = useAuth();
+  const { user, login, register, continueAsGuest } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  if (user) return <Navigate to="/" replace />;
   const registering = mode === 'register';
+  // A guest may open the register page to keep their work under a real account.
+  const upgrading = registering && Boolean(user?.isGuest);
+  if (user && !upgrading) return <Navigate to="/" replace />;
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
+  const run = async (action: () => Promise<void>) => {
     setError('');
     setBusy(true);
     try {
-      if (registering) await register(name, email, password);
-      else await login(email, password);
+      await action();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Something went wrong');
     } finally {
       setBusy(false);
     }
+  };
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void run(() => (registering ? register(name, email, password) : login(email, password)));
   };
 
   return (
@@ -44,6 +49,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
 
         <form className={styles.form} onSubmit={submit}>
           <h2 className={styles.heading}>{registering ? 'Create your account' : 'Sign in'}</h2>
+          {upgrading && <p className={styles.note}>Everything you set up as a guest stays with your new account.</p>}
           {registering && <TextField label="Your name" value={name} onChange={setName} autoComplete="name" required />}
           <TextField label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" inputMode="email" required />
           <TextField
@@ -59,10 +65,23 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           <Button type="submit" variant="primary" size="lg" block disabled={busy}>
             {registering ? 'Create account' : 'Sign in'}
           </Button>
+          {!upgrading && (
+            <>
+              <div className={styles.divider}>or</div>
+              <Button size="lg" block disabled={busy} onClick={() => void run(continueAsGuest)}>
+                Continue as guest
+              </Button>
+              <p className={styles.note}>
+                Try it with a sample workshop, no account needed. Guest sessions are removed after 7 days.
+              </p>
+            </>
+          )}
         </form>
 
         <p className={styles.switch}>
-          {registering ? (
+          {upgrading ? (
+            <Link to="/">Back to the workshop</Link>
+          ) : registering ? (
             <>
               Already have an account? <Link to="/login">Sign in</Link>
             </>

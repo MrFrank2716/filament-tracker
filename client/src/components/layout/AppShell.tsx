@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   ClipboardList, Cog, Eye, LayoutDashboard, LayoutGrid, LogOut, Menu, Package, PanelLeftClose, PanelLeftOpen, Plus, Settings, ShoppingCart,
   Sunrise, Wrench, type LucideIcon,
@@ -165,6 +165,13 @@ export function AppShell() {
     </button>
   );
 
+  // A guest has no email to show; offer the way to keep what they have set up instead.
+  const keepWork = (onNavigate?: () => void) => (
+    <Link to="/register" className={styles.accountLink} onClick={onNavigate}>
+      Create account to keep this
+    </Link>
+  );
+
   return (
     <div className={`${styles.shell} ${collapsed ? styles.collapsed : ''}`}>
       <aside className={styles.sidebar}>
@@ -188,7 +195,7 @@ export function AppShell() {
         <div className={styles.account}>
           <div className={styles.accountText}>
             <span className={styles.accountName}>{user?.name}</span>
-            <span className={styles.accountRole}>{workspace?.role}</span>
+            {user?.isGuest ? keepWork() : <span className={styles.accountRole}>{workspace?.role}</span>}
           </div>
           {collapsed ? (
             <IconButton icon={LogOut} label="Sign out" size="sm" onClick={logout} />
@@ -244,7 +251,7 @@ export function AppShell() {
           <div className={styles.account}>
             <div className={styles.accountText}>
               <span className={styles.accountName}>{user?.name}</span>
-              <span className={styles.accountEmail}>{user?.email}</span>
+              {user?.isGuest ? keepWork(() => setMoreOpen(false)) : <span className={styles.accountEmail}>{user?.email}</span>}
             </div>
             <Button variant="ghost" size="sm" icon={LogOut} onClick={logout}>
               Sign out

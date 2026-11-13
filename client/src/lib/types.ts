@@ -9,6 +9,8 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  /** A try-it-out session: no email or password yet, removed after a week unless it registers. */
+  isGuest: boolean;
 }
 
 export interface Workspace {
