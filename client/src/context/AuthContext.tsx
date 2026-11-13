@@ -16,6 +16,8 @@ interface AuthValue {
   /** Start a temporary session with its own example workspace. */
   continueAsGuest: () => Promise<void>;
   logout: () => void;
+  /** Replace the signed-in user with a fresher copy from the server. */
+  updateUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -77,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error,
       retry: restore,
       logout,
+      updateUser: setUser,
       login: async (email, password) => start(await api.post<Session>('/auth/login', { email, password })),
       // A guest who registers stays the same user, so what is on screen is still theirs.
       register: async (name, email, password) =>

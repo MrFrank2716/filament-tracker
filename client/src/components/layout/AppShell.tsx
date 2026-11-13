@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  ClipboardList, Cog, Eye, LayoutDashboard, LayoutGrid, LogOut, Menu, Package, PanelLeftClose, PanelLeftOpen, Plus, Settings, ShoppingCart,
+  ClipboardList, Cog, Eye, LayoutDashboard, LayoutGrid, LogOut, Menu, Package, Palette, PanelLeftClose, PanelLeftOpen, Plus, Settings, ShoppingCart,
   Sunrise, Wrench, type LucideIcon,
 } from 'lucide-react';
 import { DailyReport, useDailyReport } from '@/components/report/DailyReport';
@@ -56,7 +56,7 @@ function FocusBar() {
   const { machines, machineTypeById } = useCatalog();
   const { machine, setFocus } = useMachineFocus();
   const { pathname } = useLocation();
-  if (machines.length === 0 || pathname.startsWith('/settings')) return null;
+  if (machines.length === 0 || pathname.startsWith('/settings') || pathname.startsWith('/appearance')) return null;
 
   return (
     <div className={styles.focus}>
@@ -109,6 +109,7 @@ export function AppShell() {
     { to: '/machines', label: 'Machines', icon: Cog, primary: false },
     { to: '/reorder', label: 'Reorder', icon: ShoppingCart, primary: false, alert: toReorder },
     { to: '/settings', label: 'Settings', icon: Settings, primary: false },
+    { to: '/appearance', label: 'Appearance', icon: Palette, primary: false },
   ];
 
   const switchWorkspace = (id: string) => {

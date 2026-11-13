@@ -17,6 +17,11 @@ model User {
   passwordHash String
   /// A try-it-out session without an email or password. Removed after a week unless it registers.
   isGuest      Boolean  @default(false)
+  /// Appearance. themeMode: "system" | "light" | "dark". themePreset: a preset id from client/src/lib/themes.ts.
+  themeMode    String   @default("system")
+  themePreset  String   @default("graphite")
+  /// "#rrggbb", or null to use the preset's own accent.
+  themeAccent  String?
   createdAt    DateTime @default(now())
 
   memberships     Membership[]
