@@ -15,6 +15,13 @@ interface AuthValue {
   register: (name: string, email: string, password: string) => Promise<void>;
   /** Start a temporary session with its own example workspace. */
   continueAsGuest: () => Promise<void>;
+  /** Also signs out every other device. */
+  changePassword: (currentPassword: string, password: string) => Promise<void>;
+  signOutOthers: () => Promise<void>;
+  /** Finish a "forgot password" link: sets the password and signs in. */
+  resetPassword: (token: string, password: string) => Promise<void>;
+  /** Permanently removes the account, then signs out. */
+  deleteAccount: (password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -82,6 +89,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register: async (name, email, password) =>
         start(await api.post<Session>('/auth/register', { name, email, password }), Boolean(user?.isGuest)),
       continueAsGuest: async () => start(await api.post<Session>('/auth/guest')),
+      // Both replace this device's token, because the old one stops working along with every other device's.
+      changePassword: async (currentPassword, password) =>
+        start(await api.post<Session>('/auth/password', { currentPassword, password }), true),
+      signOutOthers: async () => start(await api.post<Session>('/auth/sign-out-others'), true),
+      resetPassword: async (token, password) => start(await api.post<Session>('/auth/reset', { token, password })),
+      deleteAccount: async (password) => {
+        await api.post('/auth/delete-account', { password });
+        logout();
+      },
     };
   }, [user, loading, error, restore, logout]);
 

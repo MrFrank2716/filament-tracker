@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { AccountSection } from '@/components/settings/AccountSection';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Building2, LogOut, MapPin, Plus, Ruler, Shapes, Trash2, Truck } from 'lucide-react';
 import { CrudSection } from '@/components/settings/CrudSection';
@@ -18,7 +19,7 @@ import { flattenLocations, locationPath } from '@/lib/format';
 import type { ItemType } from '@/lib/types';
 import styles from '@/components/settings/Settings.module.css';
 
-type Tab = 'general' | 'categories' | 'units' | 'machineTypes' | 'locations' | 'suppliers' | 'members' | 'requests' | 'data';
+type Tab = 'general' | 'categories' | 'units' | 'machineTypes' | 'locations' | 'suppliers' | 'members' | 'requests' | 'data' | 'account';
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'general', label: 'Workspace' },
@@ -30,6 +31,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'members', label: 'Members' },
   { id: 'requests', label: 'Job requests' },
   { id: 'data', label: 'Import / export' },
+  { id: 'account', label: 'Your account' },
 ];
 
 export function SettingsPage() {
@@ -198,6 +200,7 @@ export function SettingsPage() {
         {tab === 'members' && <MembersSection />}
         {tab === 'requests' && <RequestLinkSection />}
         {tab === 'data' && <DataSection catalog={catalog} />}
+        {tab === 'account' && <AccountSection />}
       </div>
       </div>
 

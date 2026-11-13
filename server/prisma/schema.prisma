@@ -17,6 +17,8 @@ model User {
   passwordHash String
   /// A try-it-out session without an email or password. Removed after a week unless it registers.
   isGuest      Boolean  @default(false)
+  /// Part of every sign-in token. Raising it signs the user out everywhere and cancels pending reset links.
+  tokenVersion Int      @default(0)
   createdAt    DateTime @default(now())
 
   memberships     Membership[]

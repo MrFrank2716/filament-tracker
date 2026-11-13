@@ -41,25 +41,50 @@ declare global {
   }
 }
 
-export function signToken(userId: string, expiresIn: `${number}d` = '30d'): string {
-  return jwt.sign({ sub: userId }, env.JWT_SECRET, { expiresIn });
+interface TokenUser {
+  id: string;
+  tokenVersion: number;
 }
 
-export function verifyToken(token: string): string | null {
+/** The token carries the user's tokenVersion, so raising that number revokes every token issued before. */
+export function signToken(user: TokenUser, expiresIn: `${number}d` = '30d'): string {
+  return jwt.sign({ sub: user.id, v: user.tokenVersion }, env.JWT_SECRET, { expiresIn });
+}
+
+/** A one-hour, single-purpose token for the emailed "set a new password" link. Never accepted as a sign-in. */
+export function signResetToken(user: TokenUser): string {
+  return jwt.sign({ sub: user.id, v: user.tokenVersion, purpose: 'reset' }, env.JWT_SECRET, { expiresIn: '1h' });
+}
+
+function readToken(token: string, purpose: 'session' | 'reset'): { userId: string; version: number } | null {
   try {
     const payload = jwt.verify(token, env.JWT_SECRET);
-    return typeof payload === 'object' && typeof payload.sub === 'string' ? payload.sub : null;
+    if (typeof payload !== 'object' || typeof payload.sub !== 'string') return null;
+    if ((payload.purpose ?? 'session') !== purpose) return null;
+    // Tokens from before versions existed carry none: they count as version 0.
+    return { userId: payload.sub, version: typeof payload.v === 'number' ? payload.v : 0 };
   } catch {
     return null;
   }
 }
 
-export const requireAuth: RequestHandler = (req, _res, next) => {
-  const header = req.headers.authorization ?? '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-  const userId = token ? verifyToken(token) : null;
-  if (!userId) throw new HttpError(401, 'Please sign in');
-  req.userId = userId;
+/** The user a token belongs to, or null when it is invalid, expired, revoked or the account is gone. */
+async function userFor(token: string, purpose: 'session' | 'reset') {
+  const claims = token ? readToken(token, purpose) : null;
+  if (!claims) return null;
+  const user = await prisma.user.findUnique({ where: { id: claims.userId } });
+  return user && user.tokenVersion === claims.version ? user : null;
+}
+
+export const userForSession = (token: string) => userFor(token, 'session');
+export const userForReset = (token: string) => userFor(token, 'reset');
+
+export const bearerToken = (header: string | undefined): string => (header?.startsWith('Bearer ') ? header.slice(7) : '');
+
+export const requireAuth: RequestHandler = async (req, _res, next) => {
+  const user = await userForSession(bearerToken(req.headers.authorization));
+  if (!user) throw new HttpError(401, 'Please sign in');
+  req.userId = user.id;
   next();
 };
 

@@ -100,7 +100,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   // Live updates: when anyone changes this workspace, refresh what is on screen.
   useEffect(() => {
     if (!user || !workspaceId) return;
-    const socket = io({ auth: { token: tokenStore.get() }, transports: ['websocket', 'polling'] });
+    const socket = io({ auth: (send) => send({ token: tokenStore.get() }), transports: ['websocket', 'polling'] });
     const join = () => socket.emit('workspace:join', workspaceId);
     socket.on('connect', join);
     socket.on('workspace:changed', () => {

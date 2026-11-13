@@ -1,0 +1,126 @@
+import { useState, type FormEvent, type ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/Button';
+import { ErrorNote } from '@/components/ui/Display';
+import { TextField } from '@/components/ui/Form';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/lib/api';
+import styles from '@/pages/AuthPage.module.css';
+
+function Frame({ children, footer }: { children: ReactNode; footer: ReactNode }) {
+  return (
+    <main className={styles.page}>
+      <div className={styles.panel}>
+        <div className={styles.brand}>
+          <img src="/icon.svg" alt="" width={44} height={44} />
+          <div>
+            <h1 className={styles.title}>Wrkbench</h1>
+            <p className={styles.tagline}>Know what is in stock, where it is, and what needs attention.</p>
+          </div>
+        </div>
+        {children}
+        <p className={styles.switch}>{footer}</p>
+      </div>
+    </main>
+  );
+}
+
+const message = (cause: unknown) => (cause instanceof Error ? cause.message : 'Something went wrong');
+
+/** Step one: ask for the link. The answer never says whether the address has an account. */
+export function ForgotPasswordPage() {
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError('');
+    setBusy(true);
+    try {
+      setSent((await api.post<{ message: string }>('/auth/forgot', { email })).message);
+    } catch (cause) {
+      setError(message(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Frame footer={<Link to="/login">Back to sign in</Link>}>
+      <form className={styles.form} onSubmit={submit}>
+        <h2 className={styles.heading}>Forgot your password?</h2>
+        {sent ? (
+          <p className={styles.note} role="status">
+            {sent} The link works for one hour. Check your spam folder if it does not arrive.
+          </p>
+        ) : (
+          <>
+            <p className={styles.note}>Enter the email you signed up with and we will send you a link to choose a new password.</p>
+            <TextField label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" inputMode="email" required />
+            {error && <ErrorNote>{error}</ErrorNote>}
+            <Button type="submit" variant="primary" size="lg" block disabled={busy}>
+              Send reset link
+            </Button>
+          </>
+        )}
+      </form>
+    </Frame>
+  );
+}
+
+/** Step two: the emailed link lands here with its token in the URL fragment. */
+export function ResetPasswordPage() {
+  const { resetPassword } = useAuth();
+  const navigate = useNavigate();
+  // Read once: the fragment never reaches the server, and it is cleared from the address bar straight away.
+  const [token] = useState(() => {
+    const value = new URLSearchParams(window.location.hash.slice(1)).get('token') ?? '';
+    if (value) window.history.replaceState(null, '', window.location.pathname);
+    return value;
+  });
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError('');
+    setBusy(true);
+    try {
+      await resetPassword(token, password);
+      navigate('/', { replace: true });
+    } catch (cause) {
+      setError(message(cause));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Frame footer={<Link to="/forgot-password">Ask for a new link</Link>}>
+      <form className={styles.form} onSubmit={submit}>
+        <h2 className={styles.heading}>Choose a new password</h2>
+        {token ? (
+          <>
+            <TextField
+              label="New password"
+              type="password"
+              value={password}
+              onChange={setPassword}
+              autoComplete="new-password"
+              hint="At least 8 characters. Every device signed in to your account will be signed out."
+              required
+            />
+            {error && <ErrorNote>{error}</ErrorNote>}
+            <Button type="submit" variant="primary" size="lg" block disabled={busy}>
+              Set password and sign in
+            </Button>
+          </>
+        ) : (
+          <ErrorNote>This link is incomplete. Open the link from your email again, or ask for a new one.</ErrorNote>
+        )}
+      </form>
+    </Frame>
+  );
+}
