@@ -8,8 +8,9 @@ let io: Server | null = null;
 
 const room = (workspaceId: string) => `workspace:${workspaceId}`;
 
-export function attachRealtime(server: HttpServer): void {
-  io = new Server(server, { cors: { origin: env.CLIENT_ORIGIN } });
+export function attachRealtime(server: HttpServer): Server {
+  const created = new Server(server, { cors: { origin: env.CLIENT_ORIGIN } });
+  io = created;
 
   io.use((socket, next) => {
     const userId = verifyToken(String(socket.handshake.auth?.token ?? ''));
@@ -29,6 +30,8 @@ export function attachRealtime(server: HttpServer): void {
       socket.join(room(workspaceId));
     });
   });
+
+  return created;
 }
 
 /** For changes that do not come from a signed-in member, such as an outside job request arriving. */

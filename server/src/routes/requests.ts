@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { ownerOnly } from '@/auth';
 import { prisma } from '@/db';
 import { HttpError, notFound, param, parse } from '@/http';
+import { rateLimit } from '@/rateLimit';
 import { notifyWorkspace } from '@/realtime';
 import { assertInWorkspace } from '@/services/stock';
 import { cleanFileName, newToken, receiveFiles, removeStored, storedPath, uploadedFiles, uploadLimits } from '@/services/uploads';
@@ -42,23 +43,6 @@ const reviewInput = z.object({
 });
 
 // ---- Public: no account needed -------------------------------------------------
-
-/** Small in-memory limiter for the unauthenticated write routes. */
-function rateLimit(max: number, windowMs: number): RequestHandler {
-  const hits = new Map<string, number[]>();
-  return (req, _res, next) => {
-    const now = Date.now();
-    const key = req.ip ?? 'unknown';
-    const recent = (hits.get(key) ?? []).filter((at) => now - at < windowMs);
-    if (recent.length >= max) throw new HttpError(429, 'Too many requests from this connection. Please try again later.');
-    recent.push(now);
-    hits.set(key, recent);
-    if (hits.size > 5000) {
-      for (const [other, times] of hits) if (!times.some((at) => now - at < windowMs)) hits.delete(other);
-    }
-    next();
-  };
-}
 
 const submitLimit = rateLimit(20, 60 * 60 * 1000);
 

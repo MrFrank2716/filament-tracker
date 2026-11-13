@@ -5,6 +5,9 @@ const schema = z.object({
   JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters'),
   PORT: z.coerce.number().int().positive().default(4000),
   CLIENT_ORIGIN: z.string().default('http://localhost:5173'),
+  // How many proxies sit in front of the app (1 on most hosts, 0 when it is reached directly).
+  // Rate limits count per client address, which is only right when this matches.
+  TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
   // Files sent with outside job requests. The folder is relative to the server package unless absolute.
   UPLOAD_DIR: z.string().min(1).default('uploads'),
   UPLOAD_MAX_MB: z.coerce.number().positive().max(2048).default(50),
@@ -14,7 +17,7 @@ const schema = z.object({
 
 const parsed = schema.safeParse(process.env);
 if (!parsed.success) {
-  console.error('Invalid environment. Copy server/.env.example to server/.env and fill it in.');
+  console.error('Invalid environment. Copy server/.env.example to server/.env and fill it in, or set these on your host.');
   console.error(parsed.error.issues.map((i) => `  ${i.path.join('.')}: ${i.message}`).join('\n'));
   process.exit(1);
 }
