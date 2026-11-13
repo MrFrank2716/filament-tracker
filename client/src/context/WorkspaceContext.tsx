@@ -70,7 +70,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setWorkspaces([]);
     setError(null);
-    if (!userId) return;
+    if (!userId) {
+      // Signed out: forget who the list was loaded for. Otherwise the same person signing back in counts as
+      // "loaded, with no workspaces" until the list arrives, and is sent to first-workspace set-up.
+      setLoadedFor(null);
+      return;
+    }
     let cancelled = false;
     reload()
       // A failed load is not the same as having no workspaces: say so rather than sending them to set-up.
