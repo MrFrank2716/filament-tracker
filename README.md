@@ -4,7 +4,7 @@ A configurable workshop inventory and maintenance manager. It started as a 3D pr
 
 ## Run it
 
-Requires Node.js 20 or newer.
+Requires Node.js 22.9 or newer.
 
 ```bash
 npm install
@@ -26,7 +26,22 @@ npm run dev
 
 Open http://localhost:5173 and sign in with `SEED_EMAIL` / `SEED_PASSWORD` from `server/.env`, or create your own account and start from a template (or blank).
 
-For a single-process deployment, `npm run build` then `npm start`: the API serves the built client on its own port (4000 by default).
+## Deploy it
+
+The app is one Node process: after `npm run build`, `npm start` serves the API, the built client and the live updates on one port (4000 by default). It keeps its data in a SQLite file and an uploads folder, so it needs a host with a **persistent disk** and must run as a **single instance** (rate limits and live updates live in the process).
+
+The `Dockerfile` builds that image. It applies pending database migrations on every start (`npm run db:deploy`) and expects a volume mounted at `/data`, which holds the database (`/data/app.db`) and uploaded files (`/data/uploads`). Back that volume up; nothing else needs keeping.
+
+Set these on the host:
+
+| Variable | Value |
+| --- | --- |
+| `JWT_SECRET` | A new long random string. Never reuse the local one; changing it signs everyone out. |
+| `CLIENT_ORIGIN` | The live address, for example `https://tracker.example.com` |
+| `TRUST_PROXY` | Proxies in front of the app. The image sets `1`, which suits most hosts. |
+| `DATABASE_URL`, `UPLOAD_DIR`, `PORT` | Set by the image; change only if the volume is mounted elsewhere or the host assigns a port. |
+
+Do not run `npm run db:seed` on the live site: it creates the demo account. Without Docker, the same steps by hand are `npm ci`, `npm run build`, `npm run db:deploy`, `npm start`, with the variables above in the environment (a `server/.env` file is read when present and is not required).
 
 ## Layout
 

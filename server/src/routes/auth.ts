@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { prisma } from '@/db';
 import { requireAuth, signToken } from '@/auth';
 import { HttpError, parse } from '@/http';
+import { rateLimit } from '@/rateLimit';
 
 export const authRouter = Router();
 
@@ -15,7 +16,11 @@ const registration = credentials.extend({ name: z.string().trim().min(1, 'Enter 
 
 const publicUser = (user: { id: string; email: string; name: string }) => ({ id: user.id, email: user.email, name: user.name });
 
-authRouter.post('/register', async (req, res) => {
+// Per client address. Generous enough for a shared workshop connection, tight enough to stop password guessing.
+const loginLimit = rateLimit(20, 15 * 60 * 1000);
+const registerLimit = rateLimit(10, 60 * 60 * 1000);
+
+authRouter.post('/register', registerLimit, async (req, res) => {
   const { email, password, name } = parse(registration, req.body);
   if (await prisma.user.findUnique({ where: { email } })) {
     throw new HttpError(409, 'An account with that email already exists');
@@ -24,7 +29,7 @@ authRouter.post('/register', async (req, res) => {
   res.status(201).json({ token: signToken(user.id), user: publicUser(user) });
 });
 
-authRouter.post('/login', async (req, res) => {
+authRouter.post('/login', loginLimit, async (req, res) => {
   const { email, password } = parse(credentials, req.body);
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {

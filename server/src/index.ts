@@ -4,6 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import express from 'express';
+import helmet from 'helmet';
+import { prisma } from '@/db';
 import { env } from '@/env';
 import { errorHandler, HttpError } from '@/http';
 import { attachRealtime } from '@/realtime';
@@ -20,6 +22,17 @@ import { workspaceScope, workspacesRouter } from '@/routes/workspaces';
 
 const app = express();
 app.disable('x-powered-by');
+app.set('trust proxy', env.TRUST_PROXY);
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        // The host's proxy redirects to HTTPS; leaving this on would break plain-HTTP runs on a local network.
+        upgradeInsecureRequests: null,
+      },
+    },
+  }),
+);
 app.use(cors({ origin: env.CLIENT_ORIGIN }));
 app.use(express.json({ limit: '5mb' }));
 
@@ -50,14 +63,31 @@ const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 if (existsSync(clientDist)) {
   app.use(express.static(clientDist));
   app.get(/^(?!\/api\/).*/, (_req, res) => {
-    res.sendFile(path.join(clientDist, 'index.html'));
+    // Relative to a root, so a dot-folder somewhere above the app (which sendFile refuses) cannot break deep links.
+    res.sendFile('index.html', { root: clientDist });
   });
 }
 
 app.use(errorHandler);
 
 const server = createServer(app);
-attachRealtime(server);
+const io = attachRealtime(server);
 server.listen(env.PORT, () => {
   console.log(`Filament Tracker API listening on http://localhost:${env.PORT}`);
 });
+
+// A redeploy sends SIGTERM: stop taking requests, let open ones finish, then release the database.
+let stopping = false;
+function shutdown(signal: string): void {
+  if (stopping) return;
+  stopping = true;
+  console.log(`${signal} received, shutting down`);
+  // If a connection refuses to close, do not hang the deploy.
+  setTimeout(() => process.exit(1), 10_000).unref();
+  // Closing socket.io also closes the HTTP server it is attached to.
+  io.close(() => {
+    prisma.$disconnect().finally(() => process.exit(0));
+  });
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
