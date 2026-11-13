@@ -11,7 +11,10 @@ interface AuthValue {
   error: string | null;
   retry: () => void;
   login: (email: string, password: string) => Promise<void>;
+  /** For a guest this turns the session into a real account and keeps its workspaces. */
   register: (name: string, email: string, password: string) => Promise<void>;
+  /** Start a temporary session with its own example workspace. */
+  continueAsGuest: () => Promise<void>;
   logout: () => void;
 }
 
@@ -63,9 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [logout]);
 
   const value = useMemo<AuthValue>(() => {
-    const start = (session: Session) => {
+    const start = (session: Session, keepData = false) => {
       tokenStore.set(session.token);
-      clearStore();
+      if (!keepData) clearStore();
       setUser(session.user);
     };
     return {
@@ -75,7 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       retry: restore,
       logout,
       login: async (email, password) => start(await api.post<Session>('/auth/login', { email, password })),
-      register: async (name, email, password) => start(await api.post<Session>('/auth/register', { name, email, password })),
+      // A guest who registers stays the same user, so what is on screen is still theirs.
+      register: async (name, email, password) =>
+        start(await api.post<Session>('/auth/register', { name, email, password }), Boolean(user?.isGuest)),
+      continueAsGuest: async () => start(await api.post<Session>('/auth/guest')),
     };
   }, [user, loading, error, restore, logout]);
 
