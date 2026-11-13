@@ -16,11 +16,35 @@ const newPassword = z.string().min(8, 'Use at least 8 characters').max(200);
 const credentials = z.object({ email: emailField, password: newPassword });
 const registration = credentials.extend({ name: z.string().trim().min(1, 'Enter your name').max(80) });
 
-const publicUser = (user: { id: string; email: string; name: string; isGuest: boolean }) => ({
+interface UserRecord {
+  id: string;
+  email: string;
+  name: string;
+  isGuest: boolean;
+  themeMode: string;
+  themePreset: string;
+  themeAccent: string | null;
+}
+
+const publicUser = (user: UserRecord) => ({
   id: user.id,
   email: user.email,
   name: user.name,
   isGuest: user.isGuest,
+  appearance: { mode: user.themeMode, preset: user.themePreset, accent: user.themeAccent },
+});
+
+// Keep in step with PRESETS in client/src/lib/themes.ts.
+const THEME_PRESETS = ['graphite', 'slate', 'paper', 'night'] as const;
+
+const appearanceInput = z.object({
+  mode: z.enum(['system', 'light', 'dark']),
+  preset: z.enum(THEME_PRESETS),
+  accent: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, 'Use a colour like #2457b8')
+    .transform((hex) => hex.toLowerCase())
+    .nullable(),
 });
 
 // Per client address. Generous enough for a shared workshop connection, tight enough to stop password guessing.
@@ -68,6 +92,16 @@ authRouter.post('/guest', guestLimit, async (_req, res) => {
 authRouter.get('/me', requireAuth, async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.userId } });
   if (!user) throw new HttpError(401, 'Please sign in');
+  res.json({ user: publicUser(user) });
+});
+
+/** A personal preference: any signed-in user, guests included, may set their own. */
+authRouter.patch('/me/appearance', requireAuth, async (req, res) => {
+  const { mode, preset, accent } = parse(appearanceInput, req.body);
+  const user = await prisma.user.update({
+    where: { id: req.userId },
+    data: { themeMode: mode, themePreset: preset, themeAccent: accent },
+  });
   res.json({ user: publicUser(user) });
 });
 

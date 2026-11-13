@@ -19,6 +19,11 @@ model User {
   isGuest      Boolean  @default(false)
   /// Part of every sign-in token. Raising it signs the user out everywhere and cancels pending reset links.
   tokenVersion Int      @default(0)
+  /// Appearance. themeMode: "system" | "light" | "dark". themePreset: a preset id from client/src/lib/themes.ts.
+  themeMode    String   @default("system")
+  themePreset  String   @default("graphite")
+  /// "#rrggbb", or null to use the preset's own accent.
+  themeAccent  String?
   createdAt    DateTime @default(now())
 
   memberships     Membership[]

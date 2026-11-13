@@ -1,3 +1,5 @@
+import type { Appearance } from '@/lib/themes';
+
 export type Role = 'owner' | 'admin' | 'operator' | 'viewer';
 export type FieldValue = string | number | boolean | null;
 export type FieldType = 'text' | 'number' | 'select' | 'boolean' | 'color' | 'date';
@@ -11,6 +13,8 @@ export interface User {
   name: string;
   /** A try-it-out session: no email or password yet, removed after a week unless it registers. */
   isGuest: boolean;
+  /** Personal theme. Missing from an older server: treat as the default. */
+  appearance?: Appearance;
 }
 
 export interface Workspace {

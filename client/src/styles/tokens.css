@@ -124,8 +124,18 @@
   --indent-step: var(--space-4);
 }
 
+/*
+ * Dark values appear twice: once for the OS setting, once for a user who picked dark
+ * in Appearance (data-theme on <html>). Picking light switches the OS rule off.
+ * Keep the two blocks identical. A preset or accent then overrides the surface, text
+ * and accent tokens inline (client/src/lib/themes.ts); status and tone colours stay.
+ */
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --color-bg: #0f1113;
     --color-surface: #171a1d;
     --color-surface-sunken: #22262a;
@@ -177,4 +187,60 @@
     --shadow-lg: 0 18px 48px rgb(0 0 0 / 60%);
     --backdrop: rgb(0 0 0 / 60%);
   }
+}
+
+/* Same values as the block above. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: #0f1113;
+  --color-surface: #171a1d;
+  --color-surface-sunken: #22262a;
+  --color-surface-hover: #1d2124;
+  --color-border: #2e3338;
+  --color-border-strong: #4a5057;
+
+  --color-text: #eceef0;
+  --color-text-muted: #9aa1a8;
+  --color-text-faint: #8a9199;
+
+  --color-accent: #eceef0;
+  --color-accent-hover: #ffffff;
+  --color-accent-soft: #2a2f34;
+  --color-on-accent: #0f1113;
+  --color-focus: #6ea8ff;
+
+  --color-needle: #ff8a4c;
+
+  --color-ok: #5fcf90;
+  --color-ok-soft: #15301f;
+  --color-warn: #f2b655;
+  --color-warn-soft: #382a0e;
+  --color-danger: #ff8478;
+  --color-danger-soft: #3d1917;
+  --color-info: #82adff;
+  --color-info-soft: #172646;
+
+  --tone-slate: #aab4c0;
+  --tone-slate-soft: #252a30;
+  --tone-red: #ff8478;
+  --tone-red-soft: #3d1917;
+  --tone-orange: #ff8a4c;
+  --tone-orange-soft: #3a2214;
+  --tone-amber: #f2b655;
+  --tone-amber-soft: #382a0e;
+  --tone-green: #5fcf90;
+  --tone-green-soft: #15301f;
+  --tone-teal: #4fd0cd;
+  --tone-teal-soft: #10302f;
+  --tone-blue: #82adff;
+  --tone-blue-soft: #172646;
+  --tone-violet: #b79cff;
+  --tone-violet-soft: #2a2046;
+  --tone-pink: #ff8fc0;
+  --tone-pink-soft: #3d172a;
+
+  --shadow-md: 0 4px 14px rgb(0 0 0 / 45%);
+  --shadow-lg: 0 18px 48px rgb(0 0 0 / 60%);
+  --backdrop: rgb(0 0 0 / 60%);
 }

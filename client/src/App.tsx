@@ -7,8 +7,10 @@ import { ConfirmProvider } from '@/components/ui/Modal';
 import { ToastProvider } from '@/components/ui/Toast';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { FocusProvider } from '@/context/FocusContext';
+import { ThemeProvider } from '@/context/ThemeContext';
 import { useWorkspace, WorkspaceProvider } from '@/context/WorkspaceContext';
 import { ActivityPage } from '@/pages/ActivityPage';
+import { AppearancePage } from '@/pages/AppearancePage';
 import { AuthPage } from '@/pages/AuthPage';
 import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/PasswordResetPages';
 import { InventoryPage } from '@/pages/InventoryPage';
@@ -61,6 +63,7 @@ export function App() {
       <ToastProvider>
         <ConfirmProvider>
           <AuthProvider>
+            <ThemeProvider>
             <WorkspaceProvider>
               <Routes>
                 <Route path="/login" element={<AuthPage mode="login" />} />
@@ -81,11 +84,13 @@ export function App() {
                     <Route path="reorder" element={<ReorderPage />} />
                     <Route path="activity" element={<ActivityPage />} />
                     <Route path="settings" element={<SettingsPage />} />
+                    <Route path="appearance" element={<AppearancePage />} />
                   </Route>
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </WorkspaceProvider>
+            </ThemeProvider>
           </AuthProvider>
         </ConfirmProvider>
       </ToastProvider>
