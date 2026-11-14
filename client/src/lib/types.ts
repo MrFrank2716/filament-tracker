@@ -134,6 +134,8 @@ export interface Machine {
   hourlyCost: number;
   locationId: string | null;
   notes: string;
+  /** Fixed specifications such as build volume or laser power, shown at a glance. */
+  specs: Reading[];
   compatibleItemIds: string[];
 }
 

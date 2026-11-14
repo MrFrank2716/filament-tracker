@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Cog, Pencil, Plus } from 'lucide-react';
 import { ItemPicker } from '@/components/items/ItemPicker';
 import { MachineForm, SubUnitForm } from '@/components/machines/MachineForms';
-import { SlotSummary, SubUnitPanel } from '@/components/machines/SubUnitPanel';
+import { ReadingBadges, SlotSummary, SubUnitPanel } from '@/components/machines/SubUnitPanel';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Badge, Card, EmptyState, ErrorNote, Figure, Grid, Loading, Muted, PageHeader, SectionTitle, TypeIcon } from '@/components/ui/Display';
 import { Modal } from '@/components/ui/Modal';
@@ -106,6 +106,8 @@ export function MachinesPage() {
                 {machine.hourlyCost > 0 && <Muted>{money(machine.hourlyCost)}/h</Muted>}
                 {machine.locationId && <Muted>{catalog.locationById.get(machine.locationId)?.name}</Muted>}
               </div>
+
+              <ReadingBadges readings={machine.specs} />
 
               {(overdue > 0 || soon > 0 || due.length > 0) && (
                 <Link to="/maintenance" className={styles.serviceLink}>
