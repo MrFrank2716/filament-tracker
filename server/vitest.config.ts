@@ -7,5 +7,7 @@ export default defineConfig({
   },
   test: {
     include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
+    // Satisfies env.ts when a test imports server code. Tests that need a database open their own.
+    env: { DATABASE_URL: 'file:./unused-by-tests.db', JWT_SECRET: 'test-only-secret-not-used-outside-vitest-0123456789' },
   },
 });
