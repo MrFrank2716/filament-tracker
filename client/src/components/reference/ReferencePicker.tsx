@@ -391,7 +391,8 @@ const countOf = (text: string, min = 0) => Math.max(min, Math.floor(parseNumber(
 function MachineOptions({ entry, onChange }: { entry: ReferenceMachine; onChange: OnPick }) {
   const [attachments, setAttachments] = useState<string[]>(() => (entry.attachments ?? []).filter((a) => a.builtIn).map((a) => a.id));
   useEffect(() => {
-    onChange({ pick: { kind: 'machine', id: entry.id, attachments }, label: machineTitle(entry), count: 1 });
+    const fitted = (entry.attachments ?? []).filter((a) => attachments.includes(a.id)).map((a) => a.name);
+    onChange({ pick: { kind: 'machine', id: entry.id, attachments }, label: `${machineTitle(entry)}${fitted.length ? ` with ${fitted.join(' and ')}` : ''}`, count: 1 });
   }, [entry, attachments, onChange]);
   return (
     <>
