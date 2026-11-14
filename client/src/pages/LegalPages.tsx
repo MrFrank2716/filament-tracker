@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import styles from '@/pages/LegalPages.module.css';
 
 /**
- * Placeholder: replace with the operator's real legal contact before launch.
+ * Legal contact shown on the policy pages.
  * Also review both documents with a lawyer for the jurisdictions you serve.
  */
-export const LEGAL_CONTACT = 'privacy@example.com';
+export const LEGAL_CONTACT = 'hello@wrkbench.xyz';
 const UPDATED = '14 November 2026';
 
 function Doc({ title, children }: { title: string; children: ReactNode }) {
