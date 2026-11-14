@@ -132,6 +132,11 @@ export function SubmitRequestPage() {
         )}
         <FilePicker files={files} onChange={setFiles} limits={info.limits} />
         {error && <ErrorNote>{error}</ErrorNote>}
+        <p className={styles.lead}>
+          Your name, email and files are shared with {info.workspaceName} and updates are emailed to you. By sending you
+          agree to the <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy Policy</Link>, and confirm you have the
+          right to share these files.
+        </p>
         <Button type="submit" variant="primary" size="lg" block icon={Send} disabled={busy}>
           {busy ? 'Sending…' : 'Send for checking'}
         </Button>
