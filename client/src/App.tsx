@@ -12,6 +12,7 @@ import { useWorkspace, WorkspaceProvider } from '@/context/WorkspaceContext';
 import { ActivityPage } from '@/pages/ActivityPage';
 import { AppearancePage } from '@/pages/AppearancePage';
 import { AuthPage } from '@/pages/AuthPage';
+import { NoticesPage, PrivacyPage, TermsPage } from '@/pages/LegalPages';
 import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/PasswordResetPages';
 import { InventoryPage } from '@/pages/InventoryPage';
 import { JobsPage } from '@/pages/JobsPage';
@@ -68,6 +69,9 @@ export function App() {
               <Routes>
                 <Route path="/login" element={<AuthPage mode="login" />} />
                 <Route path="/register" element={<AuthPage mode="register" />} />
+                <Route path="/privacy" element={<PrivacyPage />} />
+                <Route path="/terms" element={<TermsPage />} />
+                <Route path="/notices" element={<NoticesPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
                 {/* Open to anyone holding the link: sending a job request and following its progress. */}

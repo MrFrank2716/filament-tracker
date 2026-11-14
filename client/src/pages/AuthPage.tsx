@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
+import { LegalNote } from '@/pages/LegalPages';
 import { Button } from '@/components/ui/Button';
 import { ErrorNote } from '@/components/ui/Display';
 import { TextField } from '@/components/ui/Form';
@@ -67,6 +68,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
             </p>
           )}
           {error && <ErrorNote>{error}</ErrorNote>}
+          {registering && <LegalNote action="creating an account" />}
           <Button type="submit" variant="primary" size="lg" block disabled={busy}>
             {registering ? 'Create account' : 'Sign in'}
           </Button>
@@ -77,8 +79,10 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
                 Continue as guest
               </Button>
               <p className={styles.note}>
-                Try it with a sample workshop, no account needed. Guest sessions are removed after 7 days.
+                Try it with a sample workshop, no account needed. Guest sessions are removed after 7 days. Example
+                brand names are not affiliated with Wrkbench.
               </p>
+              <LegalNote action="continuing" />
             </>
           )}
         </form>

@@ -7,6 +7,7 @@ import { EmptyState, ErrorNote, Loading } from '@/components/ui/Display';
 import { SelectField, TextAreaField, TextField } from '@/components/ui/Form';
 import { useToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
+import { LegalLinks } from '@/pages/LegalPages';
 import { useQuery } from '@/lib/store';
 import type { SubmitInfo } from '@/lib/types';
 import styles from '@/components/requests/Requests.module.css';
@@ -132,6 +133,11 @@ export function SubmitRequestPage() {
         )}
         <FilePicker files={files} onChange={setFiles} limits={info.limits} />
         {error && <ErrorNote>{error}</ErrorNote>}
+        <p className={styles.lead}>
+          Your name, email and files are shared with {info.workspaceName} and updates are emailed to you. By sending you
+          agree to the <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy Policy</Link>, and confirm you have the
+          right to share these files.
+        </p>
         <Button type="submit" variant="primary" size="lg" block icon={Send} disabled={busy}>
           {busy ? 'Sending…' : 'Send for checking'}
         </Button>
@@ -153,6 +159,7 @@ export function Frame({ title, subtitle, children }: { title: string; subtitle?:
           </div>
         </div>
         {children}
+        <LegalLinks />
       </div>
     </main>
   );
