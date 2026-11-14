@@ -159,8 +159,10 @@ export function TermsPage() {
 
       <h2>Changes and law</h2>
       <p>
-        We may update these terms and will change the date above. Set the governing law and venue that apply to the
-        operator before launch. Questions: <a href={`mailto:${LEGAL_CONTACT}`}>{LEGAL_CONTACT}</a>.
+        We may update these terms and will change the date above. These terms and any dispute arising from them are
+        governed by the laws of England and Wales, and the courts of England and Wales have jurisdiction. If you use
+        Wrkbench as a consumer, this does not remove mandatory consumer rights you have in your country of residence.
+        Questions: <a href={`mailto:${LEGAL_CONTACT}`}>{LEGAL_CONTACT}</a>.
       </p>
     </Doc>
   );
