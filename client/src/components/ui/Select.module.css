@@ -1,0 +1,197 @@
+.wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  color: var(--color-text-muted);
+}
+
+.select {
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--tap-target);
+  padding: var(--space-2) calc(var(--space-3) + 1.5rem) var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  /* 16px minimum stops iOS zooming the page when a field is focused */
+  font-size: max(1rem, var(--text-md));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition:
+    border-color var(--duration) var(--ease),
+    background-color var(--duration) var(--ease);
+}
+
+.select:hover:not(:disabled) {
+  border-color: var(--color-text-faint);
+}
+
+.select:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 0;
+  border-color: transparent;
+}
+
+.select:disabled {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-faint);
+  cursor: not-allowed;
+}
+
+.chevron,
+.lead {
+  position: absolute;
+  pointer-events: none;
+}
+
+.chevron {
+  right: var(--space-3);
+  transition:
+    transform var(--duration) var(--ease),
+    color var(--duration) var(--ease);
+}
+
+.wrap:hover .chevron,
+.wrap:focus-within .chevron {
+  color: var(--color-text);
+}
+
+.wrap:has(.select:disabled) .chevron {
+  color: var(--color-text-faint);
+}
+
+.lead {
+  left: var(--space-3);
+}
+
+.withIcon .select {
+  padding-left: calc(var(--space-3) + 1.5rem);
+}
+
+.compact .select {
+  min-height: 2.25rem;
+  padding-block: var(--space-1);
+  padding-left: var(--space-2);
+  padding-right: calc(var(--space-2) + 1.375rem);
+  border-radius: var(--radius-sm);
+}
+
+.compact .chevron {
+  right: var(--space-2);
+}
+
+/*
+ * Styled open list, where the browser supports it. Limited to mouse and trackpad:
+ * touch devices keep their native picker, which is easier to use on a phone.
+ */
+@supports (appearance: base-select) {
+  @media (hover: hover) and (pointer: fine) {
+    .select,
+    .select::picker(select) {
+      appearance: base-select;
+    }
+
+    /* base-select ignores text-overflow, so a long value would run under the chevron.
+       Clip it at the padding instead; the line height centres the text vertically. */
+    .select {
+      display: block;
+      padding-block: 0;
+      line-height: calc(var(--tap-target) - 2px);
+      overflow: clip;
+      overflow-clip-margin: content-box;
+    }
+
+    .compact .select {
+      line-height: calc(2.25rem - 2px);
+    }
+
+    .select::picker-icon {
+      display: none;
+    }
+
+    .select:open {
+      border-color: var(--color-text-faint);
+    }
+
+    .wrap:has(.select:open) .chevron {
+      color: var(--color-text);
+      transform: rotate(180deg);
+    }
+
+    .select::picker(select) {
+      max-height: min(20rem, 60vh);
+      margin-block: var(--space-1);
+      padding: var(--space-1);
+      overflow-y: auto;
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      opacity: 1;
+      translate: 0 0;
+      transition:
+        opacity var(--duration-enter) var(--ease),
+        translate var(--duration-enter) var(--ease),
+        overlay var(--duration-enter) allow-discrete,
+        display var(--duration-enter) allow-discrete;
+    }
+
+    .select:not(:open)::picker(select) {
+      opacity: 0;
+      translate: 0 -4px;
+      transition-duration: var(--duration-exit);
+    }
+
+    @starting-style {
+      .select:open::picker(select) {
+        opacity: 0;
+        translate: 0 -4px;
+      }
+    }
+
+    .select option {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      min-height: 2.25rem;
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-md);
+      cursor: pointer;
+    }
+
+    .select option:hover,
+    .select option:focus-visible {
+      background: var(--color-accent-soft);
+      outline: none;
+    }
+
+    .select option:checked {
+      font-weight: var(--weight-medium);
+    }
+
+    .select option::checkmark {
+      order: 1;
+      margin-left: auto;
+      color: var(--color-text-muted);
+    }
+
+    .select option:disabled {
+      color: var(--color-text-faint);
+      cursor: not-allowed;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .select::picker(select) {
+    transition: none;
+  }
+}

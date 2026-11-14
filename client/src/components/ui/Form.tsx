@@ -1,5 +1,6 @@
 import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { Check } from 'lucide-react';
+import { Select } from '@/components/ui/Select';
 import styles from '@/components/ui/Form.module.css';
 
 interface FieldProps {
@@ -62,9 +63,9 @@ export function SelectField({ label, value, onChange, hint, wide, children, ...r
   return (
     <Field label={label} hint={hint} wide={wide}>
       {(id) => (
-        <select id={id} className={styles.input} value={value} onChange={(e) => onChange(e.target.value)} {...rest}>
+        <Select id={id} value={value} onChange={(e) => onChange(e.target.value)} {...rest}>
           {children}
-        </select>
+        </Select>
       )}
     </Field>
   );
