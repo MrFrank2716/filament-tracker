@@ -17,6 +17,7 @@ import { registerJobRoutes } from '@/routes/jobs';
 import { registerMachineRoutes } from '@/routes/machines';
 import { registerMaintenanceRoutes } from '@/routes/maintenance';
 import { registerQueueRoutes } from '@/routes/queue';
+import { registerReferenceAddRoute } from '@/routes/reference';
 import { registerReportRoutes } from '@/routes/reports';
 import { publicRequestsRouter, registerRequestRoutes } from '@/routes/requests';
 import { registerTransferRoutes } from '@/routes/transfer';
@@ -54,6 +55,7 @@ registerTransferRoutes(workspaceScope);
 registerRequestRoutes(workspaceScope);
 registerActivityRoutes(workspaceScope);
 registerQueueRoutes(workspaceScope);
+registerReferenceAddRoute(workspaceScope);
 
 app.use('/api/auth', authRouter);
 // The only routes that need no account: sending a job request and following its progress.

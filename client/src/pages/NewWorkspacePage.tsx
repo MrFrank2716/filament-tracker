@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, FileQuestion, LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { ArrowLeft, BookOpen, Check, FileQuestion, LogOut, X } from 'lucide-react';
+import { ReferencePicker } from '@/components/reference/ReferencePicker';
+import { Button, IconButton } from '@/components/ui/Button';
 import { ErrorNote, Loading, Muted, SectionTitle, TypeIcon } from '@/components/ui/Display';
 import { Checkbox, FormGrid, TextField } from '@/components/ui/Form';
 import { useAction } from '@/components/ui/Toast';
@@ -9,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { api } from '@/lib/api';
 import { iconFor } from '@/lib/icons';
+import type { Pick } from '@/lib/reference';
 import { useQuery } from '@/lib/store';
 import type { Snapshot, Template, TemplateSummary, Workspace } from '@/lib/types';
 import styles from '@/pages/NewWorkspacePage.module.css';
@@ -48,6 +50,8 @@ export function NewWorkspacePage() {
   const [template, setTemplate] = useState<Template | null>(null);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [includeSamples, setIncludeSamples] = useState(true);
+  const [machines, setMachines] = useState<{ pick: Pick; label: string }[]>([]);
+  const [picking, setPicking] = useState(false);
 
   useEffect(() => {
     setTemplate(null);
@@ -80,6 +84,7 @@ export function NewWorkspacePage() {
         name: name.trim(),
         currency: currency.trim().toUpperCase() || 'GBP',
         snapshot: template ? trimSnapshot(template.snapshot, excluded, includeSamples) : undefined,
+        picks: machines.length ? machines.map((m) => m.pick) : undefined,
       });
       await reload();
       select(created.id);
@@ -190,12 +195,36 @@ export function NewWorkspacePage() {
           </section>
         )}
 
+        <section className={styles.section}>
+          <SectionTitle>Your machines</SectionTitle>
+          <Muted>Optional. Pick what you have from the catalogue and its specs, feeders and maintenance schedules come with it. You can add more at any time.</Muted>
+          {machines.length > 0 && (
+            <div className={styles.groupRows}>
+              {machines.map((machine, index) => (
+                <div key={`${machine.pick.id}-${index}`} className={`${styles.pick} ${styles.chosen}`}>
+                  <span className={styles.pickText}>
+                    <span className={styles.pickTitle}>{machine.label}</span>
+                  </span>
+                  <IconButton icon={X} label={`Remove ${machine.label}`} size="sm" onClick={() => setMachines((current) => current.filter((_, i) => i !== index))} />
+                </div>
+              ))}
+            </div>
+          )}
+          <div>
+            <Button icon={BookOpen} onClick={() => setPicking(true)}>
+              {machines.length ? 'Add another machine' : 'Choose machines'}
+            </Button>
+          </div>
+        </section>
+
         <footer className={styles.footer}>
           <Button type="submit" variant="primary" size="lg" icon={Check} disabled={busy || !name.trim() || (templateId !== BLANK && !template)}>
             Create workspace
           </Button>
         </footer>
       </form>
+      {/* Outside the form: the picker's dialog has a form of its own. */}
+      {picking && <ReferencePicker kinds={['machine']} onClose={() => setPicking(false)} onCollect={(pick, label) => setMachines((current) => [...current, { pick, label }])} />}
     </main>
   );
 }

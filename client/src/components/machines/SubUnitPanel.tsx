@@ -4,7 +4,7 @@ import { StockMeter } from '@/components/items/StockMeter';
 import { Badge, Figure, Muted, Swatch } from '@/components/ui/Display';
 import type { Catalog } from '@/hooks/useCatalog';
 import { formatQuantity, isLow, summarizeFields } from '@/lib/format';
-import type { Item, Slot, SubUnit } from '@/lib/types';
+import type { Item, Reading, Slot, SubUnit } from '@/lib/types';
 import styles from '@/components/machines/Machines.module.css';
 
 export function colourOf(item: Item | undefined, catalog: Catalog): string | null {
@@ -12,6 +12,23 @@ export function colourOf(item: Item | undefined, catalog: Catalog): string | nul
   const field = catalog.typeById.get(item.itemTypeId)?.fields.find((f) => f.fieldType === 'color');
   const value = field ? item.fields[field.key] : null;
   return typeof value === 'string' && value ? value : null;
+}
+
+/** "40 W", "256 mm", but "18%" and "65°C": symbols sit against the number, words get a space. */
+const withUnit = ({ value, unit }: Reading) => (unit ? (/^[\p{L}\d]/u.test(unit) ? `${value} ${unit}` : `${value}${unit}`) : value);
+
+/** Label / value / unit rows (sub-unit readings, machine specifications) as a wrapping row of badges. */
+export function ReadingBadges({ readings }: { readings: Reading[] }) {
+  if (readings.length === 0) return null;
+  return (
+    <div className={styles.readingBadges}>
+      {readings.map((reading) => (
+        <Badge key={reading.label}>
+          {reading.label} {withUnit(reading)}
+        </Badge>
+      ))}
+    </div>
+  );
 }
 
 export function SlotSummary({ item, catalog }: { item: Item | undefined; catalog: Catalog }) {
@@ -51,14 +68,7 @@ export function SubUnitPanel({ subUnit, catalog, itemById, canEdit, canLoad = ca
           <strong>{subUnit.name}</strong>
           {subUnit.kind && subUnit.kind !== subUnit.name && <Muted>{subUnit.kind}</Muted>}
         </div>
-        <div className={styles.readingBadges}>
-          {subUnit.readings.map((reading) => (
-            <Badge key={reading.label}>
-              {reading.label} {reading.value}
-              {reading.unit}
-            </Badge>
-          ))}
-        </div>
+        <ReadingBadges readings={subUnit.readings} />
         {canEdit && <IconButton icon={Settings2} label={`Edit ${subUnit.name}`} size="sm" onClick={onEdit} />}
       </header>
       {subUnit.statusNote && <Muted>{subUnit.statusNote}</Muted>}

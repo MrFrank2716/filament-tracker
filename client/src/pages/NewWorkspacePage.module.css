@@ -136,6 +136,15 @@
   cursor: pointer;
 }
 
+/* A machine chosen from the catalogue: not a checkbox, so the remove button sits at the far end. */
+.chosen {
+  cursor: default;
+}
+
+.chosen .pickText {
+  flex: 1;
+}
+
 .pickDisabled {
   opacity: 0.45;
   cursor: not-allowed;

@@ -254,7 +254,7 @@ export function buildExample(): SnapshotInput {
       itemTypes.filament, itemTypes.endmill, itemTypes.sheet, itemTypes.spare,
       itemTypes.fixing, itemTypes.finishing, itemTypes.handTool,
     ],
-    machineTypes: Object.values(machineTypes),
+    machineTypes: [machineTypes.printer, machineTypes.cnc, machineTypes.laser, machineTypes.finishing, machineTypes.general],
     machines: [
       { ref: 'm-h2d', name: 'Bambu Lab H2D', type: 'mt-printer', manufacturer: 'Bambu Lab', model: 'H2D', usageHours: 412, hourlyCost: 0.35, location: 'l-room', notes: 'Dual nozzle. 40 W laser module fitted (see attached hardware).' },
       { ref: 'm-x2d', name: 'Bambu Lab X2D', type: 'mt-printer', manufacturer: 'Bambu Lab', model: 'X2D', usageHours: 268, hourlyCost: 0.25, location: 'l-room' },
