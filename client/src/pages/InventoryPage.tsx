@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { StockMeter } from '@/components/items/StockMeter';
 import { Badge, Chip, ChipRow, EmptyState, ErrorNote, Figure, List, Loading, Muted, PageHeader, Row, Swatch, Tabs, TypeIcon } from '@/components/ui/Display';
 import { FormGrid, NumberField, SelectField } from '@/components/ui/Form';
+import { Modal } from '@/components/ui/Modal';
 import { ReferencePicker } from '@/components/reference/ReferencePicker';
 import { useMachineFocus } from '@/context/FocusContext';
 import { useWorkspace } from '@/context/WorkspaceContext';
@@ -68,6 +69,8 @@ export function InventoryPage() {
   const [view, setView] = useState<View>(storedView);
   const [form, setForm] = useState<{ item?: Item; initial?: Partial<Item> } | null>(null);
   const [picking, setPicking] = useState(false);
+  // Phone-width "+" button: asks how to add, since the header buttons are hidden there.
+  const [choosing, setChoosing] = useState(false);
 
   const selectedId = params.get('item');
   // Links from elsewhere open an item even when it is outside the focus.
@@ -175,14 +178,15 @@ export function InventoryPage() {
         subtitle={`${filtered.length} of ${items.length} items${machine ? ` loaded in or fitting ${machine.name}` : ''}`}
         actions={
           canEdit && (
-            <>
+            // Wide screens only: on a phone the floating button does this, so the header stays uncluttered.
+            <span className={styles.wideOnly}>
               <Button icon={BookOpen} onClick={() => setPicking(true)}>
                 From catalogue
               </Button>
               <Button variant="primary" icon={Plus} onClick={() => setForm({ initial: preset() })}>
                 Add item
               </Button>
-            </>
+            </span>
           )
         }
       />
@@ -358,7 +362,7 @@ export function InventoryPage() {
       )}
 
       {canEdit && (
-        <button type="button" className={styles.fab} onClick={() => setForm({ initial: preset() })} aria-label="Add item">
+        <button type="button" className={styles.fab} onClick={() => setChoosing(true)} aria-label="Add item">
           <Plus size={26} aria-hidden />
         </button>
       )}
@@ -382,6 +386,24 @@ export function InventoryPage() {
       )}
 
       {form && <ItemForm catalog={catalog} item={form.item} initial={form.initial} onClose={() => setForm(null)} />}
+      {choosing && (
+        <Modal title="Add an item" onClose={() => setChoosing(false)}>
+          <List>
+            <Row
+              onClick={() => { setChoosing(false); setPicking(true); }}
+              leading={<BookOpen size={20} aria-hidden />}
+              title="From the catalogue"
+              subtitle="Filament, sheet stock, tooling, fixings and finishes"
+            />
+            <Row
+              onClick={() => { setChoosing(false); setForm({ initial: preset() }); }}
+              leading={<Plus size={20} aria-hidden />}
+              title="From scratch"
+              subtitle="Anything else, typed in yourself"
+            />
+          </List>
+        </Modal>
+      )}
       {picking && <ReferencePicker kinds={ITEM_KINDS} onClose={() => setPicking(false)} onAdded={() => setPicking(false)} />}
     </>
   );
