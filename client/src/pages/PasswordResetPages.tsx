@@ -5,6 +5,7 @@ import { ErrorNote } from '@/components/ui/Display';
 import { TextField } from '@/components/ui/Form';
 import { useAuth } from '@/context/AuthContext';
 import { api, ApiError } from '@/lib/api';
+import { LegalLinks } from '@/pages/LegalPages';
 import styles from '@/pages/AuthPage.module.css';
 
 function Frame({ children, footer }: { children: ReactNode; footer: ReactNode }) {
@@ -20,6 +21,7 @@ function Frame({ children, footer }: { children: ReactNode; footer: ReactNode })
         </div>
         {children}
         <p className={styles.switch}>{footer}</p>
+        <LegalLinks />
       </div>
     </main>
   );

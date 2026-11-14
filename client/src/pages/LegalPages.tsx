@@ -192,6 +192,16 @@ export function NoticesPage() {
   );
 }
 
+/** Links to the three legal pages, for footers and settings. */
+export function LegalLinks() {
+  return (
+    <p className={styles.legalLinks}>
+      <Link to="/privacy">Privacy Policy</Link> · <Link to="/terms">Terms of Service</Link> ·{' '}
+      <Link to="/notices">Open-source notices</Link>
+    </p>
+  );
+}
+
 /** Small consent line for sign-up and public forms. */
 export function LegalNote({ action }: { action: string }) {
   return (

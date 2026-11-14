@@ -7,6 +7,7 @@ import { EmptyState, ErrorNote, Loading } from '@/components/ui/Display';
 import { SelectField, TextAreaField, TextField } from '@/components/ui/Form';
 import { useToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
+import { LegalLinks } from '@/pages/LegalPages';
 import { useQuery } from '@/lib/store';
 import type { SubmitInfo } from '@/lib/types';
 import styles from '@/components/requests/Requests.module.css';
@@ -158,6 +159,7 @@ export function Frame({ title, subtitle, children }: { title: string; subtitle?:
           </div>
         </div>
         {children}
+        <LegalLinks />
       </div>
     </main>
   );

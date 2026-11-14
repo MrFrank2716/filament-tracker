@@ -15,6 +15,7 @@ import { useAction } from '@/components/ui/Toast';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useCatalog } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
+import { LegalLinks } from '@/pages/LegalPages';
 import { flattenLocations, locationPath } from '@/lib/format';
 import type { ItemType } from '@/lib/types';
 import styles from '@/components/settings/Settings.module.css';
@@ -277,6 +278,9 @@ function GeneralSection() {
           </Button>
         )}
       </div>
+
+      <SectionTitle>Legal</SectionTitle>
+      <LegalLinks />
     </>
   );
 }
