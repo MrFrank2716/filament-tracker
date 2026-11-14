@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Cog, Pencil, Plus } from 'lucide-react';
 import { ItemPicker } from '@/components/items/ItemPicker';
 import { MachineForm, SubUnitForm } from '@/components/machines/MachineForms';
-import { SlotSummary, SubUnitPanel } from '@/components/machines/SubUnitPanel';
+import { ReadingBadges, SlotSummary, SubUnitPanel } from '@/components/machines/SubUnitPanel';
+import { AddChooser } from '@/components/reference/AddChooser';
+import { ReferencePicker } from '@/components/reference/ReferencePicker';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Badge, Card, EmptyState, ErrorNote, Figure, Grid, Loading, Muted, PageHeader, SectionTitle, TypeIcon } from '@/components/ui/Display';
 import { Modal } from '@/components/ui/Modal';
@@ -13,11 +15,14 @@ import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import { useCatalog, useItems } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
 import { formatHours, formatQuantity, isLow } from '@/lib/format';
+import type { AddResult } from '@/lib/reference';
 import { MACHINE_STATUS } from '@/lib/status';
 import type { Machine, MaintenanceData, Slot, SubUnit } from '@/lib/types';
 import styles from '@/components/machines/Machines.module.css';
 
 type Dialog =
+  | { kind: 'choose' }
+  | { kind: 'catalogue' }
   | { kind: 'machine'; machine?: Machine }
   | { kind: 'subUnit'; subUnit?: SubUnit; machineId?: string }
   | { kind: 'slot'; subUnit: SubUnit; slot: Slot; picking: boolean };
@@ -31,6 +36,16 @@ export function MachinesPage() {
   const { run, busy } = useAction();
   const { machine: focus } = useMachineFocus();
   const [dialog, setDialog] = useState<Dialog | null>(null);
+  // A machine just added from the catalogue, opened for editing once the refreshed lists include it and its type.
+  const [justAdded, setJustAdded] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!justAdded) return;
+    const machine = catalog.machineById.get(justAdded);
+    if (!machine || (machine.machineTypeId && !catalog.machineTypeById.has(machine.machineTypeId))) return;
+    setJustAdded(null);
+    setDialog({ kind: 'machine', machine });
+  }, [justAdded, catalog.machineById, catalog.machineTypeById]);
 
   if (catalog.error || subUnits.error) return <ErrorNote>{catalog.error ?? subUnits.error}</ErrorNote>;
   if (catalog.loading || !subUnits.data) return <Loading />;
@@ -42,6 +57,12 @@ export function MachinesPage() {
 
   const setSlot = async (subUnit: SubUnit, slot: Slot, itemId: string | null) => {
     if (await run(() => api.put(wsPath(`/sub-units/${subUnit.id}/slots/${slot.position}`)!, { itemId }), itemId ? 'Loaded' : 'Unloaded')) setDialog(null);
+  };
+
+  // One machine added: open it so the user can give it a name, serial number and location.
+  const added = (result: AddResult) => {
+    setDialog(null);
+    if (result.machines.length === 1) setJustAdded(result.machines[0].id);
   };
 
   const renderSubUnit = (subUnit: SubUnit) => (
@@ -64,7 +85,7 @@ export function MachinesPage() {
         subtitle="Equipment, attached hardware and what is loaded where."
         actions={
           canEdit && (
-            <Button variant="primary" icon={Plus} onClick={() => setDialog({ kind: 'machine' })}>
+            <Button variant="primary" icon={Plus} onClick={() => setDialog({ kind: 'choose' })}>
               Add machine
             </Button>
           )
@@ -72,8 +93,11 @@ export function MachinesPage() {
       />
 
       {catalog.machines.length === 0 && (
-        <EmptyState icon={Cog} title="No machines yet" action={canEdit && <Button variant="primary" icon={Plus} onClick={() => setDialog({ kind: 'machine' })}>Add a machine</Button>}>
-          Add printers, routers, lasers, sanders, or a general entry for the workbench. Each gets its own hours, maintenance and compatible parts.
+        <EmptyState
+          icon={Cog}
+          title="No machines yet"
+>
+          Add printers, lasers, CNC routers and finishing equipment from the built-in catalogue with their specs, feeders and maintenance schedules filled in, or by hand.
         </EmptyState>
       )}
 
@@ -106,6 +130,8 @@ export function MachinesPage() {
                 {machine.hourlyCost > 0 && <Muted>{money(machine.hourlyCost)}/h</Muted>}
                 {machine.locationId && <Muted>{catalog.locationById.get(machine.locationId)?.name}</Muted>}
               </div>
+
+              <ReadingBadges readings={machine.specs} />
 
               {(overdue > 0 || soon > 0 || due.length > 0) && (
                 <Link to="/maintenance" className={styles.serviceLink}>
@@ -155,6 +181,17 @@ export function MachinesPage() {
         </>
       )}
 
+      {dialog?.kind === 'choose' && (
+        <AddChooser
+          title="Add a machine"
+          catalogue="Printers, lasers, CNC and finishing equipment, with specs and schedules"
+          scratch={{ title: 'By hand', subtitle: 'Anything not in the catalogue' }}
+          onCatalogue={() => setDialog({ kind: 'catalogue' })}
+          onScratch={() => setDialog({ kind: 'machine' })}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog?.kind === 'catalogue' && <ReferencePicker kinds={['machine']} onClose={() => setDialog(null)} onAdded={added} />}
       {dialog?.kind === 'machine' && <MachineForm catalog={catalog} machine={dialog.machine} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'subUnit' && <SubUnitForm catalog={catalog} subUnit={dialog.subUnit} machineId={dialog.machineId} onClose={() => setDialog(null)} />}
 

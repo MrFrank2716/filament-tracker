@@ -4,7 +4,9 @@ import { prisma } from '@/db';
 import { ownerOnly, requireAuth, ROLES, workspaceGuard } from '@/auth';
 import { HttpError, notFound, param, parse } from '@/http';
 import { broadcastChanges } from '@/realtime';
+import { registerReferenceRoutes } from '@/routes/reference';
 import { recordActivity } from '@/services/activity';
+import { addFromReference, pickSchema } from '@/services/reference';
 import { importSnapshot, snapshotSchema } from '@/services/snapshot';
 import { removeWorkspaceUploads } from '@/services/uploads';
 import { getTemplate, listTemplates } from '@/templates';
@@ -30,6 +32,10 @@ workspacesRouter.get('/templates/:id', (req, res) => {
   res.json(template);
 });
 
+// ---- Reference catalogue (read-only, no workspace needed) ------------------
+
+registerReferenceRoutes(workspacesRouter);
+
 // ---- Workspaces ------------------------------------------------------------
 
 workspacesRouter.get('/workspaces', async (req, res) => {
@@ -50,9 +56,15 @@ workspacesRouter.get('/workspaces', async (req, res) => {
   );
 });
 
-/** Create a workspace, optionally pre-filled from a (possibly edited) template snapshot. */
+const setupInput = workspaceInput.extend({
+  snapshot: z.unknown().optional(),
+  /** Machines (or other catalogue entries) chosen during set-up, added after the template. */
+  picks: z.array(pickSchema).max(50).optional(),
+});
+
+/** Create a workspace, optionally pre-filled from a (possibly edited) template snapshot and catalogue picks. */
 workspacesRouter.post('/workspaces', async (req, res) => {
-  const { snapshot: rawSnapshot, ...rest } = parse(workspaceInput.extend({ snapshot: z.unknown().optional() }), req.body);
+  const { snapshot: rawSnapshot, picks = [], ...rest } = parse(setupInput, req.body);
   const snapshot = rawSnapshot ? parse(snapshotSchema, rawSnapshot) : null;
 
   const workspace = await prisma.$transaction(
@@ -61,6 +73,8 @@ workspacesRouter.post('/workspaces', async (req, res) => {
         data: { ...rest, members: { create: { userId: req.userId, role: 'owner' } } },
       });
       if (snapshot) await importSnapshot(tx, created.id, snapshot, req.userId);
+      // After the template, so a machine joins the machine type the template just created.
+      if (picks.length) await addFromReference(tx, created.id, { picks }, req.userId);
       return created;
     },
     { timeout: 60_000, maxWait: 10_000 },

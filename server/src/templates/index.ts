@@ -17,14 +17,14 @@ const definitions: TemplateDefinition[] = [
   {
     id: 'printing',
     name: '3D printing',
-    description: 'Filament by weight, nozzles and spares, printer maintenance schedules.',
+    description: 'Filament by weight, resin, nozzles and spares, printer maintenance schedules.',
     icon: 'Printer',
     sampleData: false,
     build: () => ({
       units: [units.g, units.pcs, units.m, units.ml],
       itemTypes: [itemTypes.filament, itemTypes.spare, itemTypes.fixing, itemTypes.consumable, itemTypes.handTool],
-      machineTypes: [machineTypes.printer, machineTypes.general],
-      maintenanceTasks: [...tasks.printer, ...tasks.general],
+      machineTypes: [machineTypes.printer, machineTypes.resin, machineTypes.general],
+      maintenanceTasks: [...tasks.printer, ...tasks.resin, ...tasks.general],
     }),
   },
   {
@@ -49,8 +49,8 @@ const definitions: TemplateDefinition[] = [
     build: () => ({
       units: [units.sheets, units.pcs, units.ml],
       itemTypes: [itemTypes.sheet, itemTypes.spare, itemTypes.consumable, itemTypes.finishing],
-      machineTypes: [machineTypes.laser, machineTypes.general],
-      maintenanceTasks: [...tasks.laser, ...tasks.general],
+      machineTypes: [machineTypes.laser, machineTypes.air, machineTypes.general],
+      maintenanceTasks: [...tasks.laser, ...tasks.air, ...tasks.general],
     }),
   },
   {
@@ -65,8 +65,15 @@ const definitions: TemplateDefinition[] = [
         itemTypes.filament, itemTypes.endmill, itemTypes.sheet, itemTypes.stock, itemTypes.spare,
         itemTypes.fixing, itemTypes.finishing, itemTypes.consumable, itemTypes.handTool,
       ],
-      machineTypes: Object.values(machineTypes),
-      maintenanceTasks: [...tasks.printer, ...tasks.cnc, ...tasks.laser, ...tasks.finishing, ...tasks.general],
+      // Listed explicitly so new library types are a deliberate choice here, not a side effect.
+      machineTypes: [
+        machineTypes.printer, machineTypes.resin, machineTypes.cnc, machineTypes.laser, machineTypes.vinyl,
+        machineTypes.finishing, machineTypes.air, machineTypes.general,
+      ],
+      maintenanceTasks: [
+        ...tasks.printer, ...tasks.resin, ...tasks.cnc, ...tasks.laser, ...tasks.vinyl,
+        ...tasks.finishing, ...tasks.air, ...tasks.general,
+      ],
     }),
   },
   {
@@ -81,7 +88,7 @@ const definitions: TemplateDefinition[] = [
         itemTypes.classKit, itemTypes.safety, itemTypes.filament, itemTypes.sheet,
         itemTypes.fixing, itemTypes.consumable, itemTypes.handTool, itemTypes.spare,
       ],
-      machineTypes: [machineTypes.printer, machineTypes.laser, machineTypes.general],
+      machineTypes: [machineTypes.printer, machineTypes.laser, machineTypes.vinyl, machineTypes.general],
       locations: [
         { ref: 'l-lab', name: 'Design lab', kind: 'Room' },
         { ref: 'l-prep', name: 'Prep room', kind: 'Room' },
@@ -90,6 +97,7 @@ const definitions: TemplateDefinition[] = [
       maintenanceTasks: [
         ...tasks.printer,
         ...tasks.laser,
+        ...tasks.vinyl,
         { ref: 'mt-s-safety', name: 'Termly safety inspection', machineType: 'mt-general', intervalDays: 90, description: 'Guards, emergency stops, extraction, PPE stock and signage.' },
         { ref: 'mt-s-audit', name: 'Tool count after class sets', machineType: 'mt-general', intervalDays: 7, description: 'Count shared tools back into their trays.' },
       ],

@@ -238,6 +238,8 @@ model Machine {
   hourlyCost    Float    @default(0)
   locationId    String?
   notes         String   @default("")
+  /// JSON array of { label, value, unit } - fixed specifications such as build volume or laser power.
+  specs         Json     @default("[]")
   createdAt     DateTime @default(now())
 
   workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

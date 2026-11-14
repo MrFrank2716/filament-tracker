@@ -143,8 +143,10 @@ export function TermsPage() {
 
       <h2>Third-party names</h2>
       <p>
-        Example data may mention brands such as Bambu Lab, Makera and Hozo. Wrkbench is not affiliated with,
-        sponsored or endorsed by them, and their names belong to their owners.
+        Example data and the built-in catalogue of machines and materials mention brands such as Bambu Lab, Prusa,
+        xTool and Makera. Wrkbench is not affiliated with, sponsored or endorsed by them, and their names belong to
+        their owners. Catalogue specifications are a starting point: check them against the maker&apos;s own
+        documentation before relying on them.
       </p>
 
       <h2>No warranty and liability</h2>
@@ -188,6 +190,14 @@ export function NoticesPage() {
           permissive licences, listed in <code>package-lock.json</code>.
         </li>
       </ul>
+      <h2>Data</h2>
+      <p>
+        Filament in the built-in catalogue comes from{' '}
+        <a href="https://github.com/Donkie/SpoolmanDB" target="_blank" rel="noreferrer">
+          SpoolmanDB
+        </a>{' '}
+        by Donkie and its contributors, used under the MIT licence (Copyright &copy; 2024 Donkie).
+      </p>
     </Doc>
   );
 }

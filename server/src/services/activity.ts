@@ -56,6 +56,7 @@ const NOUNS: Record<string, string> = {
   'request-link': 'request link',
   import: 'import',
   activity: 'activity',
+  reference: 'catalogue',
 };
 
 /** For deletes the record is gone afterwards, so its name is read first. */

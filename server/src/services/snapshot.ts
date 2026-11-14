@@ -71,6 +71,7 @@ export const snapshotSchema = z.object({
         hourlyCost: z.number().min(0).default(0),
         location: optRef,
         notes: text,
+        specs: z.array(readingSchema).max(12).default([]),
       }),
     )
     .default([]),
@@ -315,11 +316,12 @@ export async function importSnapshot(db: Db, workspaceId: string, snapshot: Snap
       ids.machine.set(machine.ref, found.id);
       continue;
     }
-    const { ref: machineRef, type, location, ...data } = machine;
+    const { ref: machineRef, type, location, specs, ...data } = machine;
     const created = await db.machine.create({
       data: {
         workspaceId,
         ...data,
+        specs: specs as Json,
         machineTypeId: lookup(ids.machineType, type),
         locationId: lookup(ids.location, location),
       },
@@ -491,6 +493,7 @@ export async function exportSnapshot(db: Db, workspaceId: string): Promise<Snaps
     machines: machines.map((m) => ({
       ref: m.id, name: m.name, type: m.machineTypeId, manufacturer: m.manufacturer, model: m.model, serial: m.serial,
       status: m.status, usageHours: m.usageHours, hourlyCost: m.hourlyCost, location: m.locationId, notes: m.notes,
+      specs: m.specs,
     })),
     items: items.map((i) => ({
       ref: i.id, type: i.itemTypeId, name: i.name, sku: i.sku, quantity: i.quantity, capacity: i.capacity,

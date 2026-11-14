@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ClipboardList, Wrench } from 'lucide-react';
 import { StockMeter } from '@/components/items/StockMeter';
-import { SubUnitPanel } from '@/components/machines/SubUnitPanel';
+import { ReadingBadges, SubUnitPanel } from '@/components/machines/SubUnitPanel';
 import { Badge, EmptyState, ErrorNote, Figure, Grid, HeaderStat, Ledger, List, Loading, Meter, PageHeader, Readout, Row, RowDetail, SectionTitle, Stack, TypeIcon } from '@/components/ui/Display';
 import { useMachineFocus } from '@/context/FocusContext';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
@@ -86,6 +86,8 @@ function MachineOverview({ machine }: { machine: Machine }) {
           ...(waiting > 0 ? [{ label: 'Requests', to: '/jobs', value: formatNumber(waiting), tone: 'warn' as const }] : []),
         ]}
       />
+
+      <ReadingBadges readings={machine.specs} />
 
       {machine.notes && <p className={styles.notes}>{machine.notes}</p>}
 
