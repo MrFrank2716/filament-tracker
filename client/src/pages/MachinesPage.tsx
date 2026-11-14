@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Cog, Pencil, Plus } from 'lucide-react';
+import { Cog, Pencil, Plus } from 'lucide-react';
 import { ItemPicker } from '@/components/items/ItemPicker';
 import { MachineForm, SubUnitForm } from '@/components/machines/MachineForms';
 import { ReadingBadges, SlotSummary, SubUnitPanel } from '@/components/machines/SubUnitPanel';
+import { AddChooser } from '@/components/reference/AddChooser';
 import { ReferencePicker } from '@/components/reference/ReferencePicker';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Badge, Card, EmptyState, ErrorNote, Figure, Grid, Loading, Muted, PageHeader, SectionTitle, TypeIcon } from '@/components/ui/Display';
@@ -20,6 +21,7 @@ import type { Machine, MaintenanceData, Slot, SubUnit } from '@/lib/types';
 import styles from '@/components/machines/Machines.module.css';
 
 type Dialog =
+  | { kind: 'choose' }
   | { kind: 'catalogue' }
   | { kind: 'machine'; machine?: Machine }
   | { kind: 'subUnit'; subUnit?: SubUnit; machineId?: string }
@@ -83,14 +85,9 @@ export function MachinesPage() {
         subtitle="Equipment, attached hardware and what is loaded where."
         actions={
           canEdit && (
-            <>
-              <Button icon={BookOpen} onClick={() => setDialog({ kind: 'catalogue' })}>
-                From catalogue
-              </Button>
-              <Button variant="primary" icon={Plus} onClick={() => setDialog({ kind: 'machine' })}>
-                Add machine
-              </Button>
-            </>
+            <Button variant="primary" icon={Plus} onClick={() => setDialog({ kind: 'choose' })}>
+              Add machine
+            </Button>
           )
         }
       />
@@ -99,16 +96,8 @@ export function MachinesPage() {
         <EmptyState
           icon={Cog}
           title="No machines yet"
-          action={
-            canEdit && (
-              <>
-                <Button variant="primary" icon={BookOpen} onClick={() => setDialog({ kind: 'catalogue' })}>Choose from the catalogue</Button>
-                <Button icon={Plus} onClick={() => setDialog({ kind: 'machine' })}>Add one by hand</Button>
-              </>
-            )
-          }
-        >
-          Pick printers, lasers, CNC routers and finishing equipment from the built-in catalogue, with their specs, feeders and maintenance schedules filled in. Or add anything by hand.
+>
+          Add printers, lasers, CNC routers and finishing equipment from the built-in catalogue with their specs, feeders and maintenance schedules filled in, or by hand.
         </EmptyState>
       )}
 
@@ -192,6 +181,16 @@ export function MachinesPage() {
         </>
       )}
 
+      {dialog?.kind === 'choose' && (
+        <AddChooser
+          title="Add a machine"
+          catalogue="Printers, lasers, CNC and finishing equipment, with specs and schedules"
+          scratch={{ title: 'By hand', subtitle: 'Anything not in the catalogue' }}
+          onCatalogue={() => setDialog({ kind: 'catalogue' })}
+          onScratch={() => setDialog({ kind: 'machine' })}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog?.kind === 'catalogue' && <ReferencePicker kinds={['machine']} onClose={() => setDialog(null)} onAdded={added} />}
       {dialog?.kind === 'machine' && <MachineForm catalog={catalog} machine={dialog.machine} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'subUnit' && <SubUnitForm catalog={catalog} subUnit={dialog.subUnit} machineId={dialog.machineId} onClose={() => setDialog(null)} />}
