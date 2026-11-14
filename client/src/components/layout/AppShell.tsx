@@ -1,18 +1,18 @@
 import { useState } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  ClipboardList, Cog, Eye, History, LayoutDashboard, LayoutGrid, LogOut, Menu, Package, Palette, PanelLeftClose, PanelLeftOpen, Plus, Settings,
+  ClipboardList, Cog, Eye, History, LayoutDashboard, LogOut, Menu, Package, Palette, PanelLeftClose, PanelLeftOpen, Plus, Settings,
   ShoppingCart,
   Sunrise, Wrench, type LucideIcon,
 } from 'lucide-react';
 import { DailyReport, useDailyReport } from '@/components/report/DailyReport';
 import { Button, IconButton } from '@/components/ui/Button';
-import { Badge, Chip, ChipRow, TypeIcon } from '@/components/ui/Display';
+import { Badge } from '@/components/ui/Display';
 import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/context/AuthContext';
 import { useMachineFocus } from '@/context/FocusContext';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
-import { useCatalog, useItems } from '@/hooks/useCatalog';
+import { useItems } from '@/hooks/useCatalog';
 import type { Dashboard, JobRequest, MaintenanceData, ReorderData } from '@/lib/types';
 import styles from '@/components/layout/AppShell.module.css';
 
@@ -47,35 +47,6 @@ function useSidebarCollapsed() {
       return !was;
     });
   return [collapsed, toggle] as const;
-}
-
-/**
- * The main toggle: the whole workshop, or one machine and only what belongs to it.
- * It sits above every screen except Settings, which configures the workspace as a whole.
- */
-function FocusBar() {
-  const { machines, machineTypeById } = useCatalog();
-  const { machine, setFocus } = useMachineFocus();
-  const { pathname } = useLocation();
-  if (machines.length === 0 || pathname.startsWith('/settings') || pathname.startsWith('/appearance')) return null;
-
-  return (
-    <div className={styles.focus}>
-      <span className={styles.focusLabel}>Viewing</span>
-      <ChipRow label="View the whole workshop or one machine">
-        <Chip active={!machine} onClick={() => setFocus(null)}>
-          <LayoutGrid size={16} aria-hidden />
-          Whole workshop
-        </Chip>
-        {machines.map((m) => (
-          <Chip key={m.id} active={machine?.id === m.id} onClick={() => setFocus(machine?.id === m.id ? null : m.id)}>
-            <TypeIcon icon={(m.machineTypeId && machineTypeById.get(m.machineTypeId)?.icon) || 'Cog'} tone="blue" size="sm" />
-            {m.name}
-          </Chip>
-        ))}
-      </ChipRow>
-    </div>
-  );
 }
 
 export function AppShell() {
@@ -227,7 +198,6 @@ export function AppShell() {
               <Eye size={16} aria-hidden /> You have view-only access to this workspace.
             </p>
           )}
-          <FocusBar />
           <Outlet />
         </div>
       </main>

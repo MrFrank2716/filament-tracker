@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { CircleAlert, LoaderCircle, type LucideIcon } from 'lucide-react';
+import { FocusPicker } from '@/components/layout/FocusPicker';
 import { iconFor, toneFor } from '@/lib/icons';
 import styles from '@/components/ui/Display.module.css';
 
@@ -135,7 +136,10 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
         <h1 className={styles.pageTitle}>{title}</h1>
         {subtitle && <p className={styles.pageSubtitle}>{subtitle}</p>}
       </div>
-      {actions && <div className={styles.pageActions}>{actions}</div>}
+      <div className={styles.pageActions}>
+        <FocusPicker />
+        {actions}
+      </div>
     </header>
   );
 }
