@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { BookOpen, PackageOpen, PackageSearch, Plus, Search, SlidersHorizontal } from 'lucide-react';
+import { PackageOpen, PackageSearch, Plus, Search, SlidersHorizontal } from 'lucide-react';
 import { ItemBoard, type BoardGrouping } from '@/components/items/ItemBoard';
 import { ItemForm } from '@/components/items/ItemForm';
 import { ItemSheet } from '@/components/items/ItemSheet';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { StockMeter } from '@/components/items/StockMeter';
 import { Badge, Chip, ChipRow, EmptyState, ErrorNote, Figure, List, Loading, Muted, PageHeader, Row, Swatch, Tabs, TypeIcon } from '@/components/ui/Display';
 import { FormGrid, NumberField, SelectField } from '@/components/ui/Form';
-import { Modal } from '@/components/ui/Modal';
+import { AddChooser } from '@/components/reference/AddChooser';
 import { ReferencePicker } from '@/components/reference/ReferencePicker';
 import { useMachineFocus } from '@/context/FocusContext';
 import { useWorkspace } from '@/context/WorkspaceContext';
@@ -178,12 +178,9 @@ export function InventoryPage() {
         subtitle={`${filtered.length} of ${items.length} items${machine ? ` loaded in or fitting ${machine.name}` : ''}`}
         actions={
           canEdit && (
-            // Wide screens only: on a phone the floating button does this, so the header stays uncluttered.
+            // One add control per screen: this button on wide screens, the floating "+" on narrow ones.
             <span className={styles.wideOnly}>
-              <Button icon={BookOpen} onClick={() => setPicking(true)}>
-                From catalogue
-              </Button>
-              <Button variant="primary" icon={Plus} onClick={() => setForm({ initial: preset() })}>
+              <Button variant="primary" icon={Plus} onClick={() => setChoosing(true)}>
                 Add item
               </Button>
             </span>
@@ -282,23 +279,15 @@ export function InventoryPage() {
 
       {items.length === 0 ? (
         machine ? (
-          <EmptyState icon={PackageOpen} title={`Nothing linked to ${machine.name} yet`} action={canEdit && <Button variant="primary" icon={Plus} onClick={() => setForm({ initial: preset() })}>Add an item for it</Button>}>
+          <EmptyState icon={PackageOpen} title={`Nothing linked to ${machine.name} yet`}>
             Items show here once they are loaded in this machine or marked as fitting it. Open an item, choose Edit, and pick the machine under "Fits these machines".
           </EmptyState>
         ) : (
           <EmptyState
             icon={PackageOpen}
             title="No inventory yet"
-            action={
-              canEdit && (
-                <>
-                  <Button variant="primary" icon={BookOpen} onClick={() => setPicking(true)}>Choose from the catalogue</Button>
-                  <Button icon={Plus} onClick={() => setForm({})}>Add your first item</Button>
-                </>
-              )
-            }
-          >
-            Pick filament spools, sheet stock, endmills, fixings and finishing supplies from the built-in catalogue, with their specs filled in. Or add anything by hand, or import a CSV from Settings.
+>
+            Add spools, sheet stock, endmills, fixings and finishing supplies from the built-in catalogue with their details filled in, or by hand. You can also import a CSV from Settings.
           </EmptyState>
         )
       ) : filtered.length === 0 ? (
@@ -387,22 +376,14 @@ export function InventoryPage() {
 
       {form && <ItemForm catalog={catalog} item={form.item} initial={form.initial} onClose={() => setForm(null)} />}
       {choosing && (
-        <Modal title="Add an item" onClose={() => setChoosing(false)}>
-          <List>
-            <Row
-              onClick={() => { setChoosing(false); setPicking(true); }}
-              leading={<BookOpen size={20} aria-hidden />}
-              title="From the catalogue"
-              subtitle="Filament, sheet stock, tooling, fixings and finishes"
-            />
-            <Row
-              onClick={() => { setChoosing(false); setForm({ initial: preset() }); }}
-              leading={<Plus size={20} aria-hidden />}
-              title="From scratch"
-              subtitle="Anything else, typed in yourself"
-            />
-          </List>
-        </Modal>
+        <AddChooser
+          title="Add an item"
+          catalogue="Filament, sheet stock, tooling, fixings and finishes"
+          scratch={{ title: 'From scratch', subtitle: 'Anything else, typed in yourself' }}
+          onCatalogue={() => { setChoosing(false); setPicking(true); }}
+          onScratch={() => { setChoosing(false); setForm({ initial: preset() }); }}
+          onClose={() => setChoosing(false)}
+        />
       )}
       {picking && <ReferencePicker kinds={ITEM_KINDS} onClose={() => setPicking(false)} onAdded={() => setPicking(false)} />}
     </>
