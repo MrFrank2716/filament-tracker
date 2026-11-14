@@ -4,6 +4,7 @@ import { prisma } from '@/db';
 import { ownerOnly, requireAuth, ROLES, workspaceGuard } from '@/auth';
 import { HttpError, notFound, param, parse } from '@/http';
 import { broadcastChanges } from '@/realtime';
+import { registerReferenceRoutes } from '@/routes/reference';
 import { recordActivity } from '@/services/activity';
 import { importSnapshot, snapshotSchema } from '@/services/snapshot';
 import { removeWorkspaceUploads } from '@/services/uploads';
@@ -29,6 +30,10 @@ workspacesRouter.get('/templates/:id', (req, res) => {
   if (!template) throw notFound('Template');
   res.json(template);
 });
+
+// ---- Reference catalogue (read-only, no workspace needed) ------------------
+
+registerReferenceRoutes(workspacesRouter);
 
 // ---- Workspaces ------------------------------------------------------------
 
