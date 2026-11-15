@@ -87,6 +87,8 @@ Do not run `npm run db:seed` on the live site: it creates the demo account. With
 
 ## Connected printers (Bambu Lab)
 
+Step-by-step guides are in the wiki: [Connecting printers](docs/wiki/Connecting-printers.md), [AMS and spools](docs/wiki/AMS-and-spools.md), [Bridge reference](docs/wiki/Bridge-reference.md). The wiki's front page is [docs/wiki/Home.md](docs/wiki/Home.md).
+
 Wrkbench can read Bambu Lab printers: every AMS and what is in each slot (material, colour, how much is left on tagged spools), humidity and drying, nozzle, progress and error codes. It works with printers exactly as they are normally set up, in cloud mode with Bambu Handy still working. It only reads: nothing here can start, stop or change a print.
 
 **How it fits together.** Printers can only be reached from their own network, so a small program, the bridge (`bridge/`), runs there on something that is always on (a Raspberry Pi, a mini PC, a NAS). It connects to each printer with that printer's access code, and makes one outgoing connection to Wrkbench. No ports are opened on the workshop's network.

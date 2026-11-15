@@ -226,6 +226,10 @@ export function readBambu(doc: Doc): PrinterReading {
   const chamber = num(print.chamber_temper);
   const wifi = /-?\d+/.exec(text(print.wifi_signal, 20) ?? '');
 
+  const feeders = readFeeders(print, info, modelName);
+  // "Feeding now" only means something during a print; between prints the printer's tray number is left over.
+  if (!busy) for (const feeder of feeders) for (const tray of feeder.trays) tray.active = false;
+
   return {
     phase,
     rawState,
@@ -242,7 +246,7 @@ export function readBambu(doc: Doc): PrinterReading {
     bed: bed === null ? null : { current: bed, target: num(print.bed_target_temper) },
     chamber: chamber === null ? null : { current: chamber, target: null },
     extruders: readExtruders(print),
-    feeders: readFeeders(print, info, modelName),
+    feeders,
     errors: readErrors(print),
     wifiSignal: wifi ? Number(wifi[0]) : null,
     firmware: text(ota?.sw_ver, 40),
