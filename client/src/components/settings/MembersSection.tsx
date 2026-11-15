@@ -4,6 +4,7 @@ import { Button, IconButton } from '@/components/ui/Button';
 import { Badge, ErrorNote, Loading, Muted, SectionTitle } from '@/components/ui/Display';
 import { SelectField, TextField } from '@/components/ui/Form';
 import { useConfirm } from '@/components/ui/Modal';
+import { Select } from '@/components/ui/Select';
 import { useAction } from '@/components/ui/Toast';
 import { useAuth } from '@/context/AuthContext';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
@@ -52,8 +53,9 @@ export function MembersSection() {
               <Muted>{member.email}</Muted>
             </div>
             {isOwner ? (
-              <select
-                className={styles.roleSelect}
+              <Select
+                compact
+                wrapClassName={styles.roleSelect}
                 value={member.role}
                 aria-label={`Role for ${member.name}`}
                 disabled={busy}
@@ -63,7 +65,7 @@ export function MembersSection() {
                 <option value="admin">Admin</option>
                 <option value="operator">Operator</option>
                 <option value="viewer">Viewer</option>
-              </select>
+              </Select>
             ) : (
               <Badge tone={member.role === 'owner' ? 'accent' : 'neutral'}>{member.role}</Badge>
             )}

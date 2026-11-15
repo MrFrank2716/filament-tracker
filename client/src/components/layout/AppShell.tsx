@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  ClipboardList, Cog, Eye, History, LayoutDashboard, LogOut, Menu, Package, Palette, PanelLeftClose, PanelLeftOpen, Plus, Settings,
+  Boxes, ClipboardList, Cog, Eye, History, LayoutDashboard, LogOut, Menu, Package, Palette, PanelLeftClose, PanelLeftOpen, Plus, Settings,
   ShoppingCart,
   Sunrise, Wrench, type LucideIcon,
 } from 'lucide-react';
@@ -9,6 +9,7 @@ import { DailyReport, useDailyReport } from '@/components/report/DailyReport';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Display';
 import { Modal } from '@/components/ui/Modal';
+import { Select } from '@/components/ui/Select';
 import { useAuth } from '@/context/AuthContext';
 import { useMachineFocus } from '@/context/FocusContext';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
@@ -97,14 +98,14 @@ export function AppShell() {
   const switcher = (
     <label className={styles.switcher}>
       <span className={styles.switcherLabel}>Workspace</span>
-      <select className={styles.switcherSelect} value={workspace?.id ?? ''} onChange={(e) => switchWorkspace(e.target.value)}>
+      <Select icon={Boxes} className={styles.switcherSelect} value={workspace?.id ?? ''} onChange={(e) => switchWorkspace(e.target.value)}>
         {workspaces.map((w) => (
           <option key={w.id} value={w.id}>
             {w.name}
           </option>
         ))}
         <option value={NEW_WORKSPACE}>+ New workspace…</option>
-      </select>
+      </Select>
     </label>
   );
 
