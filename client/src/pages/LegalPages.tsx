@@ -21,7 +21,10 @@ function Doc({ title, children }: { title: string; children: ReactNode }) {
         {children}
         <p className={styles.meta}>
           <Link to="/privacy">Privacy Policy</Link> · <Link to="/terms">Terms of Service</Link> ·{' '}
-          <Link to="/notices">Open-source notices</Link>
+          <Link to="/notices">Open-source notices</Link> ·{' '}
+          <a href={SOURCE_URL} target="_blank" rel="noreferrer">
+            Source code
+          </a>
         </p>
       </article>
     </main>
@@ -174,6 +177,14 @@ export function NoticesPage() {
   return (
     <Doc title="Open-source notices">
       <p>
+        Wrkbench is free software, licensed under the GNU Affero General Public License v3.0 (AGPL-3.0-only). The
+        complete source code, including the licence text, is available at{' '}
+        <a href={SOURCE_URL} target="_blank" rel="noreferrer">
+          {SOURCE_URL}
+        </a>
+        . If you run a modified version as a network service, the licence requires you to offer your users its source.
+      </p>
+      <p>
         Wrkbench is built with open-source software, mostly under the MIT, ISC, BSD-3-Clause and Apache-2.0 licences.
         Each package&apos;s licence text ships with it in <code>node_modules</code> and in the upstream repositories.
       </p>
@@ -202,12 +213,18 @@ export function NoticesPage() {
   );
 }
 
-/** Links to the three legal pages, for footers and settings. */
+/** AGPL-3.0 section 13: users of the hosted app must be offered the source. */
+export const SOURCE_URL = 'https://github.com/hussxin5046/filament-tracker';
+
+/** Links to the legal pages and the source code, for footers and settings. */
 export function LegalLinks() {
   return (
     <p className={styles.legalLinks}>
       <Link to="/privacy">Privacy Policy</Link> · <Link to="/terms">Terms of Service</Link> ·{' '}
-      <Link to="/notices">Open-source notices</Link>
+      <Link to="/notices">Open-source notices</Link> ·{' '}
+      <a href={SOURCE_URL} target="_blank" rel="noreferrer">
+        Source code
+      </a>
     </p>
   );
 }
