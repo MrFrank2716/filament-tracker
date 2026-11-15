@@ -1,0 +1,22 @@
+name: Idea or feature request
+description: Suggest something Wrkbench could do better.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the problem or the job you want done in your workshop, rather than the solution.
+      placeholder: e.g. We cut a lot of plywood and lose track of which offcuts are still usable.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+      description: How you imagine it working, if you have an idea.
+  - type: textarea
+    id: workaround
+    attributes:
+      label: How do you manage today?
+      description: Any workaround you use now, in Wrkbench or elsewhere.

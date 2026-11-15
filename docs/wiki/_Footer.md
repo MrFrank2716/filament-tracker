@@ -1,0 +1,1 @@
+These pages are kept in [`docs/wiki`](https://github.com/hussxin5046/filament-tracker/tree/main/docs/wiki) in the repository and copied here automatically, so edits made directly in the wiki are overwritten. Found a mistake? [Open an issue](https://github.com/hussxin5046/filament-tracker/issues/new/choose) or a pull request.

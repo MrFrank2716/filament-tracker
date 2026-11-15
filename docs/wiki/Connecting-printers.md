@@ -4,6 +4,8 @@ Wrkbench can read Bambu Lab printers: every AMS and what is in each slot, how mu
 
 It only reads. Nothing here can start, stop or change a print, and the printer stays set up exactly as it is now: cloud mode, Bambu Studio and Bambu Handy all keep working. You do not need LAN-only mode or Developer Mode.
 
+New to the words used here (bridge, AMS, access code)? See the [Glossary](Glossary.md).
+
 ## How it works, in one paragraph
 
 A printer can only be reached from its own network, and Wrkbench runs somewhere else. So a small program, the **bridge**, runs on a computer in your workshop. It talks to the printers on one side and makes a single outgoing connection to Wrkbench on the other. You do not open any ports on your router.
@@ -17,7 +19,7 @@ printer  <-- your network -->  bridge  -- outgoing connection -->  Wrkbench  -->
 You need:
 
 - **An admin or owner account** in the workspace. (Guest sessions cannot add a bridge.)
-- **A computer for the bridge** that is always on and on the same network as the printers: a Raspberry Pi, a mini PC, a NAS, or a desktop that stays on. It needs either Docker, or Node.js 22.
+- **A computer for the bridge** that is always on and on the same network as the printers: a Raspberry Pi, a mini PC, a NAS, or a desktop that stays on. It needs either Docker, or Node.js 22.9 or newer.
 - **Each printer's access code.** On the printer's screen: **Settings**, then **Network** (on some models **Settings**, **General**, **LAN Only Mode**). It is 8 characters. You do not have to switch LAN Only Mode on; you only need to read the code.
 - If printers are not found automatically, each printer's **address** (same Network screen, for example `192.168.1.50`) and **serial number** (**Settings**, then **Device**).
 
@@ -35,11 +37,11 @@ The bridge now appears as **Not set up**, with a command to copy. The command co
 
 Pick whichever fits the computer. On a Mac or Windows PC use the second option: Docker there cannot see printers on your network.
 
-**With Docker (recommended).** Paste the first command into a terminal on the bridge computer. It looks like this:
+**With Docker (recommended).** Paste the first command into a terminal on the bridge computer. It looks like this (always copy the one Wrkbench shows, which has your own address, code and image):
 
 ```
 docker run -d --name wrkbench-bridge --restart unless-stopped --network host \
-  -v wrkbench-bridge:/data ghcr.io/<owner>/wrkbench-bridge:latest \
+  -v wrkbench-bridge:/data ghcr.io/hussxin5046/wrkbench-bridge:latest \
   --server https://your-wrkbench-address --pair ABCD-EFGH-JKMN
 ```
 
@@ -49,7 +51,7 @@ docker run -d --name wrkbench-bridge --restart unless-stopped --network host \
 
 If the image has not been published yet, build it once from a copy of the repository: `docker build -f bridge/Dockerfile -t wrkbench-bridge .` and use `wrkbench-bridge` as the image name in the command.
 
-**Without Docker.** On a computer with Node.js 22 and a copy of the repository:
+**Without Docker.** On a computer with Node.js 22.9 or newer and a copy of the repository:
 
 ```
 npm install

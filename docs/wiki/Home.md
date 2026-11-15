@@ -1,8 +1,25 @@
 # Wrkbench wiki
 
-How to use Wrkbench, one task per page. The pages live in `docs/wiki/` in the repository, so they change together with the app. (They are plain Markdown and can be copied into the GitHub wiki as they are.)
+Wrkbench keeps track of a workshop's stock, machines, maintenance and jobs. These guides explain how to use it, one task per page, in plain language.
 
-## Pages
+New here? Start with **[Getting started](Getting-started.md)**.
+
+## Using Wrkbench
+
+| Page | What it covers |
+| --- | --- |
+| [Getting started](Getting-started.md) | Signing in, guest sessions, creating a workspace, finding your way around |
+| [Inventory](Inventory.md) | Adding items, changing stock, offcuts, tool life, reordering |
+| [Machines](Machines.md) | Machines, attached hardware and slots, a machine's own page |
+| [Maintenance](Maintenance.md) | Recurring servicing by date or hours, logging a service |
+| [Jobs and the queue](Jobs-and-queue.md) | Creating and finishing jobs, costs, the order jobs run in |
+| [Job requests](Job-requests.md) | Letting people outside the workshop ask for jobs |
+| [Dashboard and reports](Dashboard-and-reports.md) | Overview, the daily report, the activity log and undo |
+| [Members and roles](Members-and-roles.md) | Sharing a workspace and who can do what |
+| [Catalogue and settings](Catalogue-and-settings.md) | Categories, units, locations, suppliers, the built-in catalogue, appearance, your account |
+| [Backups, import and export](Backups-and-data.md) | Exporting a workspace, importing from a spreadsheet |
+
+## Connected printers
 
 | Page | What it covers |
 | --- | --- |
@@ -10,22 +27,22 @@ How to use Wrkbench, one task per page. The pages live in `docs/wiki/` in the re
 | [AMS and spools](AMS-and-spools.md) | What appears once a printer is connected, and how spools get linked to stock |
 | [Bridge reference](Bridge-reference.md) | Running, updating and moving the bridge; commands; what to do when something is wrong |
 
-## Still to write
+## Running your own copy
 
-These are covered briefly in the [README](../../README.md) until they have a page of their own:
+| Page | What it covers |
+| --- | --- |
+| [Self-hosting](Self-hosting.md) | Deploying with Docker or Node.js, every setting, email, backups, running a fork |
+| [Troubleshooting](Troubleshooting.md) | Common problems for users and for people hosting Wrkbench |
 
-- Getting started: workspaces, templates, members and roles
-- Inventory: categories, custom fields, stock adjustments, low stock and reorder
-- Machines and attached hardware
-- Jobs and the print queue
-- Job requests from outside
-- Maintenance schedules
-- Daily report and activity log
-- Import, export and backups
-- Hosting your own copy
+## Also useful
 
-## Conventions used here
+- [Glossary](Glossary.md): what the words used in Wrkbench mean.
+- [Contributing](../../CONTRIBUTING.md): working on the code, and improving these pages.
+
+## How these pages are written
 
 - **Bold** is something on screen: a button, a tab, a field.
 - "Admin" means a member with the admin or owner role. Operators and viewers are named when a step is open to them.
 - Steps are numbered when the order matters.
+
+These pages live in the [`docs/wiki`](https://github.com/hussxin5046/filament-tracker/tree/main/docs/wiki) folder of the repository and are copied to the GitHub wiki automatically. To suggest a change, edit them there.
