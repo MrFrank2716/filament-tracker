@@ -100,6 +100,8 @@ export interface Item {
   wearFlag: boolean;
   isRemnant: boolean;
   parentId: string | null;
+  /** The id on the spool's own tag, as a connected printer read it. */
+  tagId: string | null;
   compatibleMachineIds: string[];
   slot: { position: number; label: string; subUnit: { id: string; name: string; machineId: string | null } } | null;
   updatedAt: string;
@@ -143,11 +145,28 @@ export interface Reading {
   unit: string;
 }
 
+/** What a connected printer last saw in a slot. */
+export interface Detected {
+  state: 'empty' | 'loaded';
+  material: string | null;
+  subType: string | null;
+  colour: string | null;
+  colours: string[];
+  brand: string | null;
+  tagId: string | null;
+  remainingPercent: number | null;
+  spoolWeightGrams: number | null;
+}
+
 export interface Slot {
   id: string;
   position: number;
   label: string;
   itemId: string | null;
+  /** Null for slots no printer reports. */
+  detected: Detected | null;
+  /** Who put the item here: a member, or the printer recognising its tag. */
+  source: 'manual' | 'printer';
 }
 
 export interface SubUnit {
@@ -157,6 +176,8 @@ export interface SubUnit {
   kind: string;
   readings: Reading[];
   statusNote: string;
+  /** Set while a connected printer reports this unit and keeps its slots and readings. */
+  externalId: string | null;
   slots: Slot[];
 }
 
@@ -449,4 +470,105 @@ export interface TemplateSummary {
 
 export interface Template extends Omit<TemplateSummary, 'counts'> {
   snapshot: Snapshot;
+}
+
+// ---- Connected printers -------------------------------------------------------------
+// PrinterState mirrors server/src/integrations/types.ts.
+
+export interface Pairing {
+  code: string;
+  expiresAt: string;
+  /** Copy-paste commands that run the bridge with this code. */
+  docker: string;
+  source: string;
+}
+
+export interface Bridge {
+  id: string;
+  name: string;
+  version: string;
+  platform: string;
+  lastSeenAt: string | null;
+  createdAt: string;
+  online: boolean;
+  /** False until its set-up code has been used. */
+  paired: boolean;
+  pairingExpiresAt: string | null;
+  printerCount: number;
+  /** Only in the answer to creating a bridge or asking for a new code. */
+  pairing?: Pairing;
+}
+
+export interface PrinterLink {
+  id: string;
+  machineId: string;
+  bridgeId: string;
+  vendor: string;
+  serial: string;
+  host: string;
+  modelName: string;
+  firmware: string;
+  codeState: 'ok' | 'missing' | 'rejected';
+  machine: { name: string };
+  bridge: { name: string };
+}
+
+export interface DiscoveredPrinter {
+  serial: string;
+  host: string;
+  name: string;
+  modelName: string;
+  linked: boolean;
+}
+
+export type PrinterConnection = 'live' | 'printer_unreachable' | 'bridge_offline' | 'needs_code' | 'never_seen';
+export type PrinterPhase = 'idle' | 'preparing' | 'printing' | 'paused' | 'finished' | 'failed' | 'unknown';
+
+export interface PrinterTemp {
+  current: number | null;
+  target: number | null;
+}
+
+export interface PrinterTray extends Detected {
+  /** 1-based, the same as Slot.position. */
+  position: number;
+  active: boolean;
+}
+
+export interface PrinterFeeder {
+  key: string;
+  kind: 'ams' | 'ams_lite' | 'ams_2_pro' | 'ams_ht' | 'external';
+  label: string;
+  kindLabel: string;
+  humidityPercent: number | null;
+  humidityLevel: number | null;
+  temperature: number | null;
+  drying: { remainingMinutes: number | null } | null;
+  trays: PrinterTray[];
+}
+
+export interface PrinterError {
+  kind: 'hms' | 'print_error';
+  code: string;
+  severity: 'info' | 'warning' | 'error' | 'fatal';
+  url: string | null;
+}
+
+export interface PrinterState {
+  machineId: string;
+  printerLinkId: string;
+  connection: PrinterConnection;
+  asOf: number | null;
+  endsAt: number | null;
+  phase: PrinterPhase;
+  rawState: string;
+  print: { name: string | null; progress: number | null; layer: number | null; totalLayers: number | null; remainingMinutes: number | null } | null;
+  bed: PrinterTemp | null;
+  chamber: PrinterTemp | null;
+  extruders: Array<{ label: string; temp: PrinterTemp | null; nozzle: { diameter: number | null; type: string | null } }>;
+  feeders: PrinterFeeder[];
+  errors: PrinterError[];
+  wifiSignal: number | null;
+  firmware: string | null;
+  modelName: string | null;
 }

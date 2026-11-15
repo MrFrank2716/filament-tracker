@@ -23,3 +23,20 @@ export function rateLimit(max: number, windowMs: number): RequestHandler {
     next();
   };
 }
+
+/**
+ * An allowance for one long-lived connection: `capacity` messages at once, refilled at `perSecond`.
+ * Returns a function that says whether the next message is allowed.
+ */
+export function tokenBucket(capacity: number, perSecond: number): () => boolean {
+  let tokens = capacity;
+  let last = Date.now();
+  return () => {
+    const now = Date.now();
+    tokens = Math.min(capacity, tokens + ((now - last) / 1000) * perSecond);
+    last = now;
+    if (tokens < 1) return false;
+    tokens -= 1;
+    return true;
+  };
+}

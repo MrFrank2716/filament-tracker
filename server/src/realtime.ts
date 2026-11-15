@@ -28,9 +28,18 @@ export function attachRealtime(server: HttpServer): Server {
       const role = await getRole(socket.data.userId, workspaceId);
       if (!role) return;
       for (const joined of socket.rooms) {
-        if (joined.startsWith('workspace:')) socket.leave(joined);
+        if (joined.startsWith('workspace:')) {
+          socket.leave(joined);
+          watchersChanged(joined.slice('workspace:'.length));
+        }
       }
       socket.join(room(workspaceId));
+      watchersChanged(workspaceId);
+    });
+    socket.on('disconnecting', () => {
+      const left = [...socket.rooms].filter((joined) => joined.startsWith('workspace:'));
+      // The rooms are only left once this handler returns.
+      setImmediate(() => left.forEach((joined) => watchersChanged(joined.slice('workspace:'.length))));
     });
   });
 
@@ -40,6 +49,38 @@ export function attachRealtime(server: HttpServer): Server {
 /** For changes that do not come from a signed-in member, such as an outside job request arriving. */
 export function notifyWorkspace(workspaceId: string): void {
   io?.to(room(workspaceId)).emit('workspace:changed', { by: null, at: Date.now() });
+}
+
+const pending = new Map<string, ReturnType<typeof setTimeout>>();
+
+/** The same, for changes that come in bursts (a printer reporting): several close together become one refresh. */
+export function notifyWorkspaceSoon(workspaceId: string): void {
+  if (pending.has(workspaceId)) return;
+  pending.set(
+    workspaceId,
+    setTimeout(() => {
+      pending.delete(workspaceId);
+      notifyWorkspace(workspaceId);
+    }, 250),
+  );
+}
+
+/** Send one named event to everyone looking at a workspace, without making them reload anything. */
+export function emitToWorkspace(workspaceId: string, event: string, payload: unknown): void {
+  io?.to(room(workspaceId)).emit(event, payload);
+}
+
+/** How many browsers have this workspace open right now. */
+export function workspaceWatchers(workspaceId: string): number {
+  return io?.of('/').adapter.rooms.get(room(workspaceId))?.size ?? 0;
+}
+
+const watcherListeners = new Set<(workspaceId: string) => void>();
+const watchersChanged = (workspaceId: string) => watcherListeners.forEach((listener) => listener(workspaceId));
+
+/** Called whenever someone opens or leaves a workspace. */
+export function onWatchersChanged(listener: (workspaceId: string) => void): void {
+  watcherListeners.add(listener);
 }
 
 /** Tell everyone looking at a workspace that its data changed, after any successful write. */

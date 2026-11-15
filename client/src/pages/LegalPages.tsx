@@ -58,6 +58,13 @@ export function PrivacyPage() {
           comments and any files they upload.
         </li>
         <li>
+          <strong>Connected printers (only if a workspace sets them up):</strong> a bridge program the workspace runs
+          on its own network sends us each connected printer&apos;s serial number, model, firmware version, address on
+          that network and status: what is loaded, progress, the name of the file being printed, temperatures and error
+          codes. The printer&apos;s access code is passed to the bridge and is not stored by Wrkbench. Removing a
+          printer or bridge in Settings stops this.
+        </li>
+        <li>
           <strong>On your device:</strong> a sign-in token and display preferences are kept in your browser&apos;s local
           storage. Wrkbench sets no cookies and uses no analytics or advertising trackers.
         </li>
@@ -141,10 +148,19 @@ export function TermsPage() {
       <h2>Guest sessions</h2>
       <p>Guest data is temporary and is deleted after 7 days. Create an account to keep your work.</p>
 
+      <h2>Connected printers</h2>
+      <p>
+        Connecting a printer is optional and uses a bridge program you run on your own network. It only reads the
+        printer&apos;s status; it cannot start, stop or change a print. It talks to the printer in a way the maker
+        does not officially support, so it may stop working after a printer firmware update, and what it reports can be
+        incomplete or wrong. Check anything that matters on the printer itself. You are responsible for the computer
+        the bridge runs on and for keeping its set-up command and settings private.
+      </p>
+
       <h2>Third-party names</h2>
       <p>
-        Example data may mention brands such as Bambu Lab, Makera and Hozo. Wrkbench is not affiliated with,
-        sponsored or endorsed by them, and their names belong to their owners.
+        Wrkbench can read Bambu Lab printers, and example data may mention brands such as Bambu Lab, Makera and Hozo.
+        Wrkbench is not affiliated with, sponsored or endorsed by them, and their names belong to their owners.
       </p>
 
       <h2>No warranty and liability</h2>

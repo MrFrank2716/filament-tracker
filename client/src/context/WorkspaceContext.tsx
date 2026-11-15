@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import { useAuth } from '@/context/AuthContext';
 import { api, tokenStore } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
+import { applyPrinterState, clearPrinterStates } from '@/lib/printerStore';
 import { refreshAll, useQuery } from '@/lib/store';
 import type { Workspace } from '@/lib/types';
 
@@ -112,6 +113,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       refreshAll();
       void reload().catch(() => undefined);
     });
+    // Connected printers report every second or two: each message replaces that printer's entry, nothing is re-fetched.
+    socket.on('printer:state', applyPrinterState);
     // Coming back to the tab (phone unlocked at the bench) should never show stale stock.
     const onVisible = () => {
       if (document.visibilityState === 'visible') refreshAll();
@@ -120,6 +123,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
       socket.disconnect();
+      clearPrinterStates();
     };
   }, [user, workspaceId, reload]);
 

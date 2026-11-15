@@ -1,0 +1,20 @@
+{
+  "name": "@filament-tracker/protocol",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Messages shared by the Wrkbench server and the Wrkbench bridge",
+  "exports": {
+    ".": "./src/index.ts",
+    "./fixtures": "./src/fixtures.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
+}

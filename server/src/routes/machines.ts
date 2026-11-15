@@ -2,6 +2,9 @@ import type { Router } from 'express';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma, type Json } from '@/db';
+import { pushConfig } from '@/integrations/bridgeGateway';
+import { forgetPrinter } from '@/integrations/registry';
+import type { Detected } from '@/integrations/spoolMatch';
 import { HttpError, notFound, param, parse } from '@/http';
 import { MACHINE_STATUSES, readingSchema } from '@/services/snapshot';
 import { assertInWorkspace } from '@/services/stock';
@@ -84,7 +87,13 @@ export function registerMachineRoutes(router: Router): void {
   router.delete('/machines/:id', async (req, res) => {
     const id = param(req, 'id');
     await assertInWorkspace(prisma, req.workspaceId, { machine: id });
+    const link = await prisma.printerLink.findUnique({ where: { machineId: id }, select: { id: true, bridgeId: true } });
     await prisma.machine.delete({ where: { id } });
+    if (link) {
+      // The connection went with the machine: stop tracking it and have the bridge drop the printer.
+      forgetPrinter(link.id);
+      void pushConfig(link.bridgeId);
+    }
     res.status(204).end();
   });
 
@@ -117,6 +126,11 @@ export function registerMachineRoutes(router: Router): void {
     const existing = await prisma.subUnit.findFirst({ where: { id, workspaceId: req.workspaceId }, include: subUnitInclude });
     if (!existing) throw notFound('Unit');
     await assertInWorkspace(prisma, req.workspaceId, { machine: data.machineId });
+    if (existing.externalId) {
+      // The printer decides how many trays this has and which machine it hangs off.
+      if (slotCount !== undefined && slotCount !== existing.slots.length) throw new HttpError(409, 'A connected printer keeps this unit\'s slots. Unlink the printer to change them by hand.');
+      if (data.machineId !== undefined && data.machineId !== existing.machineId) throw new HttpError(409, 'This unit follows its printer. Unlink the printer to move it.');
+    }
 
     const subUnit = await prisma.$transaction(async (tx) => {
       await tx.subUnit.update({ where: { id }, data: { ...data, ...(readings ? { readings: readings as Json } : {}) } });
@@ -136,6 +150,7 @@ export function registerMachineRoutes(router: Router): void {
     const id = param(req, 'id');
     const existing = await prisma.subUnit.findFirst({ where: { id, workspaceId: req.workspaceId } });
     if (!existing) throw notFound('Unit');
+    if (existing.externalId) throw new HttpError(409, 'A connected printer reports this unit, so it would come straight back. Unlink the printer first.');
     await prisma.subUnit.delete({ where: { id } });
     res.status(204).end();
   });
@@ -153,10 +168,23 @@ export function registerMachineRoutes(router: Router): void {
     await assertInWorkspace(prisma, req.workspaceId, { item: itemId });
 
     const updated = await prisma.$transaction(async (tx) => {
-      if (itemId) await tx.slot.updateMany({ where: { itemId, NOT: { id: slot.id } }, data: { itemId: null } });
+      if (itemId) await tx.slot.updateMany({ where: { itemId, NOT: { id: slot.id } }, data: { itemId: null, source: 'manual' } });
+      // On a printer-read slot, remember what the tray held when a member chose: their choice then stands until
+      // the spool in the tray is physically swapped.
+      const detected = slot.detected as Detected | null;
+      const tagId = detected?.state === 'loaded' ? detected.tagId : null;
+      if (itemId && tagId) {
+        // Linking a stock item to a tagged spool teaches the tag, so next time it is recognised without asking.
+        await tx.item.updateMany({ where: { workspaceId: req.workspaceId, tagId, NOT: { id: itemId } }, data: { tagId: null } });
+        await tx.item.update({ where: { id: itemId }, data: { tagId } });
+      }
       return tx.slot.update({
         where: { id: slot.id },
-        data: { ...(itemId !== undefined ? { itemId } : {}), ...(label !== undefined ? { label } : {}) },
+        data: {
+          ...(itemId !== undefined ? { itemId, source: 'manual' } : {}),
+          ...(itemId !== undefined && detected ? { detected: { ...detected, boundSignature: itemId ? detected.signature : null } as unknown as Json } : {}),
+          ...(label !== undefined ? { label } : {}),
+        },
       });
     });
     res.json(updated);

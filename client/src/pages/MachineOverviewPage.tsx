@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom';
 import { ClipboardList, Wrench } from 'lucide-react';
 import { StockMeter } from '@/components/items/StockMeter';
+import { PrinterPanel } from '@/components/machines/PrinterPanel';
 import { SubUnitPanel } from '@/components/machines/SubUnitPanel';
 import { Badge, EmptyState, ErrorNote, Figure, Grid, HeaderStat, Ledger, List, Loading, Meter, PageHeader, Readout, Row, RowDetail, SectionTitle, Stack, TypeIcon } from '@/components/ui/Display';
 import { useMachineFocus } from '@/context/FocusContext';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import { useCatalog, useItems } from '@/hooks/useCatalog';
+import { feederFor, usePrinterStates } from '@/hooks/usePrinters';
 import { formatDate, formatHours, formatNumber, formatQuantity, isLow, isWorn } from '@/lib/format';
 import { describeDue, DUE_STATUS, JOB_STATUS, MACHINE_STATUS } from '@/lib/status';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -32,6 +34,7 @@ function MachineOverview({ machine }: { machine: Machine }) {
   const maintenance = useWsQuery<MaintenanceData>('/maintenance');
   const jobs = useWsQuery<Job[]>('/jobs');
   const requests = useWsQuery<JobRequest[]>('/job-requests');
+  const printer = usePrinterStates().get(machine.id);
 
   const error = catalog.error ?? subUnits.error ?? maintenance.error ?? jobs.error;
   if (error) return <ErrorNote>{error}</ErrorNote>;
@@ -89,6 +92,8 @@ function MachineOverview({ machine }: { machine: Machine }) {
 
       {machine.notes && <p className={styles.notes}>{machine.notes}</p>}
 
+      {printer && <PrinterPanel state={printer} />}
+
       {/* Full width: what is in the machine right now is the first thing to check. */}
       {attached.length > 0 && (
         <Stack gap="sm">
@@ -97,7 +102,7 @@ function MachineOverview({ machine }: { machine: Machine }) {
           </SectionTitle>
           <Grid min="lg">
             {attached.map((subUnit) => (
-              <SubUnitPanel key={subUnit.id} subUnit={subUnit} catalog={catalog} itemById={itemById} canEdit={false} onEdit={noop} onSlot={noop} />
+              <SubUnitPanel key={subUnit.id} subUnit={subUnit} catalog={catalog} itemById={itemById} canEdit={false} onEdit={noop} onSlot={noop} feeder={feederFor(subUnit, printer)} />
             ))}
           </Grid>
         </Stack>

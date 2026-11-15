@@ -12,4 +12,10 @@ Wrkbench depends on open-source packages. Licence summary from `package-lock.jso
 
 To regenerate a full list: `npx license-checker --production --summary`.
 
-Brand names in example data (Bambu Lab, Makera, Hozo) belong to their owners; Wrkbench is not affiliated with them.
+The bridge (`bridge/`) adds `mqtt` (MQTT.js, MIT) and `socket.io-client` (MIT).
+
+The reading of Bambu Lab printers' status was written from public protocol notes (OpenBambuAPI, ha-bambulab) and
+from observing behaviour. No code or data tables were copied from those projects or from any AGPL project.
+
+Bambu Lab is named because Wrkbench can read its printers; other brand names appear in example data (Makera, Hozo).
+All belong to their owners, and Wrkbench is not affiliated with, sponsored or endorsed by them.

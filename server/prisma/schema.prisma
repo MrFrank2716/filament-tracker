@@ -58,6 +58,8 @@ model Workspace {
   jobs             Job[]
   stockMovements   StockMovement[]
   activities       ActivityLog[]
+  bridges          Bridge[]
+  printerLinks     PrinterLink[]
 }
 
 /// role: "owner" | "admin" | "operator" | "viewer"
@@ -190,6 +192,8 @@ model Item {
   /// Offcut / remnant of another item.
   isRemnant   Boolean  @default(false)
   parentId    String?
+  /// The id read from the spool's own tag (RFID today, a printed label later). Lets a printer recognise the spool.
+  tagId       String?
   archived    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -208,6 +212,7 @@ model Item {
   maintenanceParts   MaintenancePart[]
 
   @@index([workspaceId, itemTypeId])
+  @@index([workspaceId, tagId])
 }
 
 model MachineType {
@@ -249,6 +254,7 @@ model Machine {
   maintenanceLogs  MaintenanceLog[]
   jobs             Job[]
   jobRequests      JobRequest[]
+  printerLink      PrinterLink?
 }
 
 /// Hardware attached to a machine (multi-material feeder, tool changer, dryer ...).
@@ -261,10 +267,15 @@ model SubUnit {
   /// JSON array of { label, value, unit } - user-defined readings such as humidity.
   readings    Json
   statusNote  String  @default("")
+  /// Set when a connected printer reports this unit ("bambu:<serial>:ams:0"). The printer then decides its
+  /// slots, readings and status note; null for units kept by hand.
+  externalId  String?
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   machine   Machine?  @relation(fields: [machineId], references: [id], onDelete: SetNull)
   slots     Slot[]
+
+  @@index([workspaceId, externalId])
 }
 
 model Slot {
@@ -273,6 +284,11 @@ model Slot {
   position  Int
   label     String  @default("")
   itemId    String? @unique
+  /// What a connected printer last saw in this slot: { state, material, subType, colour, colours, brand, tagId,
+  /// remainingPercent, spoolWeightGrams, signature, boundSignature }. Null for slots no printer reports.
+  detected  Json?
+  /// Who put the item here: "manual" (a member) | "printer" (recognised by its tag).
+  source    String  @default("manual")
 
   subUnit SubUnit @relation(fields: [subUnitId], references: [id], onDelete: Cascade)
   item    Item?   @relation(fields: [itemId], references: [id], onDelete: SetNull)
@@ -488,4 +504,60 @@ model ActivityLog {
   user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, createdAt])
+}
+
+/// A small program on the workshop's own network that talks to its printers and reports here.
+/// It signs in with a long random token; only the token's SHA-256 is stored.
+/// Whether it is online is not stored: it is online while its socket is connected.
+model Bridge {
+  id               String    @id @default(cuid())
+  workspaceId      String
+  name             String
+  /// SHA-256 (hex) of the bridge token. Null until a pairing code has been swapped for one.
+  tokenHash        String?   @unique
+  /// SHA-256 (hex) of the one-time pairing code while one is waiting to be used.
+  pairingHash      String?   @unique
+  pairingExpiresAt DateTime?
+  /// Reported by the bridge each time it connects.
+  version          String    @default("")
+  platform         String    @default("")
+  /// JSON array of strings: what this build can do ("bambu.monitor", "discovery" ...).
+  capabilities     Json
+  lastSeenAt       DateTime?
+  createdAt        DateTime  @default(now())
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  printers  PrinterLink[]
+
+  @@index([workspaceId])
+}
+
+/// Ties a machine to a real printer reached through a bridge, so Machine itself stays generic.
+/// vendor: "bambu"
+/// codeState: "ok" | "missing" | "rejected" - whether the bridge holds a working access code.
+/// The access code itself is never stored here: it is handed to the bridge once and lives only there.
+model PrinterLink {
+  id          String    @id @default(cuid())
+  workspaceId String
+  machineId   String    @unique
+  bridgeId    String
+  vendor      String    @default("bambu")
+  serial      String
+  /// Address on the workshop's network, as the bridge reaches it.
+  host        String
+  /// Filled in from the printer.
+  modelName   String    @default("")
+  firmware    String    @default("")
+  codeState   String    @default("ok")
+  /// The last state read from the printer, shown while the bridge is away. Written on real changes and at most once a minute.
+  lastState   Json?
+  lastStateAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  machine   Machine   @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  bridge    Bridge    @relation(fields: [bridgeId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, serial])
+  @@index([bridgeId])
 }
