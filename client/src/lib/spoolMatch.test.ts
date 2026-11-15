@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Catalog } from '@/hooks/useCatalog';
+import { nearestColour } from '@/components/reference/ReferencePicker';
 import { colourWord, newSpoolFrom } from '@/lib/spoolMatch';
 import type { Detected } from '@/lib/types';
 
@@ -34,5 +35,15 @@ describe('filling in a new spool from what the printer reads', () => {
   });
   it('names colours plainly', () => {
     expect(['#000000', '#ffffff', '#c12e1f', '#1f6feb', '#0a2989', '#f5c518'].map(colourWord)).toEqual(['Black', 'White', 'Red', 'Blue', 'Dark blue', 'Yellow']);
+  });
+  it('picks the catalogue colour that looks most like the printer\'s', () => {
+    const colours: [string, string][] = [['Jet Black', '#101010'], ['Signal Red', '#c8102e'], ['Sky Blue', '#3a8dde']];
+    expect(nearestColour(colours, '#1f6feb')).toBe('Sky Blue');
+    expect(nearestColour(colours, '#000000')).toBe('Jet Black');
+    // A mid blue is a blue, not the grey that happens to be as bright (seen with a real catalogue line).
+    expect(nearestColour([['Blue', '#0000cd'], ['Solid Grey', '#70708a'], ['Solid Blue', '#1c2f7a']], '#1f6feb')).not.toBe('Solid Grey');
+    expect(nearestColour([['Grey', '#808080'], ['Red', '#cc0000']], '#8a8a8a')).toBe('Grey');
+    expect(nearestColour(colours, null)).toBeNull();
+    expect(nearestColour([], '#000000')).toBeNull();
   });
 });

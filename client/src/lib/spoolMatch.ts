@@ -20,6 +20,36 @@ export function colourDistance(a: string, b: string): number {
 
 const COLOUR_CLOSE = 90;
 
+/** Hue in degrees and saturation 0 to 1; hue is meaningless for greys (low saturation). */
+function hueOf(hex: string): { hue: number; saturation: number } {
+  const [r, g, b] = [1, 3, 5].map((start) => Number.parseInt(hex.slice(start, start + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const spread = max - min;
+  if (!(spread > 0)) return { hue: 0, saturation: 0 };
+  const light = (max + min) / 2;
+  const hue = (max === r ? ((g - b) / spread + 6) % 6 : max === g ? (b - r) / spread + 2 : (r - g) / spread + 4) * 60;
+  return { hue, saturation: spread / (1 - Math.abs(2 * light - 1)) };
+}
+
+/**
+ * How far apart two colours are when choosing "which of these is it?": the plain distance, plus a penalty for
+ * being a different kind of colour. A light blue is nearer to a dark blue than to a grey of the same brightness,
+ * which plain distance gets wrong.
+ */
+export function colourChoiceDistance(a: string, b: string): number {
+  const first = hueOf(a);
+  const second = hueOf(b);
+  const vivid = (colour: { saturation: number }) => colour.saturation >= 0.2;
+  let penalty = 0;
+  if (vivid(first) !== vivid(second)) penalty = 160;
+  else if (vivid(first)) {
+    const apart = Math.abs(first.hue - second.hue);
+    penalty = Math.min(apart, 360 - apart) * 2;
+  }
+  return colourDistance(a, b) + penalty;
+}
+
 /** The material and colour of a stock item, from its category's own fields. */
 export function spoolFacts(item: Item, catalog: Catalog): { material: string | null; colour: string | null } {
   const fields = catalog.typeById.get(item.itemTypeId)?.fields ?? [];

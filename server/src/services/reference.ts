@@ -57,6 +57,8 @@ export const referenceAddInput = z.object({
   /** Put items in this category instead of the one named like the starter category. */
   itemTypeId: z.string().nullish(),
   locationId: z.string().nullish(),
+  /** Mark the items added as fitting these machines (a spool found in a printer fits that printer). */
+  machineIds: z.array(z.string().min(1)).max(20).optional(),
 });
 
 export type ReferenceAddInput = z.output<typeof referenceAddInput>;
@@ -229,6 +231,8 @@ export interface AddResult {
   machines: { id: string; name: string }[];
   subUnits: number;
   items: number;
+  /** The items created, in the order asked for, so the caller can go on to use one (load it into a slot). */
+  itemIds: string[];
   /** Items left out because the category already has one with that name. */
   skipped: string[];
   category: { id: string; name: string } | null;
@@ -381,8 +385,10 @@ async function addItems(db: Db, workspaceId: string, picks: Exclude<Pick, { kind
         unitId: unitIds.get(units[draft.unit].symbol) ?? target.defaultUnitId,
         locationId: input.locationId ?? null,
         fields: values as Json,
+        ...(input.machineIds?.length ? { compatibleMachines: { connect: input.machineIds.map((machineId) => ({ id: machineId })) } } : {}),
       },
     });
+    result.itemIds.push(created.id);
     if (created.quantity > 0) {
       await db.stockMovement.create({
         data: { workspaceId, itemId: created.id, delta: created.quantity, balanceAfter: created.quantity, reason: 'initial', userId },
@@ -396,8 +402,8 @@ async function addItems(db: Db, workspaceId: string, picks: Exclude<Pick, { kind
 
 /** Run inside a transaction: either everything picked is added, or nothing is. */
 export async function addFromReference(db: Db, workspaceId: string, input: ReferenceAddInput, userId: string | null): Promise<AddResult> {
-  await assertInWorkspace(db, workspaceId, { location: input.locationId ?? null });
-  const result: AddResult = { machines: [], subUnits: 0, items: 0, skipped: [], category: null };
+  await assertInWorkspace(db, workspaceId, { location: input.locationId ?? null, machine: input.machineIds });
+  const result: AddResult = { machines: [], subUnits: 0, items: 0, itemIds: [], skipped: [], category: null };
   const machinePicks = input.picks.filter((p): p is Extract<Pick, { kind: 'machine' }> => p.kind === 'machine');
   const itemPicks = input.picks.filter((p): p is Exclude<Pick, { kind: 'machine' }> => p.kind !== 'machine');
   await addMachines(db, workspaceId, machinePicks, input.locationId ?? null, userId, result);

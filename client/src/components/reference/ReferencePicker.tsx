@@ -14,6 +14,7 @@ import {
   type AddResult, type EntryByKind, type FilamentLine, type ReferenceEndmill, type ReferenceFastener, type ReferenceFinish,
   type ReferenceKind, type ReferenceMachine, type ReferenceSheet, type ReferenceSummary, type Pick,
 } from '@/lib/reference';
+import { colourChoiceDistance } from '@/lib/spoolMatch';
 import itemStyles from '@/components/items/Items.module.css';
 import styles from '@/components/reference/ReferencePicker.module.css';
 
@@ -25,12 +26,27 @@ interface Props {
   onCollect?: (pick: Pick, label: string) => void;
   /** Add mode: called after entries were added to the current workspace. */
   onAdded?: (result: AddResult) => void;
+  /** Adding one spool a printer reports: start from its material and colour, and mark it as fitting that printer. */
+  preset?: SpoolPreset;
+}
+
+export interface SpoolPreset {
+  material: string | null;
+  /** "#rrggbb" as the printer reports it. */
+  colour: string | null;
+  machineId: string | null;
+}
+
+/** The catalogue colour of a product line that looks most like the one the printer reports. */
+export function nearestColour(colours: [string, string][], wanted: string | null): string | null {
+  if (!wanted || colours.length === 0) return null;
+  return colours.reduce((best, candidate) => (colourChoiceDistance(candidate[1], wanted) < colourChoiceDistance(best[1], wanted) ? candidate : best))[0];
 }
 
 type Selected = { [K in ReferenceKind]: { kind: K; entry: EntryByKind[K] } }[ReferenceKind];
 
 /** Search and pick from the built-in catalogue, then choose sizes, colours or attachments. */
-export function ReferencePicker({ kinds, onClose, onCollect, onAdded }: Props) {
+export function ReferencePicker({ kinds, onClose, onCollect, onAdded, preset }: Props) {
   const [kind, setKind] = useState<ReferenceKind>(kinds[0]);
   const [selected, setSelected] = useState<Selected | null>(null);
   const [pick, setPick] = useState<{ pick: Pick; label: string; count: number } | null>(null);
@@ -59,7 +75,7 @@ export function ReferencePicker({ kinds, onClose, onCollect, onAdded }: Props) {
       return;
     }
     let result: AddResult | undefined;
-    const body = { picks: [pick.pick], itemTypeId: options.itemTypeId || null, locationId: options.locationId || null };
+    const body = { picks: [pick.pick], itemTypeId: options.itemTypeId || null, locationId: options.locationId || null, ...(preset?.machineId ? { machineIds: [preset.machineId] } : {}) };
     const ok = await run(async () => {
       result = await api.post<AddResult>(wsPath('/reference/add')!, body);
     });
@@ -100,7 +116,7 @@ export function ReferencePicker({ kinds, onClose, onCollect, onAdded }: Props) {
       )}
 
       {!selected && kind === 'machine' && <MachineBrowser summary={summary} onChoose={(entry) => choose({ kind: 'machine', entry })} />}
-      {!selected && kind === 'filament' && <FilamentBrowser onChoose={(entry) => choose({ kind: 'filament', entry })} />}
+      {!selected && kind === 'filament' && <FilamentBrowser initialQuery={preset?.material ?? ''} onChoose={(entry) => choose({ kind: 'filament', entry })} />}
       {!selected && kind === 'endmill' && (
         <ListBrowser kind="endmill" group={(e) => e.cutType} title={(e) => e.name} subtitle={(e) => [e.toolMaterial, e.ratedFor].filter(Boolean).join(' · ')} onChoose={(entry) => choose({ kind: 'endmill', entry })} />
       )}
@@ -121,7 +137,7 @@ export function ReferencePicker({ kinds, onClose, onCollect, onAdded }: Props) {
       )}
 
       {selected?.kind === 'machine' && <MachineOptions entry={selected.entry} onChange={setPick} />}
-      {selected?.kind === 'filament' && <FilamentOptions entry={selected.entry} onChange={setPick} />}
+      {selected?.kind === 'filament' && <FilamentOptions entry={selected.entry} onChange={setPick} preset={preset} />}
       {selected?.kind === 'endmill' && <EndmillOptions entry={selected.entry} onChange={setPick} />}
       {selected?.kind === 'fastener' && <FastenerOptions entry={selected.entry} onChange={setPick} />}
       {selected?.kind === 'sheet' && <SheetOptions entry={selected.entry} sizes={summary?.sheetSizes ?? []} onChange={setPick} />}
@@ -247,10 +263,10 @@ function MachineBrowser({ summary, onChoose }: { summary: ReferenceSummary | nul
   );
 }
 
-function FilamentBrowser({ onChoose }: { onChoose: (entry: FilamentLine) => void }) {
+function FilamentBrowser({ onChoose, initialQuery = '' }: { onChoose: (entry: FilamentLine) => void; initialQuery?: string }) {
   const [brands, setBrands] = useState<{ brand: string; lines: number }[] | null>(null);
   const [brand, setBrand] = useState('');
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery);
   const [result, setResult] = useState<{ total: number; entries: FilamentLine[] } | null>(null);
   const [error, setError] = useState('');
 
@@ -418,10 +434,12 @@ function MachineOptions({ entry, onChange }: { entry: ReferenceMachine; onChange
   );
 }
 
-function FilamentOptions({ entry, onChange }: { entry: FilamentLine; onChange: OnPick }) {
+function FilamentOptions({ entry, onChange, preset }: { entry: FilamentLine; onChange: OnPick; preset?: SpoolPreset }) {
   const [weight, setWeight] = useState(String(entry.weights[0].g));
   const [diameter, setDiameter] = useState(String(entry.diameters.includes(1.75) ? 1.75 : entry.diameters[0]));
-  const [colours, setColours] = useState<string[]>(entry.colours.length === 1 ? [entry.colours[0][0]] : []);
+  // For a spool a printer reports, start on the colour that looks most like it.
+  const likely = preset ? nearestColour(entry.colours, preset.colour) : null;
+  const [colours, setColours] = useState<string[]>(likely ? [likely] : entry.colours.length === 1 ? [entry.colours[0][0]] : []);
   const [spools, setSpools] = useState('1');
   const hex = useMemo(() => new Map(entry.colours), [entry]);
   const range = (span?: [number, number]) => (span ? (span[0] === span[1] ? `${span[0]} °C` : `${span[0]}–${span[1]} °C`) : '');
@@ -449,13 +467,15 @@ function FilamentOptions({ entry, onChange }: { entry: FilamentLine; onChange: O
             </option>
           ))}
         </SelectField>
-        <NumberField label="Spools of each colour" value={spools} onChange={setSpools} inputMode="numeric" hint="Each spool is its own item, so it can be loaded into a feeder slot." />
+        {!preset && <NumberField label="Spools of each colour" value={spools} onChange={setSpools} inputMode="numeric" hint="Each spool is its own item, so it can be loaded into a feeder slot." />}
       </FormGrid>
+      {preset && <Muted>{likely ? 'The colour closest to what the printer reports is chosen. Pick another if it is not the one.' : 'Choose the colour.'}</Muted>}
       <ChoiceChips
-        label={`Colours (${colours.length} of ${entry.colours.length})`}
+        label={preset ? 'Colour' : `Colours (${colours.length} of ${entry.colours.length})`}
         options={entry.colours.map(([name]) => name)}
         chosen={colours}
-        onChange={setColours}
+        // One spool is being added, so choosing a colour replaces the last choice.
+        onChange={preset ? (next) => setColours(next.filter((name) => !colours.includes(name)).slice(-1)) : setColours}
         render={(name) => (
           <>
             <Swatch color={hex.get(name) ?? '#888888'} size={14} />

@@ -116,6 +116,8 @@ export interface AddResult {
   machines: { id: string; name: string }[];
   subUnits: number;
   items: number;
+  /** The items created, in the order asked for. */
+  itemIds: string[];
   skipped: string[];
   category: { id: string; name: string } | null;
 }

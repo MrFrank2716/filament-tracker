@@ -182,6 +182,20 @@ describe('adding items to existing workspaces', () => {
     expect(await db.customField.count({ where: { itemType: { workspaceId: ws } } })).toBe(1);
   });
 
+  it('says which items it made, and marks them as fitting a machine when asked', async () => {
+    const ws = await workspace('From a printer');
+    const machine = await db.machine.create({ data: { workspaceId: ws, name: 'P1S' } });
+    const line = loadFilaments().lines[0];
+    const result = await add(ws, { picks: [{ kind: 'filament', id: line.id, colours: [line.colours[0][0]], weight: line.weights[0].g, diameter: line.diameters[0] }], machineIds: [machine.id] });
+    expect(result.itemIds).toHaveLength(1);
+    const item = await db.item.findUniqueOrThrow({ where: { id: result.itemIds[0] }, include: { compatibleMachines: true } });
+    expect(item.compatibleMachines.map((m) => m.id)).toEqual([machine.id]);
+    // A machine from another workspace is refused, and nothing is added.
+    const other = await db.machine.create({ data: { workspaceId: await workspace('Elsewhere'), name: 'X' } });
+    await expect(add(ws, { picks: [{ kind: 'filament', id: line.id, colours: [line.colours[0][0]], weight: line.weights[0].g, diameter: line.diameters[0] }], machineIds: [other.id] })).rejects.toThrow();
+    expect(await db.item.count({ where: { workspaceId: ws } })).toBe(1);
+  });
+
   it('refuses a mix of item kinds in one request', async () => {
     const ws = await workspace('Mixed');
     await expect(add(ws, { picks: [{ kind: 'endmill', id: 'em-flat-3-2f-3' }, { kind: 'sheet', id: 'sh-mdf', thicknesses: [6], width: 600, length: 400 }] })).rejects.toThrow(/one kind/);
