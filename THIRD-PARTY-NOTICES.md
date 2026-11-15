@@ -1,5 +1,8 @@
 # Third-party notices
 
+Wrkbench itself is licensed under the GNU Affero General Public License v3.0 (see `LICENSE`).
+The licences below belong to its dependencies, all of which are compatible with AGPL-3.0.
+
 Wrkbench depends on open-source packages. Licence summary from `package-lock.json`
 (no GPL, AGPL or LGPL packages were found):
 

@@ -132,3 +132,7 @@ Planned next, in order: following prints (jobs start, progress and finish by the
 ## Not built yet
 
 Smart scales and sensors, QR/barcode scanning and label printing (locations store a label code ready for it), other makes of machine, and AI suggestions.
+
+## License
+
+Copyright (c) 2026 Husain Alaswad. Wrkbench is free software, licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only). If you run a modified version as a network service, you must offer its users the corresponding source. Third-party licences are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
