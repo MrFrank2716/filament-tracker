@@ -102,14 +102,14 @@ export function PrinterPanel({ state }: { state: PrinterState }) {
           {state.errors.map((error) => (
             <li key={error.code}>
               <Badge tone={PRINTER_ERROR_TONE[error.severity]}>{error.severity === 'info' ? 'Notice' : error.severity === 'warning' ? 'Warning' : 'Error'}</Badge>
+              <span className={styles.errorText}>{error.message ?? 'The printer reports a code Wrkbench has no description for.'}</span>
               {error.url ? (
-                <a href={error.url} target="_blank" rel="noreferrer noopener" className={styles.errorCode}>
+                <a href={error.url} target="_blank" rel="noreferrer noopener" className={styles.errorCode} title="What this code means, on the maker's site">
                   {error.code}
                 </a>
               ) : (
                 <span className={styles.errorCode}>{error.code}</span>
               )}
-              <Muted>{error.url ? 'Opens what the code means on the maker\'s site' : 'Shown on the printer\'s screen'}</Muted>
             </li>
           ))}
         </ul>

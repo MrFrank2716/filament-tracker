@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { applyMergePatch, diffMergePatch, mergeDelta, touchesPaths, withoutPaths, type Doc } from '@filament-tracker/protocol';
 import { simDocument, simFleet, simTray } from '@filament-tracker/protocol/fixtures';
-import { bambuColour, formatHmsCode, readBambu } from '@/integrations/bambu/normalize';
+import { formatHmsCode, readHms, readPrintError } from '@/integrations/bambu/hms';
+import { bambuColour, readBambu } from '@/integrations/bambu/normalize';
 import { colourDistance, compatible, traySignature } from '@/integrations/spoolMatch';
 
 // The fixtures are synthetic (see protocol/src/fixtures.ts): these tests pin down our reading of the protocol.
@@ -45,11 +46,37 @@ describe('reading a Bambu status document', () => {
     expect(extruders.map((extruder) => [extruder.label, extruder.nozzle.diameter])).toEqual([['Right nozzle', 0.4], ['Left nozzle', 0.6]]);
   });
 
-  it('formats error codes the way the printer shows them', () => {
+  it('formats error codes the way the printer shows them, with their meaning and the right page', () => {
     expect(formatHmsCode(0x07008011, 0x00020002)).toBe('0700_8011_0002_0002');
+    // Seen on a real P1P: the fourth slot's feeder motor. Its page is shared with the other slots, so the link
+    // comes from the table, never from the code.
+    expect(readHms(0x07002300, 0x00020012, 'P1P')).toEqual({
+      kind: 'hms', code: '0700_2300_0002_0012', severity: 'error',
+      message: 'AMS A slot 4 feeder unit motor is stalled, cannot rotate the spool.',
+      url: 'https://wiki.bambulab.com/en/h2/troubleshooting/hmscode/0700_2000_0002_0012',
+    });
+    // A model with wording of its own gets it; others get the default.
+    expect(readHms(0x03000200, 0x00010001, 'H2D').message).toMatch(/right nozzle/);
+    expect(readHms(0x03000200, 0x00010001, 'P1S').message).not.toMatch(/right nozzle/);
+    // A code nobody has written up still shows, pointing at the maker's index.
+    expect(readHms(0x7fff0000, 0x00030001, 'P1S')).toMatchObject({ message: null, severity: 'warning', url: 'https://wiki.bambulab.com/en/hms/home' });
     const reading = readBambu(simDocument(a1));
     expect(reading.phase).toBe('failed');
-    expect(reading.errors).toEqual([{ kind: 'hms', code: '0700_8011_0002_0002', severity: 'error', url: 'https://wiki.bambulab.com/en/x1/troubleshooting/hmscode/0700_8011_0002_0002' }]);
+    expect(reading.errors).toHaveLength(1);
+    expect(reading.errors[0]).toMatchObject({ kind: 'hms', code: '0700_8011_0002_0002', severity: 'error' });
+  });
+
+  it('does not call a cancelled print an error, and drops numbers that mean nothing', () => {
+    expect(readPrintError(50348044, 'P1S')).toMatchObject({ code: '0300_400C', severity: 'info', message: 'The task was canceled.' });
+    expect(readPrintError(0, 'P1S')).toBeNull();
+    expect(readPrintError(0x7fffffff, 'P1S')).toBeNull();
+    expect(readBambu({ print: { gcode_state: 'FAILED', print_error: 50348044, hms: [{ attr: 0, code: 0 }] } }).errors.map((e) => e.severity)).toEqual(['info']);
+  });
+
+  it('clears the health list on an empty list and leaves it alone when a report does not mention it', () => {
+    const withError = { print: { gcode_state: 'IDLE', hms: [{ attr: 0x07002300, code: 0x00020012 }] } };
+    expect(readBambu(mergeDelta(withError, { print: { mc_percent: 3 } }) as Doc).errors).toHaveLength(1);
+    expect(readBambu(mergeDelta(withError, { print: { hms: [] } }) as Doc).errors).toHaveLength(0);
   });
 
   it('survives documents that are missing, partial or the wrong shape', () => {

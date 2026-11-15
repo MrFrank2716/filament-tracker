@@ -1,4 +1,5 @@
 import type { Doc } from '@filament-tracker/protocol';
+import { readHms, readPrintError } from '@/integrations/bambu/hms';
 import { bambuModelName } from '@/integrations/bambu/models';
 import { emptyReading, type Feeder, type PrinterAdapter, type PrinterError, type PrinterPhase, type PrinterReading, type Temp, type Tray } from '@/integrations/types';
 
@@ -47,38 +48,16 @@ const tagId = (value: unknown): string | null => {
   return raw && /[^0]/.test(raw) ? raw.toUpperCase() : null;
 };
 
-/** attr and code are 32-bit numbers; the printer's screen shows them as four groups of four hex digits. */
-export function formatHmsCode(attr: number, code: number): string {
-  const group = (value: number) => (value & 0xffff).toString(16).toUpperCase().padStart(4, '0');
-  return `${group(attr >>> 16)}_${group(attr)}_${group(code >>> 16)}_${group(code)}`;
-}
-
-/** The severity sits in the high half of `code`: 1 fatal, 2 serious, 3 common, 4 information. */
-function hmsSeverity(code: number): PrinterError['severity'] {
-  switch (code >>> 16) {
-    case 1: return 'fatal';
-    case 2: return 'error';
-    case 3: return 'warning';
-    default: return 'info';
-  }
-}
-
-const hmsUrl = (code: string) => `https://wiki.bambulab.com/en/x1/troubleshooting/hmscode/${code}`;
-
-function readErrors(print: Doc): PrinterError[] {
+function readErrors(print: Doc, modelName: string | null): PrinterError[] {
   const errors: PrinterError[] = [];
   for (const entry of list(print.hms).slice(0, 20)) {
     const attr = int(obj(entry)?.attr);
     const code = int(obj(entry)?.code);
-    if (attr === null || code === null) continue;
-    const formatted = formatHmsCode(attr, code);
-    errors.push({ kind: 'hms', code: formatted, severity: hmsSeverity(code), url: hmsUrl(formatted) });
+    if (!attr || !code) continue;
+    errors.push(readHms(attr, code, modelName));
   }
-  const printError = int(print.print_error);
-  if (printError) {
-    const hex = (printError >>> 0).toString(16).toUpperCase().padStart(8, '0');
-    errors.push({ kind: 'print_error', code: `${hex.slice(0, 4)}_${hex.slice(4)}`, severity: 'error', url: null });
-  }
+  const printError = readPrintError(int(print.print_error) ?? 0, modelName);
+  if (printError) errors.push(printError);
   return errors;
 }
 
@@ -249,7 +228,7 @@ export function readBambu(doc: Doc): PrinterReading {
     chamber: chamber === null ? null : { current: chamber, target: null },
     extruders: readExtruders(print),
     feeders,
-    errors: readErrors(print),
+    errors: readErrors(print, modelName),
     wifiSignal: wifi ? Number(wifi[0]) : null,
     firmware: text(ota?.sw_ver, 40),
     modelName,

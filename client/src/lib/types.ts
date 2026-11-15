@@ -553,6 +553,7 @@ export interface PrinterError {
   kind: 'hms' | 'print_error';
   code: string;
   severity: 'info' | 'warning' | 'error' | 'fatal';
+  message: string | null;
   url: string | null;
 }
 
