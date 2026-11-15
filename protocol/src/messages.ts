@@ -123,6 +123,22 @@ export type DiscoveredPrinter = z.output<typeof discoveredPrinter>;
 export const discoveryAck = z.union([z.object({ ok: z.literal(true), printers: z.array(discoveredPrinter).max(64) }), ackError]);
 export type DiscoveryAck = z.output<typeof discoveryAck>;
 
+/**
+ * Ask the bridge for small text files from inside the sliced file of the print a printer is running now.
+ * The server names entries only; where the file comes from is the bridge's business (the printer announced it),
+ * so this can never be used to make a bridge fetch something of the server's choosing.
+ */
+export const jobRead = z.object({
+  printerId: id,
+  entries: z.array(z.string().regex(/^Metadata\/[A-Za-z0-9_.]{1,60}$/)).min(1).max(4),
+});
+export type JobRead = z.output<typeof jobRead>;
+export const jobReadAck = z.union([
+  z.object({ ok: z.literal(true), entries: z.record(z.string(), z.string().max(400_000)) }),
+  ackError,
+]);
+export type JobReadAck = z.output<typeof jobReadAck>;
+
 // ---- Pairing (plain HTTPS, before the bridge has a token) -----------------------------
 
 export const pairRequest = z.object({
@@ -147,4 +163,6 @@ export interface ServerToBridgeEvents {
   'printer.refresh': (payload: z.output<typeof printerRefresh>, ack: (reply: PlainAck) => void) => void;
   'printer.test': (payload: PrinterTest, ack: (reply: PrinterTestAck) => void) => void;
   'discovery.list': (payload: Record<string, never>, ack: (reply: DiscoveryAck) => void) => void;
+  /** Only sent to bridges that list the "job.files" capability. */
+  'job.read': (payload: JobRead, ack: (reply: JobReadAck) => void) => void;
 }

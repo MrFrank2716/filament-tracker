@@ -288,9 +288,16 @@ button.slot:hover {
   gap: var(--space-2);
 }
 
-.errorCode {
-  font-family: var(--font-mono);
+.errorText {
+  flex: 1 1 12rem;
+  min-width: 0;
   font-size: var(--text-sm);
+}
+
+.errorCode {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
 }
 
 /* A tray the printer sees a spool in, that is not tied to anything in stock yet: it asks for one tap. */

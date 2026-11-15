@@ -18,7 +18,7 @@ It started as a 3D printing filament tracker, which is why this repository is ca
 - **Start each day with a plan**: a daily report of what is overdue, short or running low, and an activity log where stock mistakes can be undone. → [Dashboard and reports](docs/wiki/Dashboard-and-reports.md)
 - **Work as a team**: owners, admins, operators and viewers, each allowed to do what their role needs. → [Members and roles](docs/wiki/Members-and-roles.md)
 - **Add real products in one step**: a built-in catalogue of printers, lasers, CNC machines, filaments, sheet stock, endmills and fasteners. → [Catalogue and settings](docs/wiki/Catalogue-and-settings.md)
-- **Connect Bambu Lab printers**: see each AMS and the spools in it live, and link them to your stock. Read-only: it never controls a printer. → [Connecting printers](docs/wiki/Connecting-printers.md)
+- **Connect Bambu Lab printers**: see each AMS and the spools in it live, and link them to your stock. Prints become jobs by themselves and take the filament they used from stock. Read-only: it never controls a printer. → [Connecting printers](docs/wiki/Connecting-printers.md)
 - **Keep your data**: export a workspace as JSON, or your stock as a spreadsheet, and import from CSV. → [Backups, import and export](docs/wiki/Backups-and-data.md)
 
 It works on phones as well as computers, and can be installed as an app from the browser.
@@ -77,7 +77,7 @@ The full documentation is in the [wiki](docs/wiki/Home.md), also available under
 | [Getting started](docs/wiki/Getting-started.md) | [Connecting printers](docs/wiki/Connecting-printers.md) | [Self-hosting](docs/wiki/Self-hosting.md) |
 | [Inventory](docs/wiki/Inventory.md) | [AMS and spools](docs/wiki/AMS-and-spools.md) | [Troubleshooting](docs/wiki/Troubleshooting.md) |
 | [Machines](docs/wiki/Machines.md) | [Bridge reference](docs/wiki/Bridge-reference.md) | [Contributing](CONTRIBUTING.md) |
-| [Maintenance](docs/wiki/Maintenance.md) | | |
+| [Maintenance](docs/wiki/Maintenance.md) | [Prints and filament use](docs/wiki/Prints-and-filament-use.md) | |
 | [Jobs and the queue](docs/wiki/Jobs-and-queue.md) | | |
 | [Job requests](docs/wiki/Job-requests.md) | | |
 | [Dashboard and reports](docs/wiki/Dashboard-and-reports.md) | | |
@@ -92,7 +92,7 @@ Wrkbench is one Node.js program that keeps its data in a SQLite file, so it need
 
 ## Not built yet
 
-Following prints as jobs automatically, working out filament used per job from the sliced file, sending jobs to printers, smart scales and sensors, QR and barcode scanning and label printing, other makes of connected machine, and AI suggestions.
+Sending jobs to printers, smart scales and sensors, QR and barcode scanning and label printing, other makes of connected machine, and AI suggestions.
 
 ## Contributing and support
 

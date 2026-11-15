@@ -1,4 +1,5 @@
 import type { Doc } from '@filament-tracker/protocol';
+import { readHms, readPrintError } from '@/integrations/bambu/hms';
 import { bambuModelName } from '@/integrations/bambu/models';
 import { emptyReading, type Feeder, type PrinterAdapter, type PrinterError, type PrinterPhase, type PrinterReading, type Temp, type Tray } from '@/integrations/types';
 
@@ -47,38 +48,16 @@ const tagId = (value: unknown): string | null => {
   return raw && /[^0]/.test(raw) ? raw.toUpperCase() : null;
 };
 
-/** attr and code are 32-bit numbers; the printer's screen shows them as four groups of four hex digits. */
-export function formatHmsCode(attr: number, code: number): string {
-  const group = (value: number) => (value & 0xffff).toString(16).toUpperCase().padStart(4, '0');
-  return `${group(attr >>> 16)}_${group(attr)}_${group(code >>> 16)}_${group(code)}`;
-}
-
-/** The severity sits in the high half of `code`: 1 fatal, 2 serious, 3 common, 4 information. */
-function hmsSeverity(code: number): PrinterError['severity'] {
-  switch (code >>> 16) {
-    case 1: return 'fatal';
-    case 2: return 'error';
-    case 3: return 'warning';
-    default: return 'info';
-  }
-}
-
-const hmsUrl = (code: string) => `https://wiki.bambulab.com/en/x1/troubleshooting/hmscode/${code}`;
-
-function readErrors(print: Doc): PrinterError[] {
+function readErrors(print: Doc, modelName: string | null): PrinterError[] {
   const errors: PrinterError[] = [];
   for (const entry of list(print.hms).slice(0, 20)) {
     const attr = int(obj(entry)?.attr);
     const code = int(obj(entry)?.code);
-    if (attr === null || code === null) continue;
-    const formatted = formatHmsCode(attr, code);
-    errors.push({ kind: 'hms', code: formatted, severity: hmsSeverity(code), url: hmsUrl(formatted) });
+    if (!attr || !code) continue;
+    errors.push(readHms(attr, code, modelName));
   }
-  const printError = int(print.print_error);
-  if (printError) {
-    const hex = (printError >>> 0).toString(16).toUpperCase().padStart(8, '0');
-    errors.push({ kind: 'print_error', code: `${hex.slice(0, 4)}_${hex.slice(4)}`, severity: 'error', url: null });
-  }
+  const printError = readPrintError(int(print.print_error) ?? 0, modelName);
+  if (printError) errors.push(printError);
   return errors;
 }
 
@@ -89,8 +68,11 @@ function readTray(raw: unknown, position: number, active: boolean): Tray {
   const tag = tagId(tray.tray_uuid);
   const remaining = num(tray.remain);
   const weight = num(tray.tray_weight);
+  const low = num(tray.nozzle_temp_min);
+  const high = num(tray.nozzle_temp_max);
+  const diameter = num(tray.tray_diameter);
   if (!material) {
-    return { position, state: 'empty', material: null, subType: null, colour: null, colours: [], brand: null, tagId: null, remainingPercent: null, spoolWeightGrams: null, active: false };
+    return { position, state: 'empty', material: null, subType: null, colour: null, colours: [], brand: null, tagId: null, remainingPercent: null, spoolWeightGrams: null, nozzleTemp: null, diameter: null, active: false };
   }
   return {
     position,
@@ -104,6 +86,8 @@ function readTray(raw: unknown, position: number, active: boolean): Tray {
     tagId: tag,
     remainingPercent: remaining !== null && remaining >= 0 && remaining <= 100 ? remaining : null,
     spoolWeightGrams: weight !== null && weight > 0 ? weight : null,
+    nozzleTemp: low !== null && high !== null && low > 0 && high >= low ? [low, high] : null,
+    diameter: diameter !== null && diameter > 0 ? diameter : null,
     active,
   };
 }
@@ -249,7 +233,7 @@ export function readBambu(doc: Doc): PrinterReading {
     chamber: chamber === null ? null : { current: chamber, target: null },
     extruders: readExtruders(print),
     feeders,
-    errors: readErrors(print),
+    errors: readErrors(print, modelName),
     wifiSignal: wifi ? Number(wifi[0]) : null,
     firmware: text(ota?.sw_ver, 40),
     modelName,
@@ -262,7 +246,7 @@ export const bambuAdapter: PrinterAdapter = {
     liveMs: 2000,
     idleMs: 15_000,
     // What is loaded, what state it is in and what is wrong should never wait.
-    urgentPaths: ['print.gcode_state', 'print.ams', 'print.vt_tray', 'print.vir_slot', 'print.hms', 'print.print_error', 'info'],
+    urgentPaths: ['job', 'print.gcode_state', 'print.ams', 'print.vt_tray', 'print.vir_slot', 'print.hms', 'print.print_error', 'info'],
     ignorePaths: ['print.sequence_id', 'print.msg', 'info.sequence_id'],
     arrayKey: 'id',
   },

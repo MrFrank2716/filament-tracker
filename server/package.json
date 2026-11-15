@@ -15,7 +15,8 @@
     "db:reset": "prisma migrate reset --force --skip-seed && npm run db:seed",
     "db:deploy": "prisma migrate deploy",
     "reference:filaments": "tsx scripts/import-filaments.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "reference:hms": "tsx scripts/import-hms.ts"
   },
   "dependencies": {
     "@filament-tracker/protocol": "1.0.0",

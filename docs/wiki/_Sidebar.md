@@ -17,6 +17,7 @@
 
 - [Connecting printers](Connecting-printers.md)
 - [AMS and spools](AMS-and-spools.md)
+- [Prints and filament use](Prints-and-filament-use.md)
 - [Bridge reference](Bridge-reference.md)
 
 **Running your own copy**

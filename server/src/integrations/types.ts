@@ -33,6 +33,10 @@ export interface Tray {
   tagId: string | null;
   remainingPercent: number | null;
   spoolWeightGrams: number | null;
+  /** Nozzle temperature range the printer has for it, degrees C. */
+  nozzleTemp: [number, number] | null;
+  /** Filament diameter in mm. */
+  diameter: number | null;
   /** Feeding the print right now. */
   active: boolean;
 }
@@ -58,6 +62,8 @@ export interface PrinterError {
   /** As the printer's screen shows it: "0700_8011_0002_0002". */
   code: string;
   severity: 'info' | 'warning' | 'error' | 'fatal';
+  /** What it means, in the maker's words; null when the code is not in our table. */
+  message: string | null;
   /** Where the maker explains the code. */
   url: string | null;
 }

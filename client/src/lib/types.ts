@@ -158,6 +158,9 @@ export interface Detected {
   tagId: string | null;
   remainingPercent: number | null;
   spoolWeightGrams: number | null;
+  /** Nozzle temperature range the printer has for it; missing on readings saved by older versions. */
+  nozzleTemp?: [number, number] | null;
+  diameter?: number | null;
 }
 
 export interface Slot {
@@ -258,6 +261,10 @@ export interface Job {
   completedAt: string | null;
   machine: { id: string; name: string; hourlyCost: number } | null;
   createdBy: { name: string } | null;
+  /** "printer" when a connected printer was seen starting the print and made the job itself. */
+  source: 'manual' | 'printer';
+  /** Why it failed, when a connected printer said. */
+  failureReason: string;
   usages: JobUsage[];
   /** Set when the job came from an approved outside request. */
   request: { id: string; requesterName: string; requesterEmail: string; files: RequestFile[] } | null;
@@ -553,6 +560,7 @@ export interface PrinterError {
   kind: 'hms' | 'print_error';
   code: string;
   severity: 'info' | 'warning' | 'error' | 'fatal';
+  message: string | null;
   url: string | null;
 }
 

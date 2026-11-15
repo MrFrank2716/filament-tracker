@@ -1,12 +1,12 @@
 import type { Namespace, Server, Socket } from 'socket.io';
 import {
-  BRIDGE_NAMESPACE, MIN_PROTOCOL, bridgeHello, handshakeAuth, printerReport, printerStatus,
+  BRIDGE_NAMESPACE, MIN_PROTOCOL, bridgeHello, handshakeAuth, jobReadAck, printerReport, printerStatus,
   type BridgeConfig, type BridgeToServerEvents, type ServerToBridgeEvents,
 } from '@filament-tracker/protocol';
 import { prisma, type Json } from '@/db';
 import { env } from '@/env';
 import { HttpError } from '@/http';
-import { adapterFor, bridgeConnected, bridgeDisconnected, enqueueWrite, ingestReport, setLinkStatus } from '@/integrations/registry';
+import { adapterFor, bridgeConnected, bridgeDisconnected, enqueueWrite, ingestReport, setJobFileReader, setLinkStatus } from '@/integrations/registry';
 import { tokenBucket } from '@/rateLimit';
 import { notifyWorkspaceSoon, onWatchersChanged, workspaceWatchers } from '@/realtime';
 import { hashSecret } from '@/services/tokens';
@@ -22,6 +22,7 @@ interface BridgeData {
   workspaceId: string;
   tokenHash: string;
   instanceId: string;
+  capabilities: string[];
 }
 type BridgeSocket = Socket<BridgeToServerEvents, ServerToBridgeEvents, Record<string, never>, BridgeData>;
 
@@ -56,7 +57,7 @@ export function attachBridgeGateway(io: Server): void {
       // Two installs sharing one token would otherwise take turns knocking each other off for ever.
       const live = sockets.get(bridge.id);
       if (live && live.connected && live.data.instanceId !== auth.data.instanceId) return next(refuse('duplicate'));
-      socket.data = { bridgeId: bridge.id, workspaceId: bridge.workspaceId, tokenHash, instanceId: auth.data.instanceId };
+      socket.data = { bridgeId: bridge.id, workspaceId: bridge.workspaceId, tokenHash, instanceId: auth.data.instanceId, capabilities: [] };
       void enqueueWrite(() =>
         prisma.bridge.updateMany({ where: { id: bridge.id }, data: { version: auth.data.version, platform: auth.data.platform ?? '', lastSeenAt: new Date() } }),
       );
@@ -87,6 +88,7 @@ export function attachBridgeGateway(io: Server): void {
     socket.on('bridge.hello', async (raw, ack) => {
       const hello = bridgeHello.safeParse(raw);
       if (!hello.success || typeof ack !== 'function') return;
+      socket.data.capabilities = hello.data.capabilities;
       void enqueueWrite(() => prisma.bridge.updateMany({ where: { id: bridgeId }, data: { capabilities: hello.data.capabilities as Json } }));
       for (const printer of hello.data.printers) setLinkStatus(bridgeId, printer);
       ack({ ok: true, config: await configFor(bridgeId) });
@@ -111,6 +113,18 @@ export function attachBridgeGateway(io: Server): void {
       void enqueueWrite(() => prisma.bridge.updateMany({ where: { id: bridgeId }, data: { lastSeenAt: new Date() } }));
       notifyWorkspaceSoon(workspaceId);
     });
+  });
+
+  // Reading a print's sliced file goes through whichever bridge holds the printer, if that bridge knows how.
+  setJobFileReader((bridgeId, printerId) => async (entries) => {
+    const socket = sockets.get(bridgeId);
+    if (!socket?.connected || !socket.data.capabilities.includes('job.files')) return null;
+    try {
+      const reply = jobReadAck.parse(await socket.timeout(120_000).emitWithAck('job.read', { printerId, entries }));
+      return reply.ok ? reply.entries : null;
+    } catch {
+      return null;
+    }
   });
 
   // Bridges report less often while nobody has the workspace open.

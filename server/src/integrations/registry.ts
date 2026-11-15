@@ -1,6 +1,7 @@
 import { applyMergePatch, deepEqual, type CodeState, type Doc, type LinkStatus, type PrinterReport, type PrinterStatus, type ReportAck } from '@filament-tracker/protocol';
 import { prisma, type Json } from '@/db';
 import { syncFeeders } from '@/integrations/amsSync';
+import { reconcileRun, type JobFileReader } from '@/integrations/runs';
 import { bambuAdapter } from '@/integrations/bambu/normalize';
 import { traySignature } from '@/integrations/spoolMatch';
 import { emptyReading, type PrinterAdapter, type PrinterConnection, type PrinterReading, type PrinterState } from '@/integrations/types';
@@ -47,6 +48,9 @@ interface Entry {
   lastSyncAt: number;
   syncTimer: ReturnType<typeof setTimeout> | null;
   emptySince: Map<string, number>;
+  /** The printer's state and print name when its prints were last brought up to date. */
+  runSignature: string | null;
+  runPending: boolean;
 }
 
 const entries = new Map<string, Entry>();
@@ -161,6 +165,7 @@ export function trackPrinter(link: LinkRow): void {
     dirty: false, emitTimer: null, lastEmitAt: 0,
     syncedSignature: previous?.syncedSignature ?? null, lastSyncAt: previous?.lastSyncAt ?? 0, syncTimer: null,
     emptySince: previous?.emptySince ?? new Map(),
+    runSignature: previous?.runSignature ?? null, runPending: false,
   });
 }
 
@@ -189,6 +194,7 @@ export async function hydrateRegistry(): Promise<void> {
       if (entry.dirty) void save(entry);
       // Readings (humidity, drying) drift without any tray changing; catch them up now and then.
       if (entry.reading && connectionOf(entry) === 'live' && now - entry.lastSyncAt > RESYNC_EVERY_MS) scheduleSync(entry, 0);
+      if (entry.reading && connectionOf(entry) === 'live' && entry.reading.phase !== 'idle') followPrint(entry);
     }
   }, SAVE_EVERY_MS);
   saveTimer.unref();
@@ -236,6 +242,37 @@ function scheduleSync(entry: Entry, delay = SYNC_DEBOUNCE_MS): void {
   entry.syncTimer.unref();
 }
 
+// ---- Prints ------------------------------------------------------------------------
+
+type FileReaderFor = (bridgeId: string, printerId: string) => JobFileReader;
+let fileReaderFor: FileReaderFor = () => async () => null;
+
+/** How to read a print's sliced file through a bridge. Set by the gateway, which owns the connections. */
+export function setJobFileReader(reader: FileReaderFor): void {
+  fileReaderFor = reader;
+}
+
+/** Bring the record of this printer's prints (and their jobs) in line with what it is doing. One at a time per printer. */
+function followPrint(entry: Entry): void {
+  if (entry.runPending || !entry.reading || !entry.doc) return;
+  entry.runPending = true;
+  const reading = entry.reading;
+  const doc = entry.doc;
+  // Not through the write queue: reading the sliced file can take a minute, and nothing else should wait on it.
+  // Its own writes are small, and only one of these runs per printer at a time.
+  reconcileRun(entry, reading, doc, fileReaderFor(entry.bridgeId, entry.linkId))
+    .then((changed) => {
+      if (changed) notifyWorkspaceSoon(entry.workspaceId);
+    })
+    .catch((cause: unknown) => console.error('Could not follow a print', cause))
+    .finally(() => {
+      entry.runPending = false;
+      // Whatever happened while this one ran is looked at now.
+      const latest = entry.reading ? `${entry.reading.phase}|${entry.reading.print?.name ?? ''}` : null;
+      if (latest !== null && latest !== `${reading.phase}|${reading.print?.name ?? ''}`) followPrint(entry);
+    });
+}
+
 // ---- What bridges tell us ------------------------------------------------------------
 
 function accept(entry: Entry, doc: Doc): void {
@@ -253,6 +290,12 @@ function accept(entry: Entry, doc: Doc): void {
     emitSoon(entry);
   }
   if (feederSignature(reading) !== entry.syncedSignature) scheduleSync(entry);
+  // A print starting, ending or changing is acted on at once; progress in between is caught up once a minute.
+  const runSignature = `${reading.phase}|${reading.print?.name ?? ''}`;
+  if (runSignature !== entry.runSignature) {
+    entry.runSignature = runSignature;
+    followPrint(entry);
+  }
 }
 
 /** One step of a printer's document from its bridge. The answer tells the bridge whether to carry on or start over. */

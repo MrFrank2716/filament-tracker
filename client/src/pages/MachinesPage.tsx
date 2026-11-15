@@ -7,7 +7,7 @@ import { MachineForm, SubUnitForm } from '@/components/machines/MachineForms';
 import { PrinterPanel } from '@/components/machines/PrinterPanel';
 import { ReadingBadges, SlotSummary, SubUnitPanel } from '@/components/machines/SubUnitPanel';
 import { AddChooser } from '@/components/reference/AddChooser';
-import { ReferencePicker } from '@/components/reference/ReferencePicker';
+import { ReferencePicker, type SpoolPreset } from '@/components/reference/ReferencePicker';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Badge, Card, EmptyState, ErrorNote, Figure, Grid, Loading, Muted, PageHeader, SectionTitle, Swatch, TypeIcon } from '@/components/ui/Display';
 import { Modal } from '@/components/ui/Modal';
@@ -30,7 +30,8 @@ type Dialog =
   | { kind: 'machine'; machine?: Machine }
   | { kind: 'subUnit'; subUnit?: SubUnit; machineId?: string }
   | { kind: 'slot'; subUnit: SubUnit; slot: Slot; picking: boolean }
-  | { kind: 'newSpool'; subUnit: SubUnit; slot: Slot; initial: Partial<Item> };
+  | { kind: 'newSpool'; subUnit: SubUnit; slot: Slot; initial: Partial<Item> }
+  | { kind: 'spoolCatalogue'; subUnit: SubUnit; slot: Slot; preset: SpoolPreset };
 
 export function MachinesPage() {
   const { canEdit, canOperate, wsPath, money } = useWorkspace();
@@ -240,7 +241,10 @@ export function MachinesPage() {
               ) : (
                 <>
                   {canEdit && seen && (
-                    <Button onClick={() => setDialog({ kind: 'newSpool', subUnit, slot, initial: newSpoolFrom(seen, catalog) })}>Add as a new spool</Button>
+                    <>
+                      <Button onClick={() => setDialog({ kind: 'newSpool', subUnit, slot, initial: newSpoolFrom(seen, catalog, subUnit.machineId) })}>Add as a new spool</Button>
+                      <Button onClick={() => setDialog({ kind: 'spoolCatalogue', subUnit, slot, preset: { material: seen.material, colour: seen.colour, machineId: subUnit.machineId } })}>Pick from catalogue</Button>
+                    </>
                   )}
                   <Button variant="primary" onClick={() => setDialog({ ...dialog, picking: true })}>
                     Choose from stock
@@ -273,7 +277,7 @@ export function MachinesPage() {
               </Muted>
             ) : (
               <Muted>
-                This spool is not tied to anything in stock yet. Choose the item it is, or add it as a new one.
+                This spool is not tied to anything in stock yet. Choose the item it is, pick the product from the catalogue, or add it as a new one with the form filled in from what the printer reads.
                 {seen?.tagId ? ' It has a tag, so from then on it is recognised by itself wherever it is loaded.' : ''}
               </Muted>
             )}
@@ -301,6 +305,16 @@ export function MachinesPage() {
           />
         );
       })()}
+
+      {dialog?.kind === 'spoolCatalogue' && (
+        <ReferencePicker
+          kinds={['filament']}
+          preset={dialog.preset}
+          onClose={() => setDialog(null)}
+          // The catalogue made the item; put it in the slot it was read from.
+          onAdded={(result) => (result.itemIds[0] ? void setSlot(dialog.subUnit, dialog.slot, result.itemIds[0]) : setDialog(null))}
+        />
+      )}
 
       {dialog?.kind === 'newSpool' && (
         <ItemForm
