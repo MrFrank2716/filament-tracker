@@ -33,7 +33,7 @@ The bridge now appears as **Not set up**, with a command to copy. The command co
 
 ## Step 2: run the command on the bridge computer
 
-Pick whichever fits the computer.
+Pick whichever fits the computer. On a Mac or Windows PC use the second option: Docker there cannot see printers on your network.
 
 **With Docker (recommended).** Paste the first command into a terminal on the bridge computer. It looks like this:
 

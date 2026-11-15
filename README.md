@@ -115,7 +115,7 @@ Wrkbench can read Bambu Lab printers: every AMS and what is in each slot (materi
 
 From then on the machine's card shows the printer live, its AMS units appear as attached hardware, and each slot shows what the printer sees. A tagged (RFID) spool that is already in stock is loaded into its slot by itself; any other spool is one tap to link to an item in stock or to add as a new one, filled in from what the printer read. Taking a spool out unloads the slot. A slot loaded by hand is left alone until the spool in that tray is swapped.
 
-**Publishing the bridge image.** `bridge/Dockerfile` builds it (`docker build -f bridge/Dockerfile -t wrkbench-bridge .` from the repository root). `.github/workflows/bridge-image.yml` publishes it to the GitHub Container Registry when a tag such as `bridge-v0.1.0` is pushed; until that has run once, build it locally or run the bridge from source.
+**Publishing the bridge image.** `bridge/Dockerfile` builds it (`docker build -f bridge/Dockerfile -t wrkbench-bridge .` from the repository root). `.github/workflows/bridge-image.yml` publishes it to the GitHub Container Registry whenever the bridge changes on `main` (or a tag such as `bridge-v0.1.0` is pushed). GitHub makes a new package private: set it to public once under the package's settings, or pulling it is refused.
 
 **Trying it without a printer.** `npm run bridge -- --server http://localhost:4000 --pair <code> --simulate` pretends to be four printers (X1 Carbon, P1S, A1, H2D). Their access code is `12345678`. Type `swap <serial> <feeder> <tray> PLA 00ff00` or `empty <serial> <feeder> <tray>` into the bridge to change spools.
 

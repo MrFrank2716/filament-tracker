@@ -56,6 +56,7 @@ From source, put `npm run bridge --` in front instead of `wrkbench-bridge`. In D
 
 | What you see | Likely cause and what to do |
 | --- | --- |
+| `denied` when Docker pulls the image | The image has not been published yet, or its package is still private (see the hosting notes below). Meanwhile use the "from source" command |
 | Bridge stays **Not set up** | The command has not run successfully. Look at its output. "That set-up code is not valid or has run out": press **New set-up code** and use the new command within 10 minutes |
 | Bridge says it cannot reach the server | Check the `--server` address is the one you open Wrkbench at, starting `https://`. Plain `http://` is only accepted for a server on your own network |
 | Bridge shows **Offline** | The bridge computer is off, asleep or offline, or the program stopped. Start it again; it reconnects by itself |
@@ -106,4 +107,4 @@ Set in the server's environment (all optional):
 
 The set-up command uses `APP_URL` (or `CLIENT_ORIGIN`) as the server address, so that must be the address bridges can reach.
 
-The image is published by `.github/workflows/bridge-image.yml` when a tag such as `bridge-v0.1.0` is pushed. Bridges connect to the `/bridge` socket.io namespace on the same port as the app, so a proxy in front must pass WebSocket connections, as it already does for live updates.
+The image is published by `.github/workflows/bridge-image.yml` whenever the bridge changes on `main`, or when a tag such as `bridge-v0.1.0` is pushed. GitHub makes a new package private; set it to public once (your profile, Packages, `wrkbench-bridge`, Package settings, Change visibility) or pulling it is refused with "denied". Bridges connect to the `/bridge` socket.io namespace on the same port as the app, so a proxy in front must pass WebSocket connections, as it already does for live updates.
