@@ -65,3 +65,14 @@
     display: none;
   }
 }
+
+/* The header's add buttons, shown only where the floating button is hidden (same breakpoint). */
+.wideOnly {
+  display: none;
+}
+
+@media (min-width: 56rem) {
+  .wideOnly {
+    display: contents;
+  }
+}

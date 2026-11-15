@@ -62,6 +62,9 @@ describe('reading a Bambu status document', () => {
 
   it('idle printer with an external spool', () => {
     const reading = readBambu(simDocument(p1s));
+    // Seen on real P1 and A1 printers: they have no chamber sensor and report a constant instead.
+    expect(reading.chamber).toBeNull();
+    expect(readBambu(simDocument(x1c)).chamber).toEqual({ current: 31, target: null });
     expect(reading.phase).toBe('idle');
     expect(reading.print).toBeNull();
     expect(reading.feeders.at(-1)?.trays[0]).toMatchObject({ material: 'TPU', state: 'loaded' });

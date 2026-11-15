@@ -15,6 +15,7 @@ import { registerMachineRoutes } from '@/routes/machines';
 import { registerMaintenanceRoutes } from '@/routes/maintenance';
 import { bridgeRouter, registerPrinterRoutes } from '@/routes/printers';
 import { registerQueueRoutes } from '@/routes/queue';
+import { registerReferenceAddRoute } from '@/routes/reference';
 import { registerReportRoutes } from '@/routes/reports';
 import { publicRequestsRouter, registerRequestRoutes } from '@/routes/requests';
 import { registerTransferRoutes } from '@/routes/transfer';
@@ -53,6 +54,7 @@ export function createApp(): express.Express {
   registerRequestRoutes(workspaceScope);
   registerActivityRoutes(workspaceScope);
   registerQueueRoutes(workspaceScope);
+  registerReferenceAddRoute(workspaceScope);
   registerPrinterRoutes(workspaceScope);
 
   app.use('/api/auth', authRouter);

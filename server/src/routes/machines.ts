@@ -20,6 +20,7 @@ const machineInput = z.object({
   hourlyCost: z.number().min(0).optional(),
   locationId: z.string().nullable().optional(),
   notes: z.string().max(5000).optional(),
+  specs: z.array(readingSchema).max(12).optional(),
   compatibleItemIds: z.array(z.string()).optional(),
 });
 
@@ -58,17 +59,17 @@ export function registerMachineRoutes(router: Router): void {
   });
 
   router.post('/machines', async (req, res) => {
-    const { compatibleItemIds = [], ...data } = parse(machineInput, req.body);
+    const { compatibleItemIds = [], specs = [], ...data } = parse(machineInput, req.body);
     await assertInWorkspace(prisma, req.workspaceId, { machineType: data.machineTypeId, location: data.locationId, item: compatibleItemIds });
     const machine = await prisma.machine.create({
-      data: { ...data, workspaceId: req.workspaceId, compatibleItems: { connect: compatibleItemIds.map((id) => ({ id })) } },
+      data: { ...data, specs: specs as Json, workspaceId: req.workspaceId, compatibleItems: { connect: compatibleItemIds.map((id) => ({ id })) } },
       include: machineInclude,
     });
     res.status(201).json(presentMachine(machine));
   });
 
   router.patch('/machines/:id', async (req, res) => {
-    const { compatibleItemIds, ...data } = parse(machineInput.partial(), req.body);
+    const { compatibleItemIds, specs, ...data } = parse(machineInput.partial(), req.body);
     const id = param(req, 'id');
     await assertInWorkspace(prisma, req.workspaceId, {
       machine: id, machineType: data.machineTypeId, location: data.locationId, item: compatibleItemIds,
@@ -77,6 +78,7 @@ export function registerMachineRoutes(router: Router): void {
       where: { id },
       data: {
         ...data,
+        ...(specs ? { specs: specs as Json } : {}),
         ...(compatibleItemIds ? { compatibleItems: { set: compatibleItemIds.map((itemId) => ({ id: itemId })) } } : {}),
       },
       include: machineInclude,

@@ -27,6 +27,7 @@ export function MachineForm({ catalog, machine, onClose }: { catalog: Catalog; m
   const [hourlyCost, setHourlyCost] = useState(machine?.hourlyCost ? String(machine.hourlyCost) : '');
   const [locationId, setLocationId] = useState(machine?.locationId ?? '');
   const [notes, setNotes] = useState(machine?.notes ?? '');
+  const [specs, setSpecs] = useState<Reading[]>(machine?.specs ?? []);
   const [error, setError] = useState('');
   const locations = useMemo(() => flattenLocations(catalog.locations), [catalog.locations]);
 
@@ -35,7 +36,7 @@ export function MachineForm({ catalog, machine, onClose }: { catalog: Catalog; m
     const body = {
       name: name.trim(), machineTypeId: machineTypeId || null, manufacturer, model, serial, status,
       usageHours: Math.max(0, parseNumber(usageHours) ?? 0), hourlyCost: Math.max(0, parseNumber(hourlyCost) ?? 0),
-      locationId: locationId || null, notes,
+      locationId: locationId || null, notes, specs: cleanReadings(specs),
     };
     const ok = await run(() => (machine ? api.patch(wsPath(`/machines/${machine.id}`)!, body) : api.post(wsPath('/machines')!, body)), machine ? 'Saved' : 'Machine added');
     if (ok) onClose();
@@ -105,6 +106,13 @@ export function MachineForm({ catalog, machine, onClose }: { catalog: Catalog; m
         <NumberField label={`Running cost per hour (${workspace?.currency ?? ''})`} value={hourlyCost} onChange={setHourlyCost} placeholder="0.00" hint="Added to the cost of each job." />
         <TextAreaField label="Notes" value={notes} onChange={setNotes} />
       </FormGrid>
+      <ReadingsEditor
+        title="Specifications"
+        hint="Fixed facts worth seeing at a glance: build volume, laser power, spindle speed, bed size…"
+        addLabel="Add specification"
+        readings={specs}
+        onChange={setSpecs}
+      />
       {error && <ErrorNote>{error}</ErrorNote>}
     </Modal>
   );
@@ -122,8 +130,6 @@ export function SubUnitForm({ catalog, subUnit, machineId, onClose }: { catalog:
   const [readings, setReadings] = useState<Reading[]>(subUnit?.readings ?? []);
   const [error, setError] = useState('');
 
-  const setReading = (index: number, patch: Partial<Reading>) => setReadings((current) => current.map((r, i) => (i === index ? { ...r, ...patch } : r)));
-
   const save = async () => {
     if (!name.trim()) return setError('Give the unit a name.');
     const count = parseNumber(slotCount) ?? 0;
@@ -134,7 +140,7 @@ export function SubUnitForm({ catalog, subUnit, machineId, onClose }: { catalog:
     }
     const body = {
       name: name.trim(), kind: kind.trim(), machineId: attachedTo || null, slotCount: count, statusNote: statusNote.trim(),
-      readings: readings.filter((r) => r.label.trim()).map((r) => ({ label: r.label.trim(), value: r.value.trim(), unit: r.unit.trim() })),
+      readings: cleanReadings(readings),
     };
     const ok = await run(() => (subUnit ? api.patch(wsPath(`/sub-units/${subUnit.id}`)!, body) : api.post(wsPath('/sub-units')!, body)), subUnit ? 'Saved' : 'Unit added');
     if (ok) onClose();
@@ -182,24 +188,46 @@ export function SubUnitForm({ catalog, subUnit, machineId, onClose }: { catalog:
         <TextField label="Status note" value={statusNote} onChange={setStatusNote} wide placeholder="e.g. Drying at 65 °C, 3 h left" />
       </FormGrid>
 
-      <div className={styles.readings}>
-        <strong>Readings</strong>
-        <Muted>Anything you want to see at a glance: humidity, temperature, pressure…</Muted>
-        {readings.map((reading, index) => (
-          <div key={index} className={styles.readingRow}>
-            <TextField label="Label" value={reading.label} onChange={(label) => setReading(index, { label })} />
-            <TextField label="Value" value={reading.value} onChange={(value) => setReading(index, { value })} inputMode="decimal" />
-            <TextField label="Unit" value={reading.unit} onChange={(unit) => setReading(index, { unit })} />
-            <IconButton icon={Trash2} label="Remove reading" onClick={() => setReadings((current) => current.filter((_, i) => i !== index))} />
-          </div>
-        ))}
-        <div>
-          <Button size="sm" icon={Plus} onClick={() => setReadings((current) => [...current, { label: '', value: '', unit: '' }])}>
-            Add reading
-          </Button>
-        </div>
-      </div>
+      <ReadingsEditor
+        title="Readings"
+        hint="Anything you want to see at a glance: humidity, temperature, pressure…"
+        addLabel="Add reading"
+        readings={readings}
+        onChange={setReadings}
+        numeric
+      />
       {error && <ErrorNote>{error}</ErrorNote>}
     </Modal>
+  );
+}
+
+/** The server allows 12 rows of label / value / unit; rows without a label are dropped. */
+const MAX_READINGS = 12;
+const cleanReadings = (rows: Reading[]): Reading[] =>
+  rows.filter((r) => r.label.trim()).map((r) => ({ label: r.label.trim(), value: r.value.trim(), unit: r.unit.trim() }));
+
+/** Editable label / value / unit rows, used for machine specifications and attached-hardware readings. */
+function ReadingsEditor({ title, hint, addLabel, readings, onChange, numeric }: { title: string; hint: string; addLabel: string; readings: Reading[]; onChange: (next: Reading[]) => void; numeric?: boolean }) {
+  const update = (index: number, patch: Partial<Reading>) => onChange(readings.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  return (
+    <div className={styles.readings}>
+      <strong>{title}</strong>
+      <Muted>{hint}</Muted>
+      {readings.map((reading, index) => (
+        <div key={index} className={styles.readingRow}>
+          <TextField label="Label" value={reading.label} onChange={(label) => update(index, { label })} />
+          <TextField label="Value" value={reading.value} onChange={(value) => update(index, { value })} inputMode={numeric ? 'decimal' : undefined} />
+          <TextField label="Unit" value={reading.unit} onChange={(unit) => update(index, { unit })} />
+          <IconButton icon={Trash2} label={`Remove ${reading.label || 'row'}`} onClick={() => onChange(readings.filter((_, i) => i !== index))} />
+        </div>
+      ))}
+      {readings.length < MAX_READINGS && (
+        <div>
+          <Button size="sm" icon={Plus} onClick={() => onChange([...readings, { label: '', value: '', unit: '' }])}>
+            {addLabel}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

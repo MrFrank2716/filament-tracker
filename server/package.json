@@ -6,13 +6,14 @@
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
     "start": "tsx --env-file-if-exists=.env src/index.ts",
-    "build": "prisma generate && tsc --noEmit",
+    "build": "prisma generate && tsc --noEmit && vitest run",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx --env-file-if-exists=.env prisma/seed.ts",
     "db:reset": "prisma migrate reset --force --skip-seed && npm run db:seed",
     "db:deploy": "prisma migrate deploy",
+    "reference:filaments": "tsx scripts/import-filaments.ts",
     "test": "vitest run"
   },
   "dependencies": {
@@ -39,6 +40,6 @@
     "@types/nodemailer": "^8.0.2",
     "socket.io-client": "^4.8.1",
     "typescript": "^5.9.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.7"
   }
 }

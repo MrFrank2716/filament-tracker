@@ -17,5 +17,41 @@ The bridge (`bridge/`) adds `mqtt` (MQTT.js, MIT) and `socket.io-client` (MIT).
 The reading of Bambu Lab printers' status was written from public protocol notes (OpenBambuAPI, ha-bambulab) and
 from observing behaviour. No code or data tables were copied from those projects or from any AGPL project.
 
-Bambu Lab is named because Wrkbench can read its printers; other brand names appear in example data (Makera, Hozo).
-All belong to their owners, and Wrkbench is not affiliated with, sponsored or endorsed by them.
+Bambu Lab is named because Wrkbench can read its printers. Brand and product names in the example data and the built-in catalogue (Bambu Lab, Prusa, xTool, Makera
+and others) belong to their owners; Wrkbench is not affiliated with them.
+
+# Data
+
+Wrkbench ships data from the following projects. Their licences apply to that data.
+
+## SpoolmanDB
+
+`server/data/reference/filaments.json` is generated from [SpoolmanDB](https://github.com/Donkie/SpoolmanDB)
+by `server/scripts/import-filaments.ts`. The import reshapes the data (one entry per product line,
+materials mapped onto Wrkbench's material list) but the facts come from SpoolmanDB and its contributors.
+The commit it was taken from is recorded in the file's `source.commit`.
+
+```
+MIT License
+
+Copyright (c) 2024 Donkie
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+

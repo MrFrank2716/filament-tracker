@@ -223,7 +223,9 @@ export function readBambu(doc: Doc): PrinterReading {
   const name = text(print.subtask_name, 160) ?? text(print.gcode_file, 160);
   const totalLayers = int(print.total_layer_num);
   const bed = num(print.bed_temper);
-  const chamber = num(print.chamber_temper);
+  // Only the enclosed, sensor-fitted models measure the chamber; the P1 and A1 series report a fixed 5 instead.
+  const hasChamberSensor = !/^(P1|A1)/i.test(modelName ?? '');
+  const chamber = hasChamberSensor ? num(print.chamber_temper) : null;
   const wifi = /-?\d+/.exec(text(print.wifi_signal, 20) ?? '');
 
   const feeders = readFeeders(print, info, modelName);
