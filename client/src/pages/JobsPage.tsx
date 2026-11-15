@@ -190,9 +190,13 @@ export function JobsPage() {
             <Figure>{formatHours(viewing.durationHours)}</Figure>
             <Muted>
               {viewing.completedAt ? `Finished ${formatDate(viewing.completedAt)}` : `Created ${formatDate(viewing.createdAt)}`}
-              {viewing.createdBy ? ` · ${viewing.createdBy.name}` : ''}
+              {viewing.createdBy ? ` · ${viewing.createdBy.name}` : viewing.source === 'printer' ? ' · started at the printer' : ''}
             </Muted>
           </div>
+          {viewing.failureReason && <p className={styles.notes}>{viewing.failureReason}</p>}
+          {viewing.source === 'printer' && viewing.usages.length === 0 && (viewing.status === 'in_progress' || viewing.status === 'planned') && (
+            <Muted>Wrkbench could not tell what this print uses (the sliced file was not readable, or its trays are not linked to stock). Add materials with Edit if you want them taken from stock when it ends.</Muted>
+          )}
           {viewing.notes && <p className={styles.notes}>{viewing.notes}</p>}
 
           {viewing.request && (

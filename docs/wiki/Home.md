@@ -8,6 +8,7 @@ How to use Wrkbench, one task per page. The pages live in `docs/wiki/` in the re
 | --- | --- |
 | [Connecting printers](Connecting-printers.md) | Step by step: add a bridge, connect a Bambu Lab printer, check it works |
 | [AMS and spools](AMS-and-spools.md) | What appears once a printer is connected, and how spools get linked to stock |
+| [Prints and filament use](Prints-and-filament-use.md) | How prints become jobs and how the filament they use is taken from stock |
 | [Bridge reference](Bridge-reference.md) | Running, updating and moving the bridge; commands; what to do when something is wrong |
 
 ## Still to write

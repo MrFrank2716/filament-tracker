@@ -241,7 +241,7 @@ export const bambuAdapter: PrinterAdapter = {
     liveMs: 2000,
     idleMs: 15_000,
     // What is loaded, what state it is in and what is wrong should never wait.
-    urgentPaths: ['print.gcode_state', 'print.ams', 'print.vt_tray', 'print.vir_slot', 'print.hms', 'print.print_error', 'info'],
+    urgentPaths: ['job', 'print.gcode_state', 'print.ams', 'print.vt_tray', 'print.vir_slot', 'print.hms', 'print.print_error', 'info'],
     ignorePaths: ['print.sequence_id', 'print.msg', 'info.sequence_id'],
     arrayKey: 'id',
   },

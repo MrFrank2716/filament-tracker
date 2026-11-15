@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import os from 'node:os';
 import { io, type Socket } from 'socket.io-client';
 import {
-  BRIDGE_NAMESPACE, PROTOCOL_VERSION, bridgeConfig, bridgeRate, pairResponse, printerRefresh, printerTest,
+  BRIDGE_NAMESPACE, PROTOCOL_VERSION, bridgeConfig, bridgeRate, jobRead, pairResponse, printerRefresh, printerTest,
   type BridgeConfig, type BridgeToServerEvents, type CodeState, type HandshakeAuth, type LinkStatus, type ServerToBridgeEvents, type TelemetryConfig,
 } from '@filament-tracker/protocol';
 import { BambuSession, testBambu, type PrinterSession, type SessionEvents } from './bambu';
@@ -20,7 +20,7 @@ import type { Simulator } from './simulate';
  */
 
 const DEFAULT_TELEMETRY: TelemetryConfig = { liveMs: 2000, idleMs: 15_000, urgentPaths: [], ignorePaths: [], arrayKey: 'id' };
-const CAPABILITIES = ['bambu.monitor', 'discovery'];
+const CAPABILITIES = ['bambu.monitor', 'discovery', 'job.files'];
 
 interface Held {
   printer: StoredPrinter;
@@ -176,6 +176,17 @@ export class Bridge {
       );
     });
 
+    socket.on('job.read', (raw, ack) => {
+      const request = jobRead.safeParse(raw);
+      if (!request.success) return ack?.({ ok: false, code: 'invalid' });
+      const held = this.held.get(request.data.printerId);
+      if (!held) return ack?.({ ok: false, code: 'unknown_printer' });
+      held.session.readJobFile(request.data.entries).then(
+        (entries) => ack?.({ ok: true, entries }),
+        (cause: unknown) => ack?.({ ok: false, code: 'no_file', message: String((cause as Error).message).slice(0, 100) }),
+      );
+    });
+
     socket.on('discovery.list', (_raw, ack) => {
       ack?.({ ok: true, printers: this.simulator ? this.simulator.discovered() : this.discovery.list() });
     });
@@ -266,7 +277,7 @@ export class Bridge {
     };
     const allowed = privateHost(printer.host);
     const session: PrinterSession = !allowed
-      ? { start: () => events.onStatus('unreachable', 'ok', 'Not an address on a private network'), stop: () => undefined, refresh: () => undefined }
+      ? { start: () => events.onStatus('unreachable', 'ok', 'Not an address on a private network'), stop: () => undefined, refresh: () => undefined, readJobFile: () => Promise.reject(new Error('no_file')) }
       : this.simulator?.has(printer.serial)
         ? this.simulator.session(printer.serial, printer.accessCode, events)
         : new BambuSession(printer, events);

@@ -130,6 +130,8 @@ describe('the live registry', () => {
     // Another bridge cannot speak for this printer.
     expect(ingestReport('someone-else', { printerId: link.id, seq: 0, kind: 'full', data: {} })).toEqual({ ok: true });
     expect(statesForWorkspace(target.workspaceId).find((entry) => entry.printerLinkId === link.id)!.print?.progress).toBe(20);
+    // Let the print-following that those reports set off finish before the database goes away.
+    await new Promise((resolve) => setTimeout(resolve, 300));
     resetRegistry();
   });
 });

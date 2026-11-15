@@ -6,7 +6,7 @@ import { prisma } from '@/db';
 import { HttpError, notFound, param, parse } from '@/http';
 import { rateLimit } from '@/rateLimit';
 import { notifyWorkspace } from '@/realtime';
-import { endOfQueue } from '@/routes/jobs';
+import { endOfQueue } from '@/services/jobs';
 import { describeActivity } from '@/services/activity';
 import { estimateJob } from '@/services/queue';
 import { canMoveTo, emailComment, emailStatus } from '@/services/requestStatus';

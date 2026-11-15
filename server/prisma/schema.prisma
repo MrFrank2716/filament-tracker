@@ -368,10 +368,15 @@ model Job {
   startedAt     DateTime?
   createdAt     DateTime  @default(now())
   completedAt   DateTime?
+  /// Who made the job: "manual" (a member) | "printer" (a connected printer was seen starting a print).
+  source        String    @default("manual")
+  /// Why it failed, when a connected printer said: its error text, or "Cancelled at the printer".
+  failureReason String    @default("")
 
   workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   machine   Machine?   @relation(fields: [machineId], references: [id], onDelete: SetNull)
   createdBy User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  runs      PrinterRun[]
   usages    JobUsage[]
   movements StockMovement[]
   request   JobRequest?
@@ -559,7 +564,36 @@ model PrinterLink {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   machine   Machine   @relation(fields: [machineId], references: [id], onDelete: Cascade)
   bridge    Bridge    @relation(fields: [bridgeId], references: [id], onDelete: Cascade)
+  runs      PrinterRun[]
 
   @@unique([workspaceId, serial])
   @@index([bridgeId])
+}
+
+/// One print a connected printer was seen making, from start to end. It ties the print to its job and keeps
+/// what the sliced file said it would use.
+/// outcome: "" while running | "completed" | "failed" | "cancelled" | "unseen" (it ended while nobody was listening)
+/// usageSource: "" (not known) | "file" (read from the sliced file) | "manual"
+model PrinterRun {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  printerLinkId String
+  jobId         String?
+  /// The print's name as the printer reports it; with the start time it tells one print from the next.
+  name          String
+  startedAt     DateTime  @default(now())
+  endedAt       DateTime?
+  outcome       String    @default("")
+  /// JSON array, one per filament the print uses: { id, material, colour, grams, feeder, position, itemId, itemName }.
+  /// grams is the sliced file's estimate for the whole print.
+  filaments     Json
+  usageSource   String    @default("")
+  /// The furthest the print was seen to get, 0 to 1. Used to scale what a stopped print used.
+  progress      Float     @default(0)
+
+  printerLink PrinterLink @relation(fields: [printerLinkId], references: [id], onDelete: Cascade)
+  job         Job?        @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([printerLinkId, endedAt])
+  @@index([workspaceId, startedAt])
 }

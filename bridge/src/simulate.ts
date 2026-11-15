@@ -17,7 +17,19 @@ import { log } from './log';
 
 export const SIM_ACCESS_CODE = '12345678';
 
+const SIM_SLICE_INFO = `<?xml version="1.0" encoding="UTF-8"?>
+<config><plate>
+ <metadata key="index" value="1"/><metadata key="prediction" value="6120"/><metadata key="weight" value="38.40"/>
+ <filament id="1" tray_info_idx="GFA00" type="PLA" color="#000000" used_m="9.80" used_g="29.20"/>
+ <filament id="2" tray_info_idx="GFA00" type="PLA" color="#FFFFFF" used_m="3.10" used_g="9.20"/>
+</plate></config>`;
+
+/** What a printer says when a print is sent to it: the job's name, plate, and which tray each filament uses. */
+const announce = (name: string): Doc => ({ job: { announcedAt: Date.now(), subtask_name: name, param: 'Metadata/plate_1.gcode', use_ams: true, ams_mapping: [0, 1] } });
+
 interface SimEntry {
+  /** Ticks spent finished, before the next pretend print starts. */
+  rest?: number;
   printer: SimPrinter;
   host: string;
   listeners: Set<(delta: Doc) => void>;
@@ -55,10 +67,13 @@ export class Simulator {
         if (accessCode !== SIM_ACCESS_CODE) return events.onStatus('auth_failed', 'rejected');
         events.onStatus('online', 'ok');
         events.onDoc(simDocument(entry.printer));
+        if (entry.printer.state === 'RUNNING' && entry.printer.job) events.onDoc(announce(entry.printer.job.name));
         entry.listeners.add(listener);
       },
       stop: () => void entry.listeners.delete(listener),
       refresh: () => events.onDoc(simDocument(entry.printer)),
+      // What the slicer would have written for the pretend print: two filaments, from the first two trays.
+      readJobFile: async () => ({ 'Metadata/slice_info.config': SIM_SLICE_INFO }),
     };
   }
 
@@ -70,7 +85,17 @@ export class Simulator {
   private tick(): void {
     for (const entry of this.entries.values()) {
       const { printer } = entry;
-      if (printer.state === 'RUNNING' && printer.job) {
+      if (printer.state === 'FINISH' && printer.job && printer.feeders[0]?.trays[0]) {
+        entry.rest = (entry.rest ?? 0) + 1;
+        if (entry.rest >= 6) {
+          // Start another print, the way a real one starts: an announcement, then status.
+          entry.rest = 0;
+          printer.state = 'RUNNING';
+          printer.job = { ...printer.job, name: `${printer.job.name.replace(/_\d+$/, '')}_${Math.floor(Date.now() / 1000) % 1000}`, percent: 0, remainingMinutes: 100, layer: 0 };
+          entry.listeners.forEach((listener) => listener(announce(printer.job!.name)));
+          this.emit(entry, { gcode_state: 'RUNNING', subtask_name: printer.job.name, mc_percent: 0, mc_remaining_time: 100, layer_num: 0 });
+        }
+      } else if (printer.state === 'RUNNING' && printer.job) {
         const job = printer.job;
         job.percent = Math.min(100, job.percent + 1);
         job.remainingMinutes = Math.max(0, job.remainingMinutes - 2);

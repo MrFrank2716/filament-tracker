@@ -127,7 +127,9 @@ From then on the machine's card shows the printer live, its AMS units appear as 
 
 **Good to know.** This reads the printer the way community tools do, not through an official Bambu Lab interface, so a firmware update can change or break it. The parts written without a printer to hand (how some models report trays, dual-nozzle details, discovery) are marked in `server/src/integrations/bambu/normalize.ts` and exercised with made-up data in `protocol/src/fixtures.ts`; `wrkbench-bridge record` saves what a real printer reports, with serial numbers replaced, to turn into real test data.
 
-Planned next, in order: following prints (jobs start, progress and finish by themselves), filament used per job from the sliced file, and sending queued jobs to printers that allow it.
+**Prints become jobs.** A print seen starting on a connected printer becomes a job (or joins the one you made for it), and when it ends the job is finished with the real run time and the filament the sliced file says it used, taken from the spool linked to each tray. Details and limits: [Prints and filament use](docs/wiki/Prints-and-filament-use.md). This needs bridge 0.2.0 or newer.
+
+Planned next: sending queued jobs to printers that allow it.
 
 ## Not built yet
 

@@ -3,6 +3,7 @@ import tls from 'node:tls';
 import mqtt, { type MqttClient } from 'mqtt';
 import type { CodeState, Doc, LinkStatus, PrinterTestAck } from '@filament-tracker/protocol';
 import type { StoredPrinter } from './config';
+import { readZipEntries } from './jobFile';
 import { log } from './log';
 
 /**
@@ -34,6 +35,8 @@ export interface PrinterSession {
   stop(): void;
   /** Ask for the full status again (rate-limited). */
   refresh(): void;
+  /** Named text entries from the sliced file of the print the printer last announced. */
+  readJobFile(entries: string[]): Promise<Record<string, string>>;
 }
 
 /** The SHA-256 of the certificate presented at host:8883, without sending anything. */
@@ -71,11 +74,21 @@ const refusedCredentials = (error: unknown): boolean => {
   return code === 4 || code === 5 || /not authorized|bad user ?name or password/i.test(String((error as Error | null)?.message ?? ''));
 };
 
+/** The parts of a "print is starting" announcement worth keeping. The download link is left out on purpose. */
+const JOB_KEYS = ['subtask_name', 'task_id', 'subtask_id', 'project_id', 'profile_id', 'param', 'file', 'use_ams', 'ams_mapping', 'ams_mapping2', 'plate_idx'];
+
 /** Which printer messages belong in the status document. Everything else (replies to other clients' commands) is noise. */
 function statusPart(message: unknown): Doc | null {
   if (typeof message !== 'object' || message === null) return null;
   const { print, info } = message as { print?: Doc; info?: Doc };
   if (print && typeof print === 'object' && print.command === 'push_status') return { print };
+  // When a print is sent to it, the printer announces the job: its name, plate, and which tray each filament uses.
+  // That last part is said once and never repeated on some firmware, so it is kept in the document under "job".
+  if (print && typeof print === 'object' && print.command === 'project_file') {
+    const job: Doc = { announcedAt: Date.now() };
+    for (const key of JOB_KEYS) if (print[key] !== undefined) job[key] = print[key];
+    return { job };
+  }
   if (info && typeof info === 'object' && info.command === 'get_version') return { info };
   return null;
 }
@@ -86,6 +99,8 @@ export class BambuSession implements PrinterSession {
   private retry: ReturnType<typeof setTimeout> | null = null;
   private attempts = 0;
   private lastPushAll = 0;
+  /** Where the printer said the current print's sliced file is. Stays on the bridge. */
+  private jobUrl: string | null = null;
 
   constructor(
     private readonly printer: StoredPrinter,
@@ -107,6 +122,11 @@ export class BambuSession implements PrinterSession {
     if (!this.client?.connected || Date.now() - this.lastPushAll < PUSH_ALL_GAP_MS) return;
     this.lastPushAll = Date.now();
     this.client.publish(`device/${this.printer.serial}/request`, PUSH_ALL, { qos: 1 });
+  }
+
+  async readJobFile(entries: string[]): Promise<Record<string, string>> {
+    if (!this.jobUrl) throw new Error('no_file');
+    return readZipEntries(this.jobUrl, entries);
   }
 
   private again(ms: number): void {
@@ -155,7 +175,12 @@ export class BambuSession implements PrinterSession {
     });
     client.on('message', (_topic, payload) => {
       try {
-        const part = statusPart(JSON.parse(payload.toString('utf8')));
+        const message: unknown = JSON.parse(payload.toString('utf8'));
+        const part = statusPart(message);
+        if (part?.job) {
+          const url = (message as { print?: { url?: unknown } }).print?.url;
+          this.jobUrl = typeof url === 'string' && url.startsWith('https://') ? url : null;
+        }
         if (part) this.events.onDoc(part);
       } catch {
         /* not JSON: ignore */

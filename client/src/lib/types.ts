@@ -258,6 +258,10 @@ export interface Job {
   completedAt: string | null;
   machine: { id: string; name: string; hourlyCost: number } | null;
   createdBy: { name: string } | null;
+  /** "printer" when a connected printer was seen starting the print and made the job itself. */
+  source: 'manual' | 'printer';
+  /** Why it failed, when a connected printer said. */
+  failureReason: string;
   usages: JobUsage[];
   /** Set when the job came from an approved outside request. */
   request: { id: string; requesterName: string; requesterEmail: string; files: RequestFile[] } | null;
