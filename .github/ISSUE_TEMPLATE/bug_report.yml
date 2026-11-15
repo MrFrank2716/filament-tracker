@@ -1,0 +1,61 @@
+name: Bug report
+description: Something in Wrkbench does not work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Please check the [Troubleshooting](https://github.com/hussxin5046/filament-tracker/blob/main/docs/wiki/Troubleshooting.md) page and the existing issues first.
+
+        **Security problems:** do not report them here. Follow [SECURITY.md](https://github.com/hussxin5046/filament-tracker/blob/main/SECURITY.md) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: |
+        1. Opened Inventory and pressed Add item
+        2. ...
+        Expected: ...
+        Instead: ...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of Wrkbench?
+      options:
+        - Inventory or reordering
+        - Machines or attached hardware
+        - Maintenance
+        - Jobs or the queue
+        - Job requests
+        - Overview, daily report or activity
+        - Members, roles or accounts
+        - Settings, catalogue, import or export
+        - Connected printers or the bridge
+        - Installing or hosting
+        - Something else
+    validations:
+      required: true
+  - type: dropdown
+    id: running
+    attributes:
+      label: How are you running Wrkbench?
+      options:
+        - On my own computer (npm run dev)
+        - Self-hosted with Docker
+        - Self-hosted with Node.js
+        - On a copy someone else runs
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: e.g. Firefox on Windows, Safari on iPhone
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error messages, logs or screenshots
+      description: Anything shown on screen, in the server's output, or in the bridge's output. Remove passwords, access codes and email addresses first.

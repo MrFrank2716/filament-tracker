@@ -1,0 +1,77 @@
+# Inventory
+
+**Inventory** is everything your workshop keeps in stock: filament, sheet material, endmills, screws, sandpaper, spare parts. Each thing you stock is an **item**, and every item belongs to a **category**.
+
+![The Inventory screen, by category](images/inventory.png)
+
+## Categories and their fields
+
+A category (filament, endmill, sheet stock and so on) decides which details you record for its items. Filament might have material, colour and diameter; an endmill has flutes, diameter and coating. Templates set up sensible categories for you. To add or change one, go to **Settings**, **Categories**. See [Catalogue and settings](Catalogue-and-settings.md#categories).
+
+## Add an item
+
+Press **Add item**, then choose:
+
+- **From the catalogue**: pick a real product (a filament line, an endmill size, a sheet thickness) from the built-in catalogue. Its details are filled in for you. See [Catalogue and settings](Catalogue-and-settings.md#the-built-in-catalogue).
+- **From scratch**: type everything in yourself.
+
+The fields that matter most:
+
+| Field | What it does |
+| --- | --- |
+| **Quantity in stock** and **Unit** | How much you have, in grams, metres, sheets, pieces and so on |
+| **Minimum stock level** | Below this the item counts as **low stock** and joins the reorder list |
+| **Full / pack size** | Optional. Shows a fill gauge and sets how much to reorder |
+| **Price** | Used to work out stock value and job costs |
+| **Supplier** and **Location** | Where you buy it and where it lives |
+| **Fits these machines** | Which machines it can be used in |
+| **Expected life** | For tooling that wears. See [Tool life](#tool-life) |
+
+## Ways to look at your stock
+
+Switch between views at the top of the screen. Wrkbench remembers your choice on each device.
+
+- **By category**: one column per category.
+- **By machine**: one column per machine, showing what is loaded in it first, then what fits it.
+- **By location**: one column per storage place.
+- **List**: everything in one table.
+
+Use the search box to find items by name, material, size or location, and **Filters** to narrow by category, status (low stock, worn, offcuts, loaded in a machine), location or supplier.
+
+## Change how much is in stock
+
+Open an item to see its details and history.
+
+![An item opened, with quick stock buttons and its history](images/item-sheet.png)
+
+- The **plus and minus** buttons add or take away common amounts.
+- **Counted or weighed? Set the exact amount** replaces the figure with what you measured.
+- **History** lists every change: when, by whom, and why.
+
+Every change is recorded, and an admin can undo a mistaken one from [Activity](Dashboard-and-reports.md#activity). Operators can take stock away but not add it. See [Members and roles](Members-and-roles.md).
+
+Finishing a job also takes its materials out of stock. See [Jobs and the queue](Jobs-and-queue.md#finish-a-job).
+
+## Offcuts
+
+An **offcut** (also called a remnant) is a usable leftover piece, such as half a sheet of plywood. Open the original item and press **Add offcut** to record it with its own size. (The button appears for categories that record a size, such as sheet stock.) Offcuts are kept off the reorder list.
+
+To find a piece big enough for a job, use **Find a piece that fits** and enter the size you need. Pieces are matched in any orientation, offcuts first. This works for categories that have a size, set up under **Settings**, **Categories**.
+
+## Tool life
+
+For tooling that wears out, such as endmills, saw blades or nozzles, turn on **Track tool life** for the category. Then give each item an **Expected life** in hours. Finishing a job adds its cutting time to the tool, and the tool is flagged as **Worn** when it reaches its expected life. You can also flag a tool as worn by hand.
+
+## Reordering
+
+The **Reorder** screen lists everything below its minimum, plus tooling that has reached its expected life, grouped by supplier.
+
+![The Reorder screen, grouped by supplier](images/reorder.png)
+
+- When a pack size is set, the suggested amount is rounded up to whole packs.
+- **Copy list** and **Download CSV** give you the list to send to a supplier.
+- **Received** adds the suggested amount to stock when the order arrives.
+
+## Bring in a spreadsheet
+
+You can import items from a CSV file, or export them to one, under **Settings**, **Import / export**. See [Backups, import and export](Backups-and-data.md).

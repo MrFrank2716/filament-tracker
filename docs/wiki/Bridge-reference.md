@@ -17,7 +17,7 @@ One file, `config.json`:
 | Running as | Location |
 | --- | --- |
 | Docker | `/data` inside the container: the `wrkbench-bridge` volume |
-| From source on Linux or macOS | `~/.config/wrkbench-bridge/` |
+| From source on Linux or macOS | `~/.config/wrkbench-bridge/` (or `$XDG_CONFIG_HOME/wrkbench-bridge/` if that is set) |
 | From source on Windows | `%APPDATA%\wrkbench-bridge\` |
 
 It holds the server address, the bridge's own token, and each printer's access code. Treat it like a password file: it is written so only your user can read it. `--dir <folder>` or `WRKBENCH_BRIDGE_DIR` puts it somewhere else.
@@ -30,7 +30,7 @@ It holds the server address, the bridge's own token, and each printer's access c
 | `wrkbench-bridge` | Start, using stored settings |
 | `wrkbench-bridge status` | Show where the settings are, the server, and how many printers it holds |
 | `wrkbench-bridge record ...` | Save what one printer reports to a file (see below) |
-| `wrkbench-bridge --simulate` | Pretend printers, for trying Wrkbench without hardware |
+| `wrkbench-bridge --simulate` | Pretend printers, for trying Wrkbench without hardware. The first time, add `--server` and `--pair` as well (see below) |
 | `--help`, `--version` | |
 
 From source, put `npm run bridge --` in front instead of `wrkbench-bridge`. In Docker, the options go after the image name.
@@ -82,6 +82,8 @@ It listens for two minutes and writes each message to `tape.jsonl`, with the ser
 
 ## Trying it without a printer
 
+With Wrkbench running on your own computer (see the [README](../../README.md#try-it-on-your-computer)), add a bridge under **Settings**, **Printers** to get a set-up code, then run from the repository:
+
 ```
 npm run bridge -- --server http://localhost:4000 --pair <code> --simulate
 ```
@@ -96,15 +98,7 @@ empty <serial> <feeder id> <tray 0-3>
 
 ## For people hosting Wrkbench
 
-Set in the server's environment (all optional):
-
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `PRINTERS_ENABLED` | `true` | `false` hides connected printers and refuses bridges |
-| `BRIDGE_MAX_PER_WORKSPACE` | `3` | |
-| `PRINTER_MAX_PER_BRIDGE` | `20` | |
-| `BRIDGE_IMAGE` | `ghcr.io/hussxin5046/wrkbench-bridge:latest` | The image named in the set-up command |
-
-The set-up command uses `APP_URL` (or `CLIENT_ORIGIN`) as the server address, so that must be the address bridges can reach.
-
-The image is published by `.github/workflows/bridge-image.yml` whenever the bridge changes on `main`, or when a tag such as `bridge-v0.1.0` is pushed. GitHub makes a new package private; set it to public once (your profile, Packages, `wrkbench-bridge`, Package settings, Change visibility) or pulling it is refused with "denied". Bridges connect to the `/bridge` socket.io namespace on the same port as the app, so a proxy in front must pass WebSocket connections, as it already does for live updates.
+- The printer settings (`PRINTERS_ENABLED`, `BRIDGE_MAX_PER_WORKSPACE`, `PRINTER_MAX_PER_BRIDGE`, `BRIDGE_IMAGE`) are listed in [Self-hosting](Self-hosting.md#connected-printers).
+- The set-up command uses `APP_URL` (or `CLIENT_ORIGIN`) as the server address, so that must be the address bridges can reach.
+- Bridges connect on the same port as the app, over WebSocket, so a proxy in front must pass WebSocket connections, as it already does for live updates.
+- Publishing your own bridge image, and making it public so bridges can pull it, is covered in [Self-hosting](Self-hosting.md#publishing-the-bridge-image).
