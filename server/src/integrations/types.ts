@@ -33,6 +33,10 @@ export interface Tray {
   tagId: string | null;
   remainingPercent: number | null;
   spoolWeightGrams: number | null;
+  /** Nozzle temperature range the printer has for it, degrees C. */
+  nozzleTemp: [number, number] | null;
+  /** Filament diameter in mm. */
+  diameter: number | null;
   /** Feeding the print right now. */
   active: boolean;
 }

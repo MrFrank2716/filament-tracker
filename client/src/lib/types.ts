@@ -158,6 +158,9 @@ export interface Detected {
   tagId: string | null;
   remainingPercent: number | null;
   spoolWeightGrams: number | null;
+  /** Nozzle temperature range the printer has for it; missing on readings saved by older versions. */
+  nozzleTemp?: [number, number] | null;
+  diameter?: number | null;
 }
 
 export interface Slot {

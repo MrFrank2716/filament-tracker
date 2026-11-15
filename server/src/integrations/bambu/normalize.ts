@@ -68,8 +68,11 @@ function readTray(raw: unknown, position: number, active: boolean): Tray {
   const tag = tagId(tray.tray_uuid);
   const remaining = num(tray.remain);
   const weight = num(tray.tray_weight);
+  const low = num(tray.nozzle_temp_min);
+  const high = num(tray.nozzle_temp_max);
+  const diameter = num(tray.tray_diameter);
   if (!material) {
-    return { position, state: 'empty', material: null, subType: null, colour: null, colours: [], brand: null, tagId: null, remainingPercent: null, spoolWeightGrams: null, active: false };
+    return { position, state: 'empty', material: null, subType: null, colour: null, colours: [], brand: null, tagId: null, remainingPercent: null, spoolWeightGrams: null, nozzleTemp: null, diameter: null, active: false };
   }
   return {
     position,
@@ -83,6 +86,8 @@ function readTray(raw: unknown, position: number, active: boolean): Tray {
     tagId: tag,
     remainingPercent: remaining !== null && remaining >= 0 && remaining <= 100 ? remaining : null,
     spoolWeightGrams: weight !== null && weight > 0 ? weight : null,
+    nozzleTemp: low !== null && high !== null && low > 0 && high >= low ? [low, high] : null,
+    diameter: diameter !== null && diameter > 0 ? diameter : null,
     active,
   };
 }

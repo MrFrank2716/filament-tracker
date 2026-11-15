@@ -16,6 +16,8 @@ export interface Detected {
   tagId: string | null;
   remainingPercent: number | null;
   spoolWeightGrams: number | null;
+  nozzleTemp?: [number, number] | null;
+  diameter?: number | null;
   /** Changes only when the tray physically holds something else. */
   signature: string;
   /** The signature when the current item was put here; a different one means the binding is stale. */
@@ -32,6 +34,7 @@ export function detectedFrom(tray: Tray, boundSignature: string | null): Detecte
   return {
     state: tray.state, material: tray.material, subType: tray.subType, colour: tray.colour, colours: tray.colours,
     brand: tray.brand, tagId: tray.tagId, remainingPercent: tray.remainingPercent, spoolWeightGrams: tray.spoolWeightGrams,
+    nozzleTemp: tray.nozzleTemp, diameter: tray.diameter,
     signature: traySignature(tray), boundSignature,
   };
 }

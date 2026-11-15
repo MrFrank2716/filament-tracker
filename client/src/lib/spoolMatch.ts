@@ -84,14 +84,35 @@ export function colourWord(hex: string): string {
     hue < 15 || hue >= 345 ? 'Red' : hue < 42 ? (light < 0.4 ? 'Brown' : 'Orange') : hue < 70 ? 'Yellow' : hue < 165 ? 'Green'
       : hue < 195 ? 'Teal' : hue < 255 ? 'Blue' : hue < 290 ? 'Purple' : 'Pink';
   if (name === 'Brown') return name;
-  return light < 0.28 ? `Dark ${name.toLowerCase()}` : light > 0.75 ? `Light ${name.toLowerCase()}` : name;
+  return light < 0.32 ? `Dark ${name.toLowerCase()}` : light > 0.75 ? `Light ${name.toLowerCase()}` : name;
+}
+
+/** A full spool is assumed to be this size when the printer cannot say (spools without a tag). */
+const USUAL_SPOOL_GRAMS = 1000;
+
+/**
+ * The option of a choice field that best fits the printer's word for a material. Exact first ("PETG"), then the
+ * longest option the word starts with ("PETG HF" is PETG, "PAHT-CF" is PA-CF by its ending), then "Other".
+ */
+function materialOption(options: string[], material: string): string | undefined {
+  const word = plain(material);
+  const exact = options.find((option) => plain(option) === word);
+  if (exact) return exact;
+  const prefix = options.filter((option) => word.startsWith(plain(option))).sort((a, b) => b.length - a.length)[0];
+  const reinforced = /cf$|gf$/.exec(word)?.[0];
+  if (reinforced && prefix) {
+    const withFibre = options.find((option) => plain(option) === `${plain(prefix)}${reinforced}`);
+    if (withFibre) return withFibre;
+  }
+  return prefix ?? options.find((option) => plain(option) === 'other');
 }
 
 /**
- * A new stock item filled in from what the printer read: category, name, material, colour, brand, size and
- * how much is left. Whoever adds it only has to check it over.
+ * A new stock item filled in from what the printer read: category, name, material, colour and its name, brand,
+ * diameter, nozzle temperature, size, how much is left, and the printer it was found in. Whoever adds it only
+ * has to check it over and add a price.
  */
-export function newSpoolFrom(detected: Detected, catalog: Catalog): Partial<Item> {
+export function newSpoolFrom(detected: Detected, catalog: Catalog, machineId?: string | null): Partial<Item> {
   const type =
     catalog.types.find((candidate) => candidate.fields.some((field) => field.key === 'material') && candidate.fields.some((field) => field.fieldType === 'color')) ??
     catalog.types.find((candidate) => candidate.fields.some((field) => field.fieldType === 'color'));
@@ -100,22 +121,27 @@ export function newSpoolFrom(detected: Detected, catalog: Catalog): Partial<Item
   for (const field of type?.fields ?? []) {
     if (field.fieldType === 'color' && detected.colour) fields[field.key] = detected.colour;
     else if (field.key === 'material' && detected.material) {
-      // A choice field only takes its own options; leave it for the person when the printer's word is not one of them.
-      const option = field.fieldType === 'select' ? field.options.find((candidate) => plain(candidate) === plain(detected.material!)) : detected.material;
+      // A choice field only takes its own options.
+      const option = field.fieldType === 'select' ? materialOption(field.options, detected.subType ?? detected.material) ?? materialOption(field.options, detected.material) : detected.material;
       if (option) fields[field.key] = option;
     } else if (field.key === 'brand' && detected.brand) fields[field.key] = detected.brand;
     else if ((field.key === 'colour_name' || field.key === 'color_name') && colour) fields[field.key] = colour;
+    else if (field.key === 'diameter' && detected.diameter) fields[field.key] = detected.diameter;
+    else if (field.key === 'nozzle_temp' && detected.nozzleTemp) fields[field.key] = field.fieldType === 'number' ? detected.nozzleTemp[1] : `${detected.nozzleTemp[0]}-${detected.nozzleTemp[1]}`;
   }
-  const grams = detectedGrams(detected);
   const unit = type?.defaultUnitId ? catalog.unitById.get(type.defaultUnitId) : undefined;
-  // The printer speaks in grams; only carry its figures over when this category is kept in grams too.
+  // The printer speaks in grams; only carry weights over when this category is kept in grams too.
   const inGrams = unit?.symbol === 'g';
+  // A tagged spool says its size and what is left. For any other, assume a usual full spool: right more often
+  // than an empty box, and one number to correct if not.
+  const capacity = detected.spoolWeightGrams ?? USUAL_SPOOL_GRAMS;
+  const quantity = detectedGrams(detected) ?? capacity;
   return {
     ...(type ? { itemTypeId: type.id, unitId: type.defaultUnitId } : {}),
-    name: [detected.subType ?? detected.material, colour].filter(Boolean).join(' '),
+    name: [detected.brand && detected.brand !== 'Bambu Lab' ? detected.brand : '', detected.subType ?? detected.material, colour].filter(Boolean).join(' '),
     fields,
-    ...(inGrams && detected.spoolWeightGrams ? { capacity: detected.spoolWeightGrams } : {}),
-    ...(inGrams && grams !== null ? { quantity: grams } : {}),
+    ...(inGrams ? { capacity, quantity } : {}),
+    ...(machineId ? { compatibleMachineIds: [machineId] } : {}),
     tagId: detected.tagId,
   };
 }

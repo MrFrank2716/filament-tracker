@@ -240,7 +240,7 @@ export function MachinesPage() {
               ) : (
                 <>
                   {canEdit && seen && (
-                    <Button onClick={() => setDialog({ kind: 'newSpool', subUnit, slot, initial: newSpoolFrom(seen, catalog) })}>Add as a new spool</Button>
+                    <Button onClick={() => setDialog({ kind: 'newSpool', subUnit, slot, initial: newSpoolFrom(seen, catalog, subUnit.machineId) })}>Add as a new spool</Button>
                   )}
                   <Button variant="primary" onClick={() => setDialog({ ...dialog, picking: true })}>
                     Choose from stock
@@ -273,7 +273,7 @@ export function MachinesPage() {
               </Muted>
             ) : (
               <Muted>
-                This spool is not tied to anything in stock yet. Choose the item it is, or add it as a new one.
+                This spool is not tied to anything in stock yet. Choose the item it is, or add it as a new one: the form comes filled in from what the printer reads.
                 {seen?.tagId ? ' It has a tag, so from then on it is recognised by itself wherever it is loaded.' : ''}
               </Muted>
             )}
