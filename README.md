@@ -1,137 +1,104 @@
 # Wrkbench
 
-A configurable workshop inventory and maintenance manager. It started as a 3D printing filament tracker and works for any maker space, home workshop, school lab or small business: categories, fields, units, machines and maintenance schedules are all data you define, not code.
+**Know what is in stock, where it is, and what needs attention.**
 
-## Run it
+Wrkbench is a free, self-hostable web app for running a workshop: a maker space, a home workshop, a school lab or a small fabrication business. It tracks your materials and tooling, your machines and their maintenance, and the jobs you run on them, and tells you each morning what needs doing.
 
-Requires Node.js 22.9 or newer.
+It started as a 3D printing filament tracker, which is why this repository is called `filament-tracker`. It now works for any kind of workshop: the categories, fields, units, machines and maintenance schedules are all things you set up, not things built into the code.
 
-```bash
-npm install
-```
+![The Wrkbench overview screen](docs/wiki/images/dashboard.png)
 
-Copy `server/.env.example` to `server/.env`, set a long random `JWT_SECRET`, and choose a `SEED_PASSWORD` for the demo account. Then:
+## What you can do
 
-```bash
-npm run db:migrate
-```
+- **Track stock**: filament, sheet stock, endmills, screws, anything, with the details that matter for each kind. See exactly what is low and what to reorder, grouped by supplier. → [Inventory](docs/wiki/Inventory.md)
+- **Look after your machines**: see what is fitted to each machine and what is loaded in it, down to which spool is in which feeder slot. → [Machines](docs/wiki/Machines.md)
+- **Never miss servicing**: recurring maintenance by date, by hours of use, or both. → [Maintenance](docs/wiki/Maintenance.md)
+- **Run jobs**: queue work per machine by priority. Finishing a job takes its materials out of stock, wears down tooling, and records what it cost. → [Jobs and the queue](docs/wiki/Jobs-and-queue.md)
+- **Take requests from outside**: share a link so students or customers can send files for a job, then follow its progress without an account. → [Job requests](docs/wiki/Job-requests.md)
+- **Start each day with a plan**: a daily report of what is overdue, short or running low, and an activity log where stock mistakes can be undone. → [Dashboard and reports](docs/wiki/Dashboard-and-reports.md)
+- **Work as a team**: owners, admins, operators and viewers, each allowed to do what their role needs. → [Members and roles](docs/wiki/Members-and-roles.md)
+- **Add real products in one step**: a built-in catalogue of printers, lasers, CNC machines, filaments, sheet stock, endmills and fasteners. → [Catalogue and settings](docs/wiki/Catalogue-and-settings.md)
+- **Connect Bambu Lab printers**: see each AMS and the spools in it live, and link them to your stock. Read-only: it never controls a printer. → [Connecting printers](docs/wiki/Connecting-printers.md)
+- **Keep your data**: export a workspace as JSON, or your stock as a spreadsheet, and import from CSV. → [Backups, import and export](docs/wiki/Backups-and-data.md)
 
-```bash
-npm run db:seed
-```
+It works on phones as well as computers, and can be installed as an app from the browser.
 
-```bash
-npm run dev
-```
+## Try it on your computer
 
-Open http://localhost:5173 and sign in with `SEED_EMAIL` / `SEED_PASSWORD` from `server/.env`, or create your own account and start from a template (or blank).
+You need [Node.js](https://nodejs.org) 22.9 or newer and [Git](https://git-scm.com).
 
-## Deploy it
+1. Get the code:
 
-The app is one Node process: after `npm run build`, `npm start` serves the API, the built client and the live updates on one port (4000 by default). It keeps its data in a SQLite file and an uploads folder, so it needs a host with a **persistent disk** and must run as a **single instance** (rate limits and live updates live in the process).
+   ```bash
+   git clone https://github.com/hussxin5046/filament-tracker.git
+   ```
 
-The `Dockerfile` builds that image. It applies pending database migrations on every start (`npm run db:deploy`) and expects a volume mounted at `/data`, which holds the database (`/data/app.db`) and uploaded files (`/data/uploads`). Back that volume up; nothing else needs keeping.
+   ```bash
+   cd filament-tracker
+   ```
 
-Set these on the host:
+2. Create your settings file by copying the example:
 
-| Variable | Value |
-| --- | --- |
-| `JWT_SECRET` | A new long random string. Never reuse the local one; changing it signs everyone out. Seal it on the host if you can. |
-| `RESEND_API_KEY`, `MAIL_FROM` | For password reset links and job request emails. `RESEND_API_KEY` sends through Resend over HTTPS, which also works on hosts that block outgoing SMTP (Railway below the Pro plan does); `SMTP_URL` is the alternative. `MAIL_FROM` must be an address on a domain verified with the mail provider. With neither set, emails are only printed to the log. |
-| `CLIENT_ORIGIN` | The live address, for example `https://tracker.example.com` |
-| `TRUST_PROXY` | Proxies in front of the app. The image sets `1`, which suits most hosts. |
-| `BRIDGE_IMAGE` | Optional. The bridge image named in the set-up command shown under Settings, Printers (default `ghcr.io/hussxin5046/wrkbench-bridge:latest`). `PRINTERS_ENABLED=false` switches connected printers off. |
-| `DATABASE_URL`, `UPLOAD_DIR`, `PORT` | Set by the image; change only if the volume is mounted elsewhere or the host assigns a port. |
+   ```bash
+   cp server/.env.example server/.env
+   ```
 
-Do not run `npm run db:seed` on the live site: it creates the demo account. Without Docker, the same steps by hand are `npm ci`, `npm run build`, `npm run db:deploy`, `npm start`, with the variables above in the environment (a `server/.env` file is read when present and is not required).
+3. Open `server/.env` in a text editor and change two lines:
+   - `JWT_SECRET`: replace it with a long random string. This command prints one:
 
-## Layout
+     ```bash
+     node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+     ```
 
-| Path | What lives there |
-| --- | --- |
-| `server/prisma/schema.prisma` | Data model: generic `ItemType` / `CustomField` / `Item`, machines, attached hardware and slots, maintenance, jobs, stock audit trail |
-| `server/src/routes` | REST API. Everything under `/api/workspaces/:id` is membership- and role-checked |
-| `server/src/services/snapshot.ts` | The portable workspace format behind JSON import/export, templates and the seed |
-| `server/src/routes/requests.ts` | Outside job requests: the public submit and progress routes (the only ones that need no account) and the review queue |
-| `server/src/integrations` | Connected printers: reading a printer's status (`bambu/`), the live registry, AMS and spool sync, and where bridges connect |
-| `bridge/` | The bridge: a small program run on the workshop's network that reads its printers and reports here |
-| `protocol/` | The messages the server and the bridge exchange, shared by both |
-| `server/src/templates` | Workspace templates and the example maker space, as data |
-| `server/src/reference` | The built-in catalogue of machines and materials (see below) |
-| `server/data/reference/filaments.json` | Filament product lines, generated by `server/scripts/import-filaments.ts` |
-| `client/src/styles/tokens.css` | Design tokens (light and dark) |
-| `client/src/components/ui` | Shared components |
-| `client/src/pages` | One file per screen |
+   - `SEED_PASSWORD`: choose a password (at least 8 characters) for the demo account.
 
-## Conventions
+4. Install everything and create the database with sample data:
 
-- No inline styles: CSS Modules that reference tokens only.
-- `@/` import alias in both client and server.
-- Lucide icons only. Icons a workspace can pick are listed in `client/src/lib/icons.ts`.
-- Stock only changes through `moveStock` (`server/src/services/stock.ts`), so every change leaves an audit row.
+   ```bash
+   npm run setup
+   ```
 
-## How a few things work
+5. Start it:
 
-- **Inventory views**: a board with one column per category, per machine (what is loaded in it, then what fits it) or per storage location, plus a flat list. An item belongs to a machine when it is loaded in that machine's hardware or lists it under "Fits these machines". The chosen view is remembered per device.
-- **Machine focus**: the bar above every screen switches between the whole workshop and one machine. With a machine picked, Overview becomes that machine's own page (what is loaded, what it needs, its maintenance and jobs), and Inventory, Jobs, Maintenance, Reorder, Machines and the sidebar badges narrow to it. Remembered per workspace on each device.
-- **Accounts and passwords**: passwords are stored as bcrypt hashes. Settings → Your account lets a signed-in user change their password, sign out their other devices, or delete their account (workspaces only they belong to go with it; shared ones stay, and a sole owner must hand over first). "Forgot password?" on the sign-in page emails a link that works once, for an hour, and never reveals whether an address has an account. Every sign-in token carries the user's `tokenVersion`; changing or resetting the password raises it, which signs out every device.
-- **Backups**: the database and uploads live on one volume, so that volume is the only copy. Switch on scheduled volume backups on the host (on Railway: the service's Backups tab), and keep `UPLOAD_MAX_MB` small enough that outside job requests cannot fill the disk.
-- **Guest sessions**: "Continue as guest" on the sign-in page creates a temporary account with its own copy of the example maker space, so anyone can try the app without registering (at most 5 per hour from one connection). A guest can create an account from the sidebar and keeps everything they set up; otherwise the guest and their workspaces are deleted after 7 days (`server/src/services/guests.ts`).
-- **Job requests from outside**: an owner switches on a request link under Settings → Job requests. Anyone with the link can describe a job and attach files at `/submit/<token>`, without an account. Requests queue under Jobs → Requests, oldest first. An admin downloads the files, then approves (which creates a planned job carrying the requester and files), asks for changes (the requester sends new files) or rejects. An approved request moves to in progress when its job starts and to done when the job completes (or by hand, for work not run as a job). Members and the requester can comment on it; the requester follows everything at `/request/<token>`, including where the job stands in the queue, and is emailed on every status change and member comment. Set `SMTP_URL` and `MAIL_FROM` in `server/.env` to send email; without them each email is printed to the server log. Uploaded files are stored under `server/uploads` with random names, limited by type, size and count (`UPLOAD_*` in `server/.env`), and are only ever handed to signed-in members as downloads. They are not part of the JSON export.
-- **Daily report**: the first time you open a workspace each day (signing in, or coming back to a tab left open overnight) a report opens over whatever screen you are on. It is a numbered plan, "Do today" (overdue service, machines flagged as needing service, open jobs that ask for more than is in stock, job requests waiting, what to order) then "Coming up" (service due soon, stock that will cross its minimum within 14 days at the rate of the last 30 days, tooling past 80 % of its life), followed by how the last 7 days went. Every line links to where it is dealt with. "Daily report" in the sidebar (under More on a phone) opens it again. Shown once per person, workspace and day, remembered on the device; the rules live in `server/src/services/dailyReport.ts` and the wording in `client/src/components/report/DailyReport.tsx`.
-- **Low stock** means below the item's minimum. The reorder list groups those by supplier, plus tooling that has reached its expected life, and suggests whole packs when a pack size is set.
-- **Maintenance** is due when either interval runs out (days, hours of use, or both) since the last logged service for that machine. A task on a machine type covers every machine of that type.
-- **Finishing a job** (completed or failed) takes its materials out of stock, adds cutting hours to tooling, adds run time to the machine, and snapshots the cost: materials + tool wear + machine time + other.
-- **Connected printers and roles**: adding bridges and printers is for admins and owners; operators link spools to slots as before.
-- **Roles**: owners manage members and the workspace; admins change and delete everything else; operators run jobs, log usage (taking stock away, never adding it), record maintenance, load slots, reorder the queue and reply to requests; viewers read only. Enforced on the server by an allow-list of operator routes in `server/src/auth.ts`, so a new route is admin-only until listed there. Existing editors became admins.
-- **Print queue**: Jobs → Queue lists each machine's open jobs in run order: the running job, then by priority (urgent, high, normal, low), then the order set with the arrows, then age. Start and finish times are estimated from each job's run time, back to back from now; a machine that is offline or needs service pauses its queue.
-- **Catalogue**: real machines and materials a workspace can add in one step, from Machines and Inventory ("From catalogue") or while setting up a workspace ("Your machines"). It covers 3D and resin printers, lasers, CNC routers and mills, vinyl cutters, finishing and extraction equipment, filament, sheet stock, endmills, fixings and fasteners, and finishing supplies. Adding an entry copies it in: a machine arrives with its specs, the feeders or tool changers ticked (as attached hardware with slots), its machine type and maintenance schedules; items arrive in the matching category, which gains any fields and select options they need. After that everything is ordinary, editable data with no link back. The catalogue is read-only data shipped with the app (`server/src/reference`), served at `/api/reference`, and never stored in the database or bundled into the client. Admins and owners can add from it; operators cannot.
-- **Updating the catalogue**: machines, endmills, fasteners, sheet stock and finishes are TypeScript lists in `server/src/reference`, type-checked against the option lists in `server/src/templates/library.ts`, so a bad value fails the build. Only add a machine spec you have confirmed on the maker's own site, and leave it out if the maker's figures disagree. Filament comes from [SpoolmanDB](https://github.com/Donkie/SpoolmanDB) (MIT licence, credited in `THIRD-PARTY-NOTICES.md`). To refresh it:
+   ```bash
+   npm run dev
+   ```
 
-  ```bash
-  git clone --depth 1 https://github.com/Donkie/SpoolmanDB /tmp/spoolmandb
-  ```
+6. Open <http://localhost:5173> and sign in with `demo@workshop.test` (the `SEED_EMAIL` in `server/.env`) and the password you chose. You will find a fully set-up example maker space to explore. You can also create your own account and start a new workspace from a template.
 
-  ```bash
-  npm run reference:filaments -w server -- --dir /tmp/spoolmandb
-  ```
+Stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd>. Next time, `npm run dev` is all you need.
 
-  The output is sorted, so the diff shows only what changed upstream. Material codes the import cannot place are listed and filed under "Other"; add a rule to `MATERIAL_RULES` in the script if one deserves its own entry. `npm test -w server` checks the data.
-- **Activity log**: every change a member makes is recorded with who and when (`server/src/services/activity.ts`), and shown under Activity. Admins can undo a stock adjustment: it adds a reversing "undo" movement rather than rewriting history, so later changes to the same item are kept.
+## Guides
 
-## Connected printers (Bambu Lab)
+The full documentation is in the [wiki](docs/wiki/Home.md), also available under the [Wiki tab](https://github.com/hussxin5046/filament-tracker/wiki).
 
-Step-by-step guides are in the wiki: [Connecting printers](docs/wiki/Connecting-printers.md), [AMS and spools](docs/wiki/AMS-and-spools.md), [Bridge reference](docs/wiki/Bridge-reference.md). The wiki's front page is [docs/wiki/Home.md](docs/wiki/Home.md).
+| Using Wrkbench | Connected printers | Running your own copy |
+| --- | --- | --- |
+| [Getting started](docs/wiki/Getting-started.md) | [Connecting printers](docs/wiki/Connecting-printers.md) | [Self-hosting](docs/wiki/Self-hosting.md) |
+| [Inventory](docs/wiki/Inventory.md) | [AMS and spools](docs/wiki/AMS-and-spools.md) | [Troubleshooting](docs/wiki/Troubleshooting.md) |
+| [Machines](docs/wiki/Machines.md) | [Bridge reference](docs/wiki/Bridge-reference.md) | [Contributing](CONTRIBUTING.md) |
+| [Maintenance](docs/wiki/Maintenance.md) | | |
+| [Jobs and the queue](docs/wiki/Jobs-and-queue.md) | | |
+| [Job requests](docs/wiki/Job-requests.md) | | |
+| [Dashboard and reports](docs/wiki/Dashboard-and-reports.md) | | |
+| [Members and roles](docs/wiki/Members-and-roles.md) | | |
+| [Catalogue and settings](docs/wiki/Catalogue-and-settings.md) | | |
+| [Backups, import and export](docs/wiki/Backups-and-data.md) | | |
+| [Glossary](docs/wiki/Glossary.md) | | |
 
-Wrkbench can read Bambu Lab printers: every AMS and what is in each slot (material, colour, how much is left on tagged spools), humidity and drying, nozzle, progress and error codes. It works with printers exactly as they are normally set up, in cloud mode with Bambu Handy still working. It only reads: nothing here can start, stop or change a print.
+## Host it for your workshop
 
-**How it fits together.** Printers can only be reached from their own network, so a small program, the bridge (`bridge/`), runs there on something that is always on (a Raspberry Pi, a mini PC, a NAS). It connects to each printer with that printer's access code, and makes one outgoing connection to Wrkbench. No ports are opened on the workshop's network.
-
-**Set-up.**
-
-1. Settings, Printers, Add bridge. Wrkbench shows a command containing a one-time code (good for 10 minutes).
-2. Run it on the bridge computer. With Docker the command is ready to paste; `--network host` lets the bridge hear printers announce themselves. Without Docker, from a copy of this repository: `npm install`, then the `npm run bridge -- ...` command shown beside it.
-3. Back in Settings the bridge shows as connected. Add printer lists the printers it has heard; pick one (or type its address and serial number), enter its access code (printer screen: Settings, then Network) and choose the machine it is, or let it add one.
-
-From then on the machine's card shows the printer live, its AMS units appear as attached hardware, and each slot shows what the printer sees. A tagged (RFID) spool that is already in stock is loaded into its slot by itself; any other spool is one tap to link to an item in stock or to add as a new one, filled in from what the printer read. Taking a spool out unloads the slot. A slot loaded by hand is left alone until the spool in that tray is swapped.
-
-**Publishing the bridge image.** `bridge/Dockerfile` builds it (`docker build -f bridge/Dockerfile -t wrkbench-bridge .` from the repository root). `.github/workflows/bridge-image.yml` publishes it to the GitHub Container Registry whenever the bridge changes on `main` (or a tag such as `bridge-v0.1.0` is pushed). GitHub makes a new package private: set it to public once under the package's settings, or pulling it is refused.
-
-**Trying it without a printer.** `npm run bridge -- --server http://localhost:4000 --pair <code> --simulate` pretends to be four printers (X1 Carbon, P1S, A1, H2D). Their access code is `12345678`. Type `swap <serial> <feeder> <tray> PLA 00ff00` or `empty <serial> <feeder> <tray>` into the bridge to change spools.
-
-**What is kept where.**
-
-- The printer's access code goes through Wrkbench once, on its way to the bridge, and is stored only in the bridge's settings file (owner-only permissions). Wrkbench stores the printer's serial number, address and last reported status. Moving the bridge to another computer (New set-up code, then run the command there) keeps the printers; their access codes are asked for again.
-- The bridge only connects to private network addresses, on the printer's own port, and has no way to send a printer anything but a request for its status. It pins each printer's certificate the first time it connects and will not send the access code to a different device at the same address.
-- Readings arrive every second or two and are held in memory; the database changes only when something real does (a spool swapped, an AMS added). Connected printers are not part of the JSON export.
-
-**Good to know.** This reads the printer the way community tools do, not through an official Bambu Lab interface, so a firmware update can change or break it. The parts written without a printer to hand (how some models report trays, dual-nozzle details, discovery) are marked in `server/src/integrations/bambu/normalize.ts` and exercised with made-up data in `protocol/src/fixtures.ts`; `wrkbench-bridge record` saves what a real printer reports, with serial numbers replaced, to turn into real test data.
-
-Planned next, in order: following prints (jobs start, progress and finish by themselves), filament used per job from the sliced file, and sending queued jobs to printers that allow it.
+Wrkbench is one Node.js program that keeps its data in a SQLite file, so it needs no separate database. The included `Dockerfile` builds the whole app into one image: run it on any host with a persistent disk, set a secret and your site's address, and put HTTPS in front of it. [Self-hosting](docs/wiki/Self-hosting.md) covers Docker and plain Node.js, every setting, email and backups.
 
 ## Not built yet
 
-Smart scales and sensors, QR/barcode scanning and label printing (locations store a label code ready for it), other makes of machine, and AI suggestions.
+Following prints as jobs automatically, working out filament used per job from the sliced file, sending jobs to printers, smart scales and sensors, QR and barcode scanning and label printing, other makes of connected machine, and AI suggestions.
+
+## Contributing and support
+
+- **Found a bug or have an idea?** [Open an issue](https://github.com/hussxin5046/filament-tracker/issues/new/choose).
+- **Want to work on the code or the docs?** Read [CONTRIBUTING.md](CONTRIBUTING.md).
+- **Found a security problem?** Please report it privately, as described in [SECURITY.md](SECURITY.md).
 
 ## License
 
