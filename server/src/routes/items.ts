@@ -26,6 +26,8 @@ const itemInput = z.object({
   isRemnant: z.boolean().optional(),
   parentId: z.string().nullable().optional(),
   compatibleMachineIds: z.array(z.string()).optional(),
+  /** The id on the spool's own tag, as a connected printer read it. */
+  tagId: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{4,64}$/).nullable().optional(),
 });
 
 const adjustInput = z.object({

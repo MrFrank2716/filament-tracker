@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+.git
+.claude
+**/.env
+**/*.db
+server/src
+server/prisma
+server/test
+client/src
+client/public
+docs

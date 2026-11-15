@@ -1,0 +1,124 @@
+import { describe, expect, it } from 'vitest';
+import { applyMergePatch, diffMergePatch, mergeDelta, touchesPaths, withoutPaths, type Doc } from '@filament-tracker/protocol';
+import { simDocument, simFleet, simTray } from '@filament-tracker/protocol/fixtures';
+import { bambuColour, formatHmsCode, readBambu } from '@/integrations/bambu/normalize';
+import { colourDistance, compatible, traySignature } from '@/integrations/spoolMatch';
+
+// The fixtures are synthetic (see protocol/src/fixtures.ts): these tests pin down our reading of the protocol.
+const [x1c, p1s, a1, h2d] = simFleet();
+
+describe('reading a Bambu status document', () => {
+  it('reads state, progress, nozzle and model from a single-nozzle printer', () => {
+    const reading = readBambu(simDocument(x1c));
+    expect(reading.phase).toBe('printing');
+    expect(reading.print).toMatchObject({ name: 'bracket_v3', progress: 37, layer: 112, totalLayers: 300, remainingMinutes: 94 });
+    expect(reading.extruders).toEqual([{ label: 'Nozzle', temp: { current: 219, target: 220 }, nozzle: { diameter: 0.4, type: 'Hardened steel' } }]);
+    expect(reading.modelName).toBe('X1 Carbon');
+    expect(reading.firmware).toBe('01.09.00.00');
+  });
+
+  it('reads feeders, trays, tags and which tray is feeding', () => {
+    const { feeders } = readBambu(simDocument(x1c));
+    expect(feeders.map((feeder) => [feeder.key, feeder.label, feeder.kind])).toEqual([
+      ['ams:0', 'AMS 1', 'ams'], ['ams:1', 'AMS 2', 'ams'], ['external:0', 'External spool', 'external'],
+    ]);
+    const [first, second, third, fourth] = feeders[0].trays;
+    expect(first).toMatchObject({ position: 1, state: 'loaded', material: 'PLA', subType: 'PLA Basic', colour: '#000000', brand: 'Bambu Lab', remainingPercent: 82, spoolWeightGrams: 1000, active: true });
+    expect(first.tagId).toMatch(/^[0-9A-F]{32}$/);
+    expect(second.active).toBe(false);
+    // A spool without a tag reports zeros for its ids and -1 for what is left.
+    expect(third).toMatchObject({ material: 'PETG', colour: '#1f6feb', tagId: null, brand: null, remainingPercent: null, spoolWeightGrams: null });
+    expect(fourth).toMatchObject({ state: 'empty', material: null });
+  });
+
+  it('tells feeder kinds apart and reads drying', () => {
+    expect(readBambu(simDocument(a1)).feeders[0]).toMatchObject({ kind: 'ams_lite', label: 'AMS Lite 1' });
+    const feeders = readBambu(simDocument(h2d)).feeders;
+    expect(feeders.map((feeder) => feeder.kind)).toEqual(['ams_2_pro', 'ams_ht', 'external', 'external']);
+    expect(feeders[1]).toMatchObject({ key: 'ams:128', label: 'AMS HT 1', humidityPercent: 9, drying: { remainingMinutes: 180 } });
+    expect(feeders[1].trays).toHaveLength(1);
+    expect(feeders[3].trays[0]).toMatchObject({ state: 'loaded', material: 'PLA', colour: '#ff7f00' });
+  });
+
+  it('reads both nozzles of a dual-nozzle printer', () => {
+    const { extruders } = readBambu(simDocument(h2d));
+    expect(extruders.map((extruder) => [extruder.label, extruder.nozzle.diameter])).toEqual([['Right nozzle', 0.4], ['Left nozzle', 0.6]]);
+  });
+
+  it('formats error codes the way the printer shows them', () => {
+    expect(formatHmsCode(0x07008011, 0x00020002)).toBe('0700_8011_0002_0002');
+    const reading = readBambu(simDocument(a1));
+    expect(reading.phase).toBe('failed');
+    expect(reading.errors).toEqual([{ kind: 'hms', code: '0700_8011_0002_0002', severity: 'error', url: 'https://wiki.bambulab.com/en/x1/troubleshooting/hmscode/0700_8011_0002_0002' }]);
+  });
+
+  it('survives documents that are missing, partial or the wrong shape', () => {
+    expect(readBambu({}).phase).toBe('unknown');
+    expect(readBambu({ print: { ams: 'nope', hms: {}, vt_tray: 4, device: [] } }).feeders).toEqual([]);
+    expect(readBambu({ print: { gcode_state: 'SOMETHING_NEW' } }).phase).toBe('unknown');
+    expect(bambuColour('FF6A13FF')).toBe('#ff6a13');
+    expect(bambuColour('nonsense')).toBeNull();
+  });
+
+  it('idle printer with an external spool', () => {
+    const reading = readBambu(simDocument(p1s));
+    // Seen on real P1 and A1 printers: they have no chamber sensor and report a constant instead.
+    expect(reading.chamber).toBeNull();
+    expect(readBambu(simDocument(x1c)).chamber).toEqual({ current: 31, target: null });
+    expect(reading.phase).toBe('idle');
+    expect(reading.print).toBeNull();
+    expect(reading.feeders.at(-1)?.trays[0]).toMatchObject({ material: 'TPU', state: 'loaded' });
+  });
+});
+
+describe('merging and replicating documents', () => {
+  it('folds a partial update for one tray into the full document', () => {
+    const full = simDocument(p1s);
+    const merged = mergeDelta(full, { print: { ams: { ams: [{ id: '0', tray: [simTray(2, { type: 'ABS', color: 'aa0000' })] }] } } }) as Doc;
+    const trays = readBambu(merged).feeders[0].trays;
+    expect(trays[2]).toMatchObject({ material: 'ABS', colour: '#aa0000' });
+    expect(trays[0]).toMatchObject({ material: 'PETG', remainingPercent: 15 });
+  });
+
+  it('an element carrying only its id empties that place', () => {
+    const merged = mergeDelta(simDocument(p1s), { print: { ams: { ams: [{ id: '0', tray: [{ id: '0' }] }] } } }) as Doc;
+    expect(readBambu(merged).feeders[0].trays[0].state).toBe('empty');
+  });
+
+  it('a patch turns one document into the next, exactly', () => {
+    const before = simDocument(x1c);
+    const after = mergeDelta(before, { print: { mc_percent: 38, ams: { ams: [{ id: '1', tray: [{ id: '0' }] }] } } }) as Doc;
+    const patch = diffMergePatch(before, after);
+    expect(applyMergePatch(before, patch)).toEqual(after);
+    expect(diffMergePatch(after, after)).toBeUndefined();
+    expect(touchesPaths(patch, ['print.ams'])).toBe(true);
+    expect(touchesPaths(diffMergePatch(before, mergeDelta(before, { print: { mc_percent: 40 } })), ['print.ams'])).toBe(false);
+  });
+
+  it('ignored paths never reach the server', () => {
+    expect(withoutPaths({ print: { sequence_id: '9', mc_percent: 1 } }, ['print.sequence_id'])).toEqual({ print: { mc_percent: 1 } });
+  });
+
+  it('refuses to write through prototype keys', () => {
+    applyMergePatch({}, JSON.parse('{"__proto__":{"polluted":true}}'));
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+});
+
+describe('matching spools', () => {
+  const tray = { state: 'loaded' as const, material: 'PLA', subType: 'PLA Basic', colour: '#000000', tagId: null };
+  it('a signature ignores how much is left and changes with the spool', () => {
+    expect(traySignature(tray)).toBe(traySignature({ ...tray }));
+    expect(traySignature({ ...tray, colour: '#ffffff' })).not.toBe(traySignature(tray));
+    expect(traySignature({ ...tray, state: 'empty' })).toBe('empty');
+  });
+  it('needs the same material and a close colour, and a tag settles it', () => {
+    expect(compatible({ material: 'pla', colour: '#0a0a0a', tagId: null }, tray)).toBe(true);
+    expect(compatible({ material: 'PETG', colour: '#000000', tagId: null }, tray)).toBe(false);
+    expect(compatible({ material: 'PLA', colour: '#ffffff', tagId: null }, tray)).toBe(false);
+    expect(compatible({ material: 'PLA', colour: null, tagId: null }, tray)).toBe(true);
+    expect(compatible({ material: 'PLA', colour: '#000000', tagId: 'AA' }, { ...tray, tagId: 'BB' })).toBe(false);
+    expect(compatible({ material: 'PETG', colour: '#ffffff', tagId: 'AA' }, { ...tray, tagId: 'AA' })).toBe(true);
+    expect(colourDistance('#000000', '#000000')).toBe(0);
+  });
+});

@@ -34,6 +34,32 @@ export function describeActivity(summary: string, entity?: { type: string; id: s
   if (entity) context.entity = entity;
 }
 
+/**
+ * An entry for something no member did: a connected printer loading a spool, for example.
+ * `actor` is shown where a member's name would be.
+ */
+export async function logSystemActivity(entry: {
+  workspaceId: string;
+  actor: string;
+  action: string;
+  entityType?: string;
+  entityId?: string | null;
+  summary: string;
+}): Promise<void> {
+  await prisma.activityLog.create({
+    data: {
+      workspaceId: entry.workspaceId,
+      userId: null,
+      userName: entry.actor.slice(0, 120),
+      action: entry.action,
+      entityType: entry.entityType ?? '',
+      entityId: entry.entityId ?? null,
+      summary: entry.summary.slice(0, 500),
+      movementIds: [],
+    },
+  });
+}
+
 /** Only these can be undone: changes whose whole effect is the stock they moved. */
 export const UNDOABLE = new Set(['item.adjust', 'item.update']);
 
@@ -54,6 +80,8 @@ const NOUNS: Record<string, string> = {
   maintenance: 'maintenance',
   queue: 'queue',
   'request-link': 'request link',
+  bridges: 'bridge',
+  printers: 'printer connection',
   import: 'import',
   activity: 'activity',
   reference: 'catalogue',
@@ -73,6 +101,11 @@ async function nameBeforeDelete(workspaceId: string, collection: string, id: str
     case 'machines': return pick(await prisma.machine.findFirst({ where, select: { name: true } }));
     case 'sub-units': return pick(await prisma.subUnit.findFirst({ where, select: { name: true } }));
     case 'jobs': return pick(await prisma.job.findFirst({ where, select: { name: true } }));
+    case 'bridges': return pick(await prisma.bridge.findFirst({ where, select: { name: true } }));
+    case 'printers': {
+      const link = await prisma.printerLink.findFirst({ where, select: { machine: { select: { name: true } } } });
+      return link?.machine.name ?? '';
+    }
     case 'job-requests': return pick(await prisma.jobRequest.findFirst({ where, select: { title: true } }));
     case 'members': {
       const member = await prisma.membership.findFirst({ where, select: { user: { select: { name: true } } } });

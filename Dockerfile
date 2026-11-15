@@ -12,7 +12,10 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY server/package.json server/
 COPY client/package.json client/
-RUN npm ci
+COPY protocol/package.json protocol/
+COPY bridge/package.json bridge/
+# The bridge is a separate program with its own image (bridge/Dockerfile): its dependencies stay out of this one.
+RUN npm ci --workspace server --workspace client --workspace protocol --include-workspace-root
 
 COPY . .
 # Generates the Prisma client, typechecks, and builds the client into client/dist.

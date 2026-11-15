@@ -94,6 +94,8 @@ export function ItemForm({ catalog, item, initial, onClose, onSaved }: Props) {
       isRemnant,
       parentId: source.parentId ?? null,
       compatibleMachineIds: machineIds,
+      // A new item made from what a printer read keeps the spool's tag, so it is recognised from then on.
+      ...(!item && source.tagId ? { tagId: source.tagId } : {}),
     };
 
     let saved: Item | undefined;

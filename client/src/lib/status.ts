@@ -1,6 +1,6 @@
 import type { StatusTone } from '@/components/ui/Display';
 import { formatNumber, relativeDays } from '@/lib/format';
-import type { DueStatus, JobStatus, MachineStatus, RequestStatus, ScheduleEntry } from '@/lib/types';
+import type { DueStatus, JobStatus, MachineStatus, PrinterConnection, PrinterError, PrinterPhase, RequestStatus, ScheduleEntry } from '@/lib/types';
 
 export const MACHINE_STATUS: Record<MachineStatus, { label: string; tone: StatusTone }> = {
   ready: { label: 'Ready', tone: 'ok' },
@@ -8,6 +8,28 @@ export const MACHINE_STATUS: Record<MachineStatus, { label: string; tone: Status
   needs_service: { label: 'Needs service', tone: 'warn' },
   offline: { label: 'Offline', tone: 'neutral' },
 };
+
+/** What a connected printer is doing, in its own terms. */
+export const PRINTER_PHASE: Record<PrinterPhase, { label: string; tone: StatusTone }> = {
+  idle: { label: 'Idle', tone: 'ok' },
+  preparing: { label: 'Preparing', tone: 'info' },
+  printing: { label: 'Printing', tone: 'info' },
+  paused: { label: 'Paused', tone: 'warn' },
+  finished: { label: 'Finished', tone: 'ok' },
+  failed: { label: 'Stopped', tone: 'danger' },
+  unknown: { label: 'Unknown', tone: 'neutral' },
+};
+
+/** Why a connected printer's figures may be old. `live` needs no explaining. */
+export const PRINTER_CONNECTION: Record<PrinterConnection, { label: string; tone: StatusTone; hint: string }> = {
+  live: { label: 'Live', tone: 'ok', hint: '' },
+  printer_unreachable: { label: 'Printer not reachable', tone: 'warn', hint: 'The bridge is running but cannot reach the printer. Check that it is switched on and on the network.' },
+  bridge_offline: { label: 'Bridge offline', tone: 'neutral', hint: 'The bridge is not connected, so these are the last figures it sent.' },
+  needs_code: { label: 'Needs access code', tone: 'warn', hint: 'The bridge has no working access code for this printer. Enter it again under Settings, Printers.' },
+  never_seen: { label: 'Waiting for the printer', tone: 'neutral', hint: 'Nothing has been heard from this printer yet.' },
+};
+
+export const PRINTER_ERROR_TONE: Record<PrinterError['severity'], StatusTone> = { info: 'neutral', warning: 'warn', error: 'danger', fatal: 'danger' };
 
 export const JOB_STATUS: Record<JobStatus, { label: string; tone: StatusTone }> = {
   planned: { label: 'Planned', tone: 'neutral' },

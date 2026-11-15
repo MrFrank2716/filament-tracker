@@ -20,6 +20,12 @@ const schema = z.object({
   MAIL_FROM: z.string().default('Wrkbench <no-reply@localhost>'),
   // Where the app is reached, for links in emails. Defaults to CLIENT_ORIGIN.
   APP_URL: z.string().optional(),
+  // Connected printers. PRINTERS_ENABLED=false hides the feature and refuses bridges.
+  PRINTERS_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
+  BRIDGE_MAX_PER_WORKSPACE: z.coerce.number().int().min(0).max(50).default(3),
+  PRINTER_MAX_PER_BRIDGE: z.coerce.number().int().min(1).max(64).default(20),
+  // The container image named in the set-up command shown to admins.
+  BRIDGE_IMAGE: z.string().default('ghcr.io/hussxin5046/wrkbench-bridge:latest'),
   UPLOAD_EXTENSIONS: z.string().default('3mf,stl,step,stp,obj,amf,gcode,nc,svg,dxf,pdf,png,jpg,jpeg,txt'),
 });
 

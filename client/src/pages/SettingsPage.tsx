@@ -5,6 +5,7 @@ import { Building2, LogOut, MapPin, Plus, Ruler, Shapes, Trash2, Truck } from 'l
 import { CrudSection } from '@/components/settings/CrudSection';
 import { DataSection } from '@/components/settings/DataSection';
 import { MembersSection } from '@/components/settings/MembersSection';
+import { PrintersSection } from '@/components/settings/PrintersSection';
 import { RequestLinkSection } from '@/components/settings/RequestLinkSection';
 import { TypeEditor } from '@/components/settings/TypeEditor';
 import { Button } from '@/components/ui/Button';
@@ -20,7 +21,7 @@ import { flattenLocations, locationPath } from '@/lib/format';
 import type { ItemType } from '@/lib/types';
 import styles from '@/components/settings/Settings.module.css';
 
-type Tab = 'general' | 'categories' | 'units' | 'machineTypes' | 'locations' | 'suppliers' | 'members' | 'requests' | 'data' | 'account';
+type Tab = 'general' | 'categories' | 'units' | 'machineTypes' | 'locations' | 'suppliers' | 'members' | 'printers' | 'requests' | 'data' | 'account';
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'general', label: 'Workspace' },
@@ -30,6 +31,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'locations', label: 'Locations' },
   { id: 'suppliers', label: 'Suppliers' },
   { id: 'members', label: 'Members' },
+  { id: 'printers', label: 'Printers' },
   { id: 'requests', label: 'Job requests' },
   { id: 'data', label: 'Import / export' },
   { id: 'account', label: 'Your account' },
@@ -199,6 +201,7 @@ export function SettingsPage() {
         )}
 
         {tab === 'members' && <MembersSection />}
+        {tab === 'printers' && <PrintersSection catalog={catalog} />}
         {tab === 'requests' && <RequestLinkSection />}
         {tab === 'data' && <DataSection catalog={catalog} />}
         {tab === 'account' && <AccountSection />}

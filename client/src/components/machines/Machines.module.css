@@ -216,3 +216,114 @@ button.slot:hover {
   align-items: end;
   gap: var(--space-2);
 }
+
+/* ---- Connected printer ----------------------------------------------- */
+/* Read from the printer, so it is set apart from what people enter: a sunken panel, like a display. */
+.printer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.printerHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.printJob {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.printJobHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.printName {
+  min-width: 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.printerFacts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.printerFacts dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.printerFacts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.printerErrors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.printerErrors li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.errorCode {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* A tray the printer sees a spool in, that is not tied to anything in stock yet: it asks for one tap. */
+.slotUnknown {
+  border-style: dashed;
+  border-color: var(--color-border-strong);
+}
+
+.slotHint {
+  grid-area: qty;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-tight);
+}
+
+/* The tray feeding the print right now. */
+.slotActive {
+  border-color: var(--color-needle);
+  box-shadow: inset 3px 0 0 var(--color-needle);
+}
+
+.detected {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.detectedText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
