@@ -11,3 +11,5 @@ server/uploads
 # The bridge has its own image; this one only needs its manifest so the workspace list resolves.
 bridge/*
 !bridge/package.json
+# Firmware for the location displays is built with PlatformIO, not part of the server image.
+firmware
