@@ -17,7 +17,8 @@ Words used in Wrkbench and in this wiki, in alphabetical order.
 | **Item** | One thing you stock, with a quantity. For example "PLA Basic, black, 1 kg spool" |
 | **Job** | A piece of work run on a machine. Finishing it takes its materials from stock. See [Jobs and the queue](Jobs-and-queue.md) |
 | **Job request** | A job asked for by someone outside the workshop through a link. See [Job requests](Job-requests.md) |
-| **Location** | Where something is kept: a room, shelf, drawer or bin |
+| **Label** | A printed QR code for an item or a location. Scanning it opens that item or location. See [Labels and scanning](Labels-and-scanning.md) |
+| **Location** | Where something is kept: a room, shelf, drawer or bin. See [Locations](Locations.md) |
 | **Low stock** | An item below its minimum stock level. It joins the reorder list |
 | **Machine focus** | Narrowing Wrkbench to one machine with the **Whole workshop** button. See [Getting started](Getting-started.md#whole-workshop-or-one-machine) |
 | **Machine type** | A group of similar machines. Maintenance set on a type covers every machine of that type |
@@ -25,6 +26,7 @@ Words used in Wrkbench and in this wiki, in alphabetical order.
 | **Queue** | The order each machine will run its open jobs in. See [Jobs and the queue](Jobs-and-queue.md#the-queue) |
 | **Role** | What a member may change: owner, admin, operator or viewer. See [Members and roles](Members-and-roles.md) |
 | **Slot** | A place in attached hardware that holds one item, such as one spool position in a feeder |
+| **Spool tag** | An NFC sticker on a spool, written in the open OpenSpool format, that opens the spool when tapped. See [Spool tags](Spool-tags.md) |
 | **Tagged spool** | A spool with an RFID tag the printer can read, such as Bambu Lab's own spools |
 | **Template** | A starting set of categories, machine types and schedules for a new workspace |
 | **Tool life** | How many hours of use a tool is expected to last. Wrkbench flags it as worn when it gets there. See [Inventory](Inventory.md#tool-life) |

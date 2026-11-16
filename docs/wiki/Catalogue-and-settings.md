@@ -27,7 +27,7 @@ Group similar equipment, such as "FDM printer" or "Laser cutter". A maintenance 
 
 ## Locations
 
-Rooms, shelves, drawers and bins, nested as deep as you like (a bin **inside** a shelf **inside** a room). A location can have a **Label code**, such as LOC-014, ready for printing on a QR or barcode label.
+Rooms, shelves, drawers and bins, nested as deep as you like (a bin **inside** a shelf **inside** a room). They are not under Settings: they have a page of their own, **Locations** in the main menu, where you also see what is stored in each, put things away and print their labels. See [Locations](Locations.md).
 
 ## Suppliers
 

@@ -43,12 +43,13 @@ The sidebar has one entry per screen. On a phone, the less used ones are under *
 | --- | --- | --- |
 | **Overview** | What needs attention before the next job | [Dashboard and reports](Dashboard-and-reports.md) |
 | **Inventory** | Everything you stock, and how much is left | [Inventory](Inventory.md) |
+| **Locations** | Where things are kept, what is in each place, and putting things away | [Locations](Locations.md) |
 | **Jobs** | Work to be done, the queue per machine, and requests from outside | [Jobs and the queue](Jobs-and-queue.md), [Job requests](Job-requests.md) |
 | **Maintenance** | Recurring servicing, by date or by hours of use | [Maintenance](Maintenance.md) |
 | **Machines** | Your equipment and what is loaded in it | [Machines](Machines.md) |
 | **Reorder** | What to buy, grouped by supplier | [Inventory](Inventory.md#reordering) |
 | **Activity** | Every change, who made it, and undo for stock mistakes | [Dashboard and reports](Dashboard-and-reports.md#activity) |
-| **Settings** | Categories, units, locations, suppliers, members, printers, import and export | [Catalogue and settings](Catalogue-and-settings.md) |
+| **Settings** | Categories, units, suppliers, members, printers, import and export | [Catalogue and settings](Catalogue-and-settings.md) |
 | **Appearance** | Light or dark mode and your own colours | [Catalogue and settings](Catalogue-and-settings.md#appearance) |
 
 A red number on a sidebar entry counts things waiting there: overdue maintenance, items to reorder, requests to check.
