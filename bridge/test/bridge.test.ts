@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { PrinterReport, ReportAck, TelemetryConfig } from '@filament-tracker/protocol';
 import { checkServer } from '../src/config';
 import { parseNotice } from '../src/discovery';
+import { describeListing } from '../src/bridge';
 import { pickEntries } from '../src/jobFile';
 import { Replicator } from '../src/replicator';
 import { privateHost } from '../src/safety';
@@ -40,6 +41,16 @@ describe('reading a sliced file', () => {
     expect(read.entries).toEqual({ 'Metadata/slice_info.config': '<config/>' });
     expect(Object.keys(read.images)).toEqual(['Metadata/plate_1.png']);
     expect(read.images['Metadata/plate_1.png']).toEqual(png(2000));
+  });
+  it('lists everything in the file by name and size, without unpacking it', () => {
+    const read = pickEntries(zip, ['Metadata/slice_info.config']);
+    expect(read.listing).toHaveLength(6);
+    expect(read.listing).toContainEqual({ name: '3D/3dmodel.model', bytes: 8 });
+    expect(read.listing).toContainEqual({ name: 'Metadata/plate_2.png', bytes: 700_000 });
+    expect(Object.keys(read.entries)).toEqual(['Metadata/slice_info.config']);
+    const text = describeListing('SERIAL', read.listing).split('\n');
+    expect(text[0]).toBe('The sliced file for SERIAL holds 6 entries, 686 kB unpacked:');
+    expect(text[1]).toBe('     684 kB  Metadata/plate_2.png');
   });
   it('leaves out a picture that is too big or is not a PNG, and anything not asked for', () => {
     const read = pickEntries(zip, ['Metadata/plate_2.png', 'Metadata/top_1.png']);

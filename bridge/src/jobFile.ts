@@ -20,6 +20,8 @@ export interface JobFileEntries {
   images: Record<string, Uint8Array>;
   /** Why an entry that was asked for is not here, in words for the bridge's own output. */
   skipped: string[];
+  /** Every entry in the file with its unpacked size. Names and sizes only; for `--list-job-file`, never sent on. */
+  listing: Array<{ name: string; bytes: number }>;
 }
 
 /** The named entries of a zip held in memory. Anything too big, or a picture that is not a PNG, is left out. */
@@ -27,10 +29,11 @@ export function pickEntries(zip: Uint8Array, names: string[]): JobFileEntries {
   const wanted = new Set(names);
   const limit = (name: string) => (JOB_IMAGE_ENTRY.test(name) ? JOB_IMAGE_MAX_BYTES : MAX_ENTRY_BYTES);
   // Only the wanted entries are inflated, and only if they are small: the models and G-code are never unpacked.
-  const out: JobFileEntries = { entries: {}, images: {}, skipped: [] };
+  const out: JobFileEntries = { entries: {}, images: {}, skipped: [], listing: [] };
   const seen = new Set<string>();
   const files = unzipSync(zip, {
     filter: (file) => {
+      out.listing.push({ name: file.name, bytes: file.originalSize });
       if (!wanted.has(file.name)) return false;
       seen.add(file.name);
       if (file.originalSize <= limit(file.name)) return true;

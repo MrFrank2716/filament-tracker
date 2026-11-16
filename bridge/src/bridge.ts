@@ -51,6 +51,17 @@ export async function pair(store: ConfigStore, server: string, code: string): Pr
   return paired.workspaceName;
 }
 
+const size = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} kB`);
+
+/** What a sliced file holds, largest first: names and unpacked sizes, nothing of the contents. */
+export function describeListing(serial: string, listing: Array<{ name: string; bytes: number }>): string {
+  const sorted = [...listing].sort((a, b) => b.bytes - a.bytes);
+  const total = listing.reduce((sum, entry) => sum + entry.bytes, 0);
+  const lines = sorted.slice(0, 80).map((entry) => `  ${size(entry.bytes).padStart(9)}  ${entry.name}`);
+  if (sorted.length > 80) lines.push(`  ... and ${sorted.length - 80} smaller entries`);
+  return [`The sliced file for ${serial} holds ${listing.length} entries, ${size(total)} unpacked:`, ...lines].join('\n');
+}
+
 export class Bridge {
   private socket: Socket<ServerToBridgeEvents, BridgeToServerEvents> | null = null;
   private readonly held = new Map<string, Held>();
@@ -67,6 +78,8 @@ export class Bridge {
     private readonly simulator: Simulator | null,
     /** A set-up code given on the command line, kept in case the stored token turns out to be dead. */
     private pairingCode: string | null,
+    /** Print what is inside each sliced file that is read (`--list-job-file`). Stays on this computer. */
+    private readonly listJobFile = false,
   ) {}
 
   start(): void {
@@ -184,7 +197,8 @@ export class Bridge {
       // Said out loud, because a print with no materials or no picture is otherwise a mystery from this side.
       const serial = held.printer.serial;
       held.session.readJobFile(request.data.entries).then(
-        ({ entries, images, skipped }) => {
+        ({ entries, images, skipped, listing }) => {
+          if (this.listJobFile) log.info(describeListing(serial, listing));
           const got = [...Object.keys(entries), ...Object.entries(images).map(([name, bytes]) => `${name} (${bytes.byteLength} bytes)`)];
           log.info(`Read the sliced file for ${serial}: ${got.join(', ') || 'nothing that was asked for'}${skipped?.length ? `. Left out: ${skipped.join('; ')}` : ''}`);
           ack?.({ ok: true, entries, images });

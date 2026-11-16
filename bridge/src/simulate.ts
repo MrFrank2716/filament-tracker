@@ -110,7 +110,7 @@ export class Simulator {
       stop: () => void entry.listeners.delete(listener),
       refresh: () => events.onDoc(simDocument(entry.printer)),
       // What the slicer would have written for the pretend print: two filaments, from the first two trays, and a picture.
-      readJobFile: async () => ({ entries: { 'Metadata/slice_info.config': SIM_SLICE_INFO }, images: { 'Metadata/plate_1.png': simPlatePng() }, skipped: [] }),
+      readJobFile: async () => ({ entries: { 'Metadata/slice_info.config': SIM_SLICE_INFO }, images: { 'Metadata/plate_1.png': simPlatePng() }, skipped: [], listing: [] }),
     };
   }
 

@@ -31,6 +31,7 @@ It holds the server address, the bridge's own token, and each printer's access c
 | `wrkbench-bridge status` | Show where the settings are, the server, and how many printers it holds |
 | `wrkbench-bridge record ...` | Save what one printer reports to a file (see below) |
 | `wrkbench-bridge --simulate` | Pretend printers, for trying Wrkbench without hardware. The first time, add `--server` and `--pair` as well (see below) |
+| `wrkbench-bridge --list-job-file` | Also print what is inside each print's sliced file: entry names and sizes only. Nothing extra is sent to Wrkbench |
 | `--help`, `--version` | |
 
 From source, put `npm run bridge --` in front instead of `wrkbench-bridge`. In Docker, the options go after the image name.
