@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { PackageOpen, PackageSearch, Plus, Search, SlidersHorizontal } from 'lucide-react';
+import { PackageOpen, PackageSearch, Plus, QrCode, Search, SlidersHorizontal } from 'lucide-react';
 import { ItemBoard, type BoardGrouping } from '@/components/items/ItemBoard';
 import { ItemForm } from '@/components/items/ItemForm';
 import { ItemSheet } from '@/components/items/ItemSheet';
+import { LabelPrintDialog } from '@/components/labels/LabelPrintDialog';
 import { Button } from '@/components/ui/Button';
 import { StockMeter } from '@/components/items/StockMeter';
 import { Badge, Chip, ChipRow, EmptyState, ErrorNote, Figure, List, Loading, Muted, PageHeader, Row, Swatch, Tabs, TypeIcon } from '@/components/ui/Display';
@@ -14,6 +15,7 @@ import { useMachineFocus } from '@/context/FocusContext';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useCatalog, useItems } from '@/hooks/useCatalog';
 import { fits, flattenLocations, formatQuantity, isLow, isWorn, locationPath, parseNumber, summarizeFields } from '@/lib/format';
+import { itemLabel } from '@/lib/labels';
 import { ITEM_KINDS } from '@/lib/reference';
 import type { Item } from '@/lib/types';
 import itemStyles from '@/components/items/Items.module.css';
@@ -29,6 +31,9 @@ const VIEWS: Array<{ id: View; label: string }> = [
   { id: 'location', label: 'By location' },
   { id: 'list', label: 'List' },
 ];
+
+/** More labels than this in one print job is almost always a mistake, and a long wait at the printer. */
+const MAX_LABELS = 200;
 
 /** The chosen layout is remembered on this device. */
 const VIEW_KEY = 'filament-tracker.inventory-view';
@@ -71,6 +76,7 @@ export function InventoryPage() {
   const [picking, setPicking] = useState(false);
   // Phone-width "+" button: asks how to add, since the header buttons are hidden there.
   const [choosing, setChoosing] = useState(false);
+  const [labelling, setLabelling] = useState(false);
 
   const selectedId = params.get('item');
   // Links from elsewhere open an item even when it is outside the focus.
@@ -253,6 +259,14 @@ export function InventoryPage() {
             </SelectField>
           </FormGrid>
         )}
+        {showFilters && filtered.length > 0 && (
+          <div>
+            <Button icon={QrCode} onClick={() => setLabelling(true)} disabled={filtered.length > MAX_LABELS}>
+              {filtered.length === 1 ? 'Print a label for this item' : `Print labels for these ${filtered.length} items`}
+            </Button>
+            {filtered.length > MAX_LABELS && <Muted> Narrow the list to {MAX_LABELS} items or fewer to print their labels in one go.</Muted>}
+          </div>
+        )}
 
         {sizeFields.length > 0 && (
           <div className={styles.sizeSearch}>
@@ -374,6 +388,7 @@ export function InventoryPage() {
         />
       )}
 
+      {labelling && <LabelPrintDialog labels={filtered.map((item) => itemLabel(item, catalog, window.location.origin))} onClose={() => setLabelling(false)} />}
       {form && <ItemForm catalog={catalog} item={form.item} initial={form.initial} onClose={() => setForm(null)} />}
       {choosing && (
         <AddChooser

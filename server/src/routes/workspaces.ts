@@ -36,6 +36,28 @@ workspacesRouter.get('/templates/:id', (req, res) => {
 
 registerReferenceRoutes(workspacesRouter);
 
+// ---- Links on labels -------------------------------------------------------
+
+/**
+ * A QR label or NFC sticker carries only an item's or a location's id, so it stays short and says nothing to
+ * a stranger. This tells a signed-in member which of their workspaces the id belongs to. Unknown ids and ids
+ * in someone else's workspace look the same: not found.
+ */
+workspacesRouter.get('/resolve/:kind/:id', async (req, res) => {
+  const kind = param(req, 'kind');
+  const id = param(req, 'id');
+  const mine = { members: { some: { userId: req.userId } } };
+  if (kind === 'item') {
+    const item = await prisma.item.findFirst({ where: { id, workspace: mine }, select: { workspaceId: true, archived: true, name: true } });
+    if (!item) throw notFound('Item');
+    res.json(item);
+  } else if (kind === 'location') {
+    const location = await prisma.location.findFirst({ where: { id, workspace: mine }, select: { workspaceId: true, name: true } });
+    if (!location) throw notFound('Location');
+    res.json({ ...location, archived: false });
+  } else throw notFound();
+});
+
 // ---- Workspaces ------------------------------------------------------------
 
 workspacesRouter.get('/workspaces', async (req, res) => {

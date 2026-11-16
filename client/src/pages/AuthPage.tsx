@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { LegalNote } from '@/pages/LegalPages';
 import { Button } from '@/components/ui/Button';
 import { ErrorNote } from '@/components/ui/Display';
@@ -15,10 +15,14 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  // Where they were going when asked to sign in. Only a path inside the app is ever followed.
+  const state = useLocation().state as { from?: unknown } | null;
+  const from = typeof state?.from === 'string' && /^\/(?!\/)/.test(state.from) ? state.from : null;
+
   const registering = mode === 'register';
   // A guest may open the register page to keep their work under a real account.
   const upgrading = registering && Boolean(user?.isGuest);
-  if (user && !upgrading) return <Navigate to="/" replace />;
+  if (user && !upgrading) return <Navigate to={from ?? '/'} replace />;
 
   const run = async (action: () => Promise<void>) => {
     setError('');
@@ -92,11 +96,11 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
             <Link to="/">Back to the workshop</Link>
           ) : registering ? (
             <>
-              Already have an account? <Link to="/login">Sign in</Link>
+              Already have an account? <Link to="/login" state={state}>Sign in</Link>
             </>
           ) : (
             <>
-              New here? <Link to="/register">Create an account</Link>
+              New here? <Link to="/register" state={state}>Create an account</Link>
             </>
           )}
         </p>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Minus, Pencil, Plus, Scissors, Trash2 } from 'lucide-react';
+import { Minus, Pencil, Plus, QrCode, Scissors, Trash2 } from 'lucide-react';
 import { StockMeter } from '@/components/items/StockMeter';
+import { LabelPrintDialog } from '@/components/labels/LabelPrintDialog';
 import { Button } from '@/components/ui/Button';
 import { Badge, Figure, Loading, Meter, Muted, SectionTitle, Swatch, TypeIcon } from '@/components/ui/Display';
 import { NumberField } from '@/components/ui/Form';
@@ -9,6 +10,7 @@ import { useAction } from '@/components/ui/Toast';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import type { Catalog } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
+import { itemLabel } from '@/lib/labels';
 import { formatDateTime, formatFieldValue, formatHours, formatNumber, formatQuantity, isLow, isWorn, locationPath, parseNumber } from '@/lib/format';
 import { MOVEMENT_REASON } from '@/lib/status';
 import type { Item, Movement, Unit } from '@/lib/types';
@@ -37,6 +39,7 @@ export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut }: Props
   const confirm = useConfirm();
   const { data: movements } = useWsQuery<Movement[]>(`/items/${item.id}/movements`);
   const [exact, setExact] = useState('');
+  const [labelling, setLabelling] = useState(false);
 
   const type = catalog.typeById.get(item.itemTypeId);
   const unit = item.unitId ? catalog.unitById.get(item.unitId) : undefined;
@@ -76,21 +79,26 @@ export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut }: Props
       title={item.name}
       onClose={onClose}
       footer={
-        canEdit ? (
-          <>
+        <>
+          {canEdit && (
             <Button variant="danger" icon={Trash2} onClick={remove} disabled={busy}>
               Delete
             </Button>
-            {hasSize && !item.isRemnant && (
-              <Button icon={Scissors} onClick={onAddOffcut}>
-                Add offcut
-              </Button>
-            )}
+          )}
+          <Button icon={QrCode} onClick={() => setLabelling(true)}>
+            Print label
+          </Button>
+          {canEdit && hasSize && !item.isRemnant && (
+            <Button icon={Scissors} onClick={onAddOffcut}>
+              Add offcut
+            </Button>
+          )}
+          {canEdit && (
             <Button icon={Pencil} onClick={onEdit}>
               Edit
             </Button>
-          </>
-        ) : undefined
+          )}
+        </>
       }
     >
       <div className={styles.sheetHead}>
@@ -219,6 +227,7 @@ export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut }: Props
           </ul>
         )}
       </div>
+      {labelling && <LabelPrintDialog labels={[itemLabel(item, catalog, window.location.origin)]} onClose={() => setLabelling(false)} />}
     </Modal>
   );
 }
