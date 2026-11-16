@@ -81,6 +81,6 @@ A display has its own key, separate from any member's sign-in. With it, it can r
 
 ## Good to know
 
-- **Checked so far:** the server and Settings parts are tested, and the firmware builds. On a real board the screen has been brought up; the full set-up, pairing and the tag reader still need trying on real hardware. The reader code has not met a real PN532 yet.
+- **Checked so far:** on a real 2.8" USB-C board (ST7789 panel), set-up from a phone, pairing with an `https://` server and showing a location's items all work. Still to try on real hardware: the tag reader (the code has not met a real PN532 yet), recovering from a Wi-Fi or server outage, and removing a display in Settings.
 - The display asks for updates every 30 seconds; when nothing changed the answer is a few bytes.
 - On your own server, `DEVICES_ENABLED=false` switches displays off and `DEVICE_MAX_PER_WORKSPACE` changes the limit of five. See [Self-hosting](Self-hosting.md).
