@@ -10,7 +10,6 @@ import { FocusProvider } from '@/context/FocusContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { useWorkspace, WorkspaceProvider } from '@/context/WorkspaceContext';
 import { ActivityPage } from '@/pages/ActivityPage';
-import { AppearancePage } from '@/pages/AppearancePage';
 import { AuthPage } from '@/pages/AuthPage';
 import { NoticesPage, PrivacyPage, TermsPage } from '@/pages/LegalPages';
 import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/PasswordResetPages';
@@ -88,7 +87,8 @@ export function App() {
                     <Route path="reorder" element={<ReorderPage />} />
                     <Route path="activity" element={<ActivityPage />} />
                     <Route path="settings" element={<SettingsPage />} />
-                    <Route path="appearance" element={<AppearancePage />} />
+                    {/* Appearance used to be a page of its own; old links land in its Settings section. */}
+                    <Route path="appearance" element={<Navigate to="/settings?tab=appearance" replace />} />
                   </Route>
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />

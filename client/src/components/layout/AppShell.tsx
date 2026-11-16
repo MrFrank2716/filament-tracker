@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  Boxes, ClipboardList, Cog, Eye, History, LayoutDashboard, LogOut, Menu, Package, Palette, PanelLeftClose, PanelLeftOpen, Plus, Settings,
-  ShoppingCart,
-  Sunrise, Wrench, type LucideIcon,
+  Boxes, Eye, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, Sunrise,
 } from 'lucide-react';
+import { NAV_PAGES, type NavPage } from '@/components/layout/navPages';
 import { DailyReport, useDailyReport } from '@/components/report/DailyReport';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Display';
@@ -14,13 +13,11 @@ import { useAuth } from '@/context/AuthContext';
 import { useMachineFocus } from '@/context/FocusContext';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import { useItems } from '@/hooks/useCatalog';
+import { applyLayout, normalizeLayout, type NavId } from '@/lib/navigation';
 import type { Dashboard, JobRequest, MaintenanceData, ReorderData } from '@/lib/types';
 import styles from '@/components/layout/AppShell.module.css';
 
-interface NavItem {
-  to: string;
-  label: string;
-  icon: LucideIcon;
+interface NavItem extends NavPage {
   /** Shown in the phone tab bar; the rest live under "More". */
   primary: boolean;
   alert?: number;
@@ -74,17 +71,9 @@ export function AppShell() {
     : dashboard && dashboard.counts.lowStock + dashboard.counts.wornTools;
   const waiting = requests?.filter((request) => request.status === 'pending' && (!machine || request.machine?.id === machine.id)).length;
 
-  const items: NavItem[] = [
-    { to: '/', label: 'Overview', icon: LayoutDashboard, primary: true },
-    { to: '/inventory', label: 'Inventory', icon: Package, primary: true },
-    { to: '/jobs', label: 'Jobs', icon: ClipboardList, primary: true, alert: waiting },
-    { to: '/maintenance', label: 'Maintenance', icon: Wrench, primary: true, alert: overdue },
-    { to: '/machines', label: 'Machines', icon: Cog, primary: false },
-    { to: '/reorder', label: 'Reorder', icon: ShoppingCart, primary: false, alert: toReorder },
-    { to: '/activity', label: 'Activity', icon: History, primary: false },
-    { to: '/settings', label: 'Settings', icon: Settings, primary: false },
-    { to: '/appearance', label: 'Appearance', icon: Palette, primary: false },
-  ];
+  // Order and tab bar are the user's own (Settings, Navigation); the badges stay with their page wherever it moves.
+  const alerts: Partial<Record<NavId, number | undefined>> = { jobs: waiting, maintenance: overdue, reorder: toReorder };
+  const items: NavItem[] = applyLayout(NAV_PAGES, normalizeLayout(user?.navigation)).map((page) => ({ ...page, alert: alerts[page.id] }));
 
   const switchWorkspace = (id: string) => {
     setMoreOpen(false);

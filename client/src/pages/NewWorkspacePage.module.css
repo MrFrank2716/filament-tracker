@@ -175,13 +175,92 @@
   white-space: nowrap;
 }
 
+/* ---- Steps ---- */
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  width: 100%;
+  padding-top: var(--space-2);
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-faint);
+  font-size: var(--text-sm);
+}
+
+.stepMark {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.stepCurrent {
+  color: var(--color-text);
+  font-weight: var(--weight-medium);
+}
+
+.stepCurrent .stepMark,
+.stepDone .stepMark {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.stepDone {
+  color: var(--color-text-muted);
+}
+
+/* A phone has no room for four names: show the numbers, and only the current step's name. */
+@media (max-width: 36rem) {
+  .step:not(.stepCurrent) .stepName {
+    display: none;
+  }
+}
+
+.stepTitle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-xl);
+}
+
+/* Focused by script on each step so reading starts here; it is not a control, so no ring. */
+.stepTitle:focus,
+.stepTitle:focus-visible {
+  outline: none;
+}
+
+.stepCount {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  font-stretch: normal;
+  font-weight: var(--weight-regular);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
 .footer {
   position: sticky;
   bottom: 0;
   display: flex;
-  justify-content: flex-end;
+  gap: var(--space-2);
   padding: var(--space-3) 0;
   padding-bottom: max(var(--space-3), env(safe-area-inset-bottom));
   background: var(--color-bg);
   border-top: var(--border);
+}
+
+.footerEnd {
+  margin-left: auto;
 }

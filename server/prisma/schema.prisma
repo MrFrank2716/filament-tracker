@@ -24,6 +24,9 @@ model User {
   themePreset  String   @default("graphite")
   /// "#rrggbb", or null to use the preset's own accent.
   themeAccent  String?
+  /// Order of the main navigation and which items sit in the phone tab bar, as JSON
+  /// { order: string[], tabBar: string[] }. Null for the standard layout.
+  navLayout    String?
   createdAt    DateTime @default(now())
 
   memberships     Membership[]

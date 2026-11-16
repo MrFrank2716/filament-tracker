@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Check, FileQuestion, LogOut, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, Check, FileQuestion, LogOut, X } from 'lucide-react';
 import { ReferencePicker } from '@/components/reference/ReferencePicker';
+import { AppearanceSection } from '@/components/settings/AppearanceSection';
 import { Button, IconButton } from '@/components/ui/Button';
 import { ErrorNote, Loading, Muted, SectionTitle, TypeIcon } from '@/components/ui/Display';
 import { Checkbox, FormGrid, TextField } from '@/components/ui/Form';
@@ -16,6 +17,15 @@ import type { Snapshot, Template, TemplateSummary, Workspace } from '@/lib/types
 import styles from '@/pages/NewWorkspacePage.module.css';
 
 const BLANK = 'blank';
+type StepId = 'workspace' | 'template' | 'machines' | 'appearance';
+
+const STEP_TITLES: Record<StepId, string> = {
+  workspace: 'Workspace',
+  template: 'Start from',
+  machines: 'Your machines',
+  appearance: 'Make it yours',
+};
+
 const CURRENCIES = ['GBP', 'EUR', 'USD', 'CAD', 'AUD', 'NZD', 'CHF', 'SEK', 'NOK', 'DKK', 'PLN', 'JPY', 'INR', 'AED', 'SAR', 'ZAR'];
 
 /** Apply the user's ticks to a template before it is sent: unticked rows are simply left out. */
@@ -39,7 +49,7 @@ function trimSnapshot(snapshot: Snapshot, excluded: Set<string>, includeSamples:
 
 export function NewWorkspacePage() {
   const { logout } = useAuth();
-  const { workspaces, reload, select } = useWorkspace();
+  const { workspaces, loading, reload, select } = useWorkspace();
   const navigate = useNavigate();
   const { run, busy } = useAction();
   const { data: templates, error } = useQuery<TemplateSummary[]>('/templates');
@@ -52,6 +62,8 @@ export function NewWorkspacePage() {
   const [includeSamples, setIncludeSamples] = useState(true);
   const [machines, setMachines] = useState<{ pick: Pick; label: string }[]>([]);
   const [picking, setPicking] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
+  const heading = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     setTemplate(null);
@@ -76,7 +88,26 @@ export function NewWorkspacePage() {
     });
 
   const typeTasks = useMemo(() => template?.snapshot.maintenanceTasks.filter((t) => !t.machine) ?? [], [template]);
-  const first = workspaces.length === 0;
+
+  // Decided once the list is known and then kept: creating the workspace must not change the steps under the user.
+  const firstRef = useRef<boolean | null>(null);
+  if (firstRef.current === null && !loading) firstRef.current = workspaces.length === 0;
+  const first = firstRef.current ?? false;
+
+  // Choosing colours is personal, so it is only part of setting up for the first time.
+  const steps: StepId[] = first ? ['workspace', 'template', 'machines', 'appearance'] : ['workspace', 'template', 'machines'];
+  const step = steps[Math.min(stepIndex, steps.length - 1)];
+  const last = stepIndex >= steps.length - 1;
+  const stepReady = step === 'workspace' ? Boolean(name.trim()) : step === 'template' ? templateId === BLANK || Boolean(template) : true;
+
+  const goTo = (index: number) => {
+    setStepIndex(index);
+    // Start the new step at its heading, for the keyboard, a screen reader and a long page scrolled down.
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0 });
+      heading.current?.focus();
+    });
+  };
 
   const create = () =>
     run(async () => {
@@ -97,7 +128,9 @@ export function NewWorkspacePage() {
         className={styles.panel}
         onSubmit={(event) => {
           event.preventDefault();
-          void create();
+          if (!stepReady || busy) return;
+          if (last) void create();
+          else goTo(stepIndex + 1);
         }}
       >
         <header className={styles.header}>
@@ -107,120 +140,169 @@ export function NewWorkspacePage() {
             </Button>
           ) : (
             <Button variant="ghost" size="sm" icon={ArrowLeft} onClick={() => navigate('/')}>
-              Back
+              Back to workspace
             </Button>
           )}
           <h1 className={styles.title}>{first ? 'Set up your first workspace' : 'New workspace'}</h1>
-          <p className={styles.lead}>
-            A workspace is one environment: a home workshop, a school lab, a club or a shop floor. Each has its own machines, stock, locations and members.
-          </p>
+          <ol className={styles.steps} aria-label="Setup steps">
+            {steps.map((id, index) => (
+              <li
+                key={id}
+                className={[styles.step, index === stepIndex ? styles.stepCurrent : '', index < stepIndex ? styles.stepDone : ''].join(' ')}
+                aria-current={index === stepIndex ? 'step' : undefined}
+              >
+                <span className={styles.stepMark} aria-hidden>
+                  {index < stepIndex ? <Check size={12} strokeWidth={3} /> : index + 1}
+                </span>
+                <span className={styles.stepName}>{STEP_TITLES[id]}</span>
+              </li>
+            ))}
+          </ol>
         </header>
 
-        <FormGrid>
-          <TextField label="Workspace name" value={name} onChange={setName} placeholder="e.g. Garage workshop" required autoFocus />
-          <TextField label="Currency" value={currency} onChange={setCurrency} list="currency-codes" maxLength={3} hint="3-letter code, used for costs." />
-          <datalist id="currency-codes">
-            {CURRENCIES.map((code) => (
-              <option key={code} value={code} />
-            ))}
-          </datalist>
-        </FormGrid>
+        <h2 className={styles.stepTitle} ref={heading} tabIndex={-1}>
+          <span className={styles.stepCount}>
+            Step {stepIndex + 1} of {steps.length}{": "}
+          </span>
+          {STEP_TITLES[step]}
+        </h2>
 
-        <section className={styles.section}>
-          <SectionTitle>Start from</SectionTitle>
-          <Muted>Templates only pre-fill categories and sample schedules. Everything stays editable afterwards, or start blank and define your own.</Muted>
-          {error && <ErrorNote>{error}</ErrorNote>}
-          {!templates && !error && <Loading />}
-          <div className={styles.templates} role="radiogroup" aria-label="Template">
-            <TemplateCard
-              selected={templateId === BLANK}
-              onSelect={() => setTemplateId(BLANK)}
-              icon="FileQuestion"
-              name="Blank"
-              description="Skip the template. Add your own categories, units and machines."
-              blank
-            />
-            {templates?.map((t) => (
-              <TemplateCard key={t.id} selected={templateId === t.id} onSelect={() => setTemplateId(t.id)} icon={t.icon} name={t.name} description={t.description} sample={t.sampleData} />
-            ))}
-          </div>
-        </section>
-
-        {templateId !== BLANK && !template && <Loading label="Loading template" />}
-
-        {template && (
+        {step === 'workspace' && (
           <section className={styles.section}>
-            <SectionTitle>Adjust what gets created</SectionTitle>
-            <Muted>Untick anything you do not need.</Muted>
-
-            {template.sampleData && (
-              <Checkbox
-                label="Include sample machines, inventory and history"
-                hint={`${template.snapshot.machines.length} machines and ${template.snapshot.items.length} items to explore. Turn off to keep only the configuration.`}
-                checked={includeSamples}
-                onChange={setIncludeSamples}
-              />
-            )}
-
-            <PickGroup title="Item categories">
-              {template.snapshot.itemTypes.map((type) => (
-                <PickRow key={type.ref} checked={!excluded.has(type.ref)} onToggle={() => toggle(type.ref)} title={type.name} detail={type.fields.map((f) => f.label).join(', ')} leading={<TypeIcon icon={type.icon} tone={type.color} size="sm" toned />} />
-              ))}
-            </PickGroup>
-
-            <PickGroup title="Machine types">
-              {template.snapshot.machineTypes.map((type) => (
-                <PickRow key={type.ref} checked={!excluded.has(type.ref)} onToggle={() => toggle(type.ref)} title={type.name} leading={<TypeIcon icon={type.icon} size="sm" />} />
-              ))}
-            </PickGroup>
-
-            {typeTasks.length > 0 && (
-              <PickGroup title="Sample maintenance schedules">
-                {typeTasks.map((task) => {
-                  const machineType = template.snapshot.machineTypes.find((m) => m.ref === task.machineType);
-                  const interval = [task.intervalDays ? `every ${task.intervalDays} days` : '', task.intervalHours ? `every ${task.intervalHours} h of use` : ''].filter(Boolean).join(' or ');
-                  return (
-                    <PickRow
-                      key={task.ref}
-                      checked={!excluded.has(task.ref) && !excluded.has(task.machineType ?? '')}
-                      disabled={excluded.has(task.machineType ?? '')}
-                      onToggle={() => toggle(task.ref)}
-                      title={task.name}
-                      detail={`${machineType?.name ?? 'Machine'} · ${interval}`}
-                    />
-                  );
-                })}
-              </PickGroup>
-            )}
+            <p className={styles.lead}>
+              A workspace is one environment: a home workshop, a school lab, a club or a shop floor. Each has its own machines, stock, locations and members.
+            </p>
+            <FormGrid>
+              <TextField label="Workspace name" value={name} onChange={setName} placeholder="e.g. Garage workshop" required autoFocus />
+              <TextField label="Currency" value={currency} onChange={setCurrency} list="currency-codes" maxLength={3} hint="3-letter code, used for costs." />
+              <datalist id="currency-codes">
+                {CURRENCIES.map((code) => (
+                  <option key={code} value={code} />
+                ))}
+              </datalist>
+            </FormGrid>
           </section>
         )}
 
-        <section className={styles.section}>
-          <SectionTitle>Your machines</SectionTitle>
-          <Muted>Optional. Pick what you have from the catalogue and its specs, feeders and maintenance schedules come with it. You can add more at any time.</Muted>
-          {machines.length > 0 && (
-            <div className={styles.groupRows}>
-              {machines.map((machine, index) => (
-                <div key={`${machine.pick.id}-${index}`} className={`${styles.pick} ${styles.chosen}`}>
-                  <span className={styles.pickText}>
-                    <span className={styles.pickTitle}>{machine.label}</span>
-                  </span>
-                  <IconButton icon={X} label={`Remove ${machine.label}`} size="sm" onClick={() => setMachines((current) => current.filter((_, i) => i !== index))} />
-                </div>
-              ))}
+        {step === 'template' && (
+          <>
+            <section className={styles.section}>
+              <Muted>Templates only pre-fill categories and sample schedules. Everything stays editable afterwards, or start blank and define your own.</Muted>
+              {error && <ErrorNote>{error}</ErrorNote>}
+              {!templates && !error && <Loading />}
+              <div className={styles.templates} role="radiogroup" aria-label="Template">
+                <TemplateCard
+                  selected={templateId === BLANK}
+                  onSelect={() => setTemplateId(BLANK)}
+                  icon="FileQuestion"
+                  name="Blank"
+                  description="Skip the template. Add your own categories, units and machines."
+                  blank
+                />
+                {templates?.map((t) => (
+                  <TemplateCard key={t.id} selected={templateId === t.id} onSelect={() => setTemplateId(t.id)} icon={t.icon} name={t.name} description={t.description} sample={t.sampleData} />
+                ))}
+              </div>
+            </section>
+
+            {templateId !== BLANK && !template && <Loading label="Loading template" />}
+
+            {template && (
+              <section className={styles.section}>
+                <SectionTitle>Adjust what gets created</SectionTitle>
+                <Muted>Untick anything you do not need.</Muted>
+
+                {template.sampleData && (
+                  <Checkbox
+                    label="Include sample machines, inventory and history"
+                    hint={`${template.snapshot.machines.length} machines and ${template.snapshot.items.length} items to explore. Turn off to keep only the configuration.`}
+                    checked={includeSamples}
+                    onChange={setIncludeSamples}
+                  />
+                )}
+
+                <PickGroup title="Item categories">
+                  {template.snapshot.itemTypes.map((type) => (
+                    <PickRow key={type.ref} checked={!excluded.has(type.ref)} onToggle={() => toggle(type.ref)} title={type.name} detail={type.fields.map((f) => f.label).join(', ')} leading={<TypeIcon icon={type.icon} tone={type.color} size="sm" toned />} />
+                  ))}
+                </PickGroup>
+
+                <PickGroup title="Machine types">
+                  {template.snapshot.machineTypes.map((type) => (
+                    <PickRow key={type.ref} checked={!excluded.has(type.ref)} onToggle={() => toggle(type.ref)} title={type.name} leading={<TypeIcon icon={type.icon} size="sm" />} />
+                  ))}
+                </PickGroup>
+
+                {typeTasks.length > 0 && (
+                  <PickGroup title="Sample maintenance schedules">
+                    {typeTasks.map((task) => {
+                      const machineType = template.snapshot.machineTypes.find((m) => m.ref === task.machineType);
+                      const interval = [task.intervalDays ? `every ${task.intervalDays} days` : '', task.intervalHours ? `every ${task.intervalHours} h of use` : ''].filter(Boolean).join(' or ');
+                      return (
+                        <PickRow
+                          key={task.ref}
+                          checked={!excluded.has(task.ref) && !excluded.has(task.machineType ?? '')}
+                          disabled={excluded.has(task.machineType ?? '')}
+                          onToggle={() => toggle(task.ref)}
+                          title={task.name}
+                          detail={`${machineType?.name ?? 'Machine'} · ${interval}`}
+                        />
+                      );
+                    })}
+                  </PickGroup>
+                )}
+              </section>
+            )}
+          </>
+        )}
+
+        {step === 'machines' && (
+          <section className={styles.section}>
+            <Muted>Optional. Pick what you have from the catalogue and its specs, feeders and maintenance schedules come with it. You can add more at any time.</Muted>
+            {machines.length > 0 && (
+              <div className={styles.groupRows}>
+                {machines.map((machine, index) => (
+                  <div key={`${machine.pick.id}-${index}`} className={`${styles.pick} ${styles.chosen}`}>
+                    <span className={styles.pickText}>
+                      <span className={styles.pickTitle}>{machine.label}</span>
+                    </span>
+                    <IconButton icon={X} label={`Remove ${machine.label}`} size="sm" onClick={() => setMachines((current) => current.filter((_, i) => i !== index))} />
+                  </div>
+                ))}
+              </div>
+            )}
+            <div>
+              <Button icon={BookOpen} onClick={() => setPicking(true)}>
+                {machines.length ? 'Add another machine' : 'Choose machines'}
+              </Button>
             </div>
-          )}
-          <div>
-            <Button icon={BookOpen} onClick={() => setPicking(true)}>
-              {machines.length ? 'Add another machine' : 'Choose machines'}
-            </Button>
-          </div>
-        </section>
+          </section>
+        )}
+
+        {step === 'appearance' && (
+          <section className={styles.section}>
+            <Muted>Pick the look you like. It is saved to your account as you choose, and you can change it any time in Settings.</Muted>
+            <AppearanceSection compact />
+          </section>
+        )}
 
         <footer className={styles.footer}>
-          <Button type="submit" variant="primary" size="lg" icon={Check} disabled={busy || !name.trim() || (templateId !== BLANK && !template)}>
-            Create workspace
-          </Button>
+          {stepIndex > 0 && (
+            <Button size="lg" icon={ArrowLeft} disabled={busy} onClick={() => goTo(stepIndex - 1)}>
+              Back
+            </Button>
+          )}
+          <span className={styles.footerEnd}>
+            {last ? (
+              <Button type="submit" variant="primary" size="lg" icon={Check} disabled={busy || !stepReady || !name.trim()}>
+                Create workspace
+              </Button>
+            ) : (
+              <Button type="submit" variant="primary" size="lg" icon={ArrowRight} disabled={!stepReady}>
+                {step === 'machines' && machines.length === 0 ? 'Skip for now' : 'Next'}
+              </Button>
+            )}
+          </span>
         </footer>
       </form>
       {/* Outside the form: the picker's dialog has a form of its own. */}

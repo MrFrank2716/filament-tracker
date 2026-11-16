@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AccountSection } from '@/components/settings/AccountSection';
+import { AppearanceSection } from '@/components/settings/AppearanceSection';
+import { NavigationSection } from '@/components/settings/NavigationSection';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Building2, LogOut, MapPin, Plus, Ruler, Shapes, Trash2, Truck } from 'lucide-react';
 import { CrudSection } from '@/components/settings/CrudSection';
@@ -21,9 +23,10 @@ import { flattenLocations, locationPath } from '@/lib/format';
 import type { ItemType } from '@/lib/types';
 import styles from '@/components/settings/Settings.module.css';
 
-type Tab = 'general' | 'categories' | 'units' | 'machineTypes' | 'locations' | 'suppliers' | 'members' | 'printers' | 'requests' | 'data' | 'account';
+type Tab = 'general' | 'categories' | 'units' | 'machineTypes' | 'locations' | 'suppliers' | 'members' | 'printers' | 'requests' | 'data' | 'appearance' | 'navigation' | 'account';
 
-const TABS: Array<{ id: Tab; label: string }> = [
+/** Workspace sections are shared by every member; the personal ones belong to whoever is signed in. */
+const TABS: Array<{ id: Tab; label: string; personal?: boolean }> = [
   { id: 'general', label: 'Workspace' },
   { id: 'categories', label: 'Categories' },
   { id: 'units', label: 'Units' },
@@ -34,7 +37,14 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'printers', label: 'Printers' },
   { id: 'requests', label: 'Job requests' },
   { id: 'data', label: 'Import / export' },
-  { id: 'account', label: 'Your account' },
+  { id: 'appearance', label: 'Appearance', personal: true },
+  { id: 'navigation', label: 'Navigation', personal: true },
+  { id: 'account', label: 'Your account', personal: true },
+];
+
+const GROUPS = [
+  { label: 'This workspace', tabs: TABS.filter((t) => !t.personal) },
+  { label: 'You', tabs: TABS.filter((t) => t.personal) },
 ];
 
 export function SettingsPage() {
@@ -56,23 +66,32 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Categories, units, places and people for this workspace." />
+      <PageHeader title="Settings" subtitle="Categories, units, places and people for this workspace, and your own preferences." />
 
       <div className={styles.layout}>
-      {/* Nine sections do not fit a tab strip on a phone: a list down the side on wide screens, a select on narrow ones. */}
+      {/* This many sections do not fit a tab strip on a phone: a list down the side on wide screens, a select on narrow ones. */}
       <nav className={styles.rail} aria-label="Settings sections">
-        {TABS.map((t) => (
-          <button key={t.id} type="button" className={`${styles.railLink} ${t.id === tab ? styles.railActive : ''}`} aria-current={t.id === tab ? 'true' : undefined} onClick={() => setTab(t.id)}>
-            {t.label}
-          </button>
+        {GROUPS.map((group) => (
+          <div key={group.label} className={styles.railGroup} role="group" aria-label={group.label}>
+            <span className={styles.railHeading}>{group.label}</span>
+            {group.tabs.map((t) => (
+              <button key={t.id} type="button" className={`${styles.railLink} ${t.id === tab ? styles.railActive : ''}`} aria-current={t.id === tab ? 'true' : undefined} onClick={() => setTab(t.id)}>
+                {t.label}
+              </button>
+            ))}
+          </div>
         ))}
       </nav>
       <div className={styles.sectionSelect}>
         <SelectField label="Section" value={tab} onChange={(value) => setTab(value as Tab)}>
-          {TABS.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-            </option>
+          {GROUPS.map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.tabs.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </SelectField>
       </div>
@@ -204,6 +223,13 @@ export function SettingsPage() {
         {tab === 'printers' && <PrintersSection catalog={catalog} />}
         {tab === 'requests' && <RequestLinkSection />}
         {tab === 'data' && <DataSection catalog={catalog} />}
+        {tab === 'appearance' && (
+          <>
+            <SectionTitle>Appearance</SectionTitle>
+            <AppearanceSection />
+          </>
+        )}
+        {tab === 'navigation' && <NavigationSection />}
         {tab === 'account' && <AccountSection />}
       </div>
       </div>
