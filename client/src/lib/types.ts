@@ -15,6 +15,8 @@ export interface User {
   isGuest: boolean;
   /** Personal theme. Missing from an older server: treat as the default. */
   appearance?: Appearance;
+  /** Personal navigation layout as saved; null or missing for the standard one. Read it through normalizeLayout. */
+  navigation?: unknown;
 }
 
 export interface Workspace {

@@ -24,6 +24,37 @@ interface UserRecord {
   themeMode: string;
   themePreset: string;
   themeAccent: string | null;
+  navLayout: string | null;
+}
+
+// Keep in step with NAV_IDS in client/src/lib/navigation.ts.
+const NAV_IDS = ['overview', 'inventory', 'jobs', 'maintenance', 'machines', 'reorder', 'activity', 'settings'] as const;
+const MAX_TAB_BAR = 4;
+
+const navigationInput = z.object({
+  /** Null puts the standard layout back. */
+  layout: z
+    .object({
+      order: z
+        .array(z.enum(NAV_IDS))
+        .refine((ids) => ids.length === NAV_IDS.length && new Set(ids).size === NAV_IDS.length, 'List every page exactly once'),
+      tabBar: z
+        .array(z.enum(NAV_IDS))
+        .min(1, 'Keep at least one page in the tab bar')
+        .max(MAX_TAB_BAR, `The tab bar holds up to ${MAX_TAB_BAR} pages`)
+        .refine((ids) => new Set(ids).size === ids.length, 'A page can only be in the tab bar once'),
+    })
+    .nullable(),
+});
+
+/** Stored as text. Anything unreadable counts as "no custom layout"; the client fills gaps from the standard one. */
+function readNavLayout(stored: string | null): unknown {
+  if (!stored) return null;
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return null;
+  }
 }
 
 const publicUser = (user: UserRecord) => ({
@@ -32,6 +63,7 @@ const publicUser = (user: UserRecord) => ({
   name: user.name,
   isGuest: user.isGuest,
   appearance: { mode: user.themeMode, preset: user.themePreset, accent: user.themeAccent },
+  navigation: readNavLayout(user.navLayout),
 });
 
 // Keep in step with PRESETS in client/src/lib/themes.ts.
@@ -101,6 +133,16 @@ authRouter.patch('/me/appearance', requireAuth, async (req, res) => {
   const user = await prisma.user.update({
     where: { id: req.userId },
     data: { themeMode: mode, themePreset: preset, themeAccent: accent },
+  });
+  res.json({ user: publicUser(user) });
+});
+
+/** Also personal: the order of the main navigation, and what sits in the phone tab bar. */
+authRouter.patch('/me/navigation', requireAuth, async (req, res) => {
+  const { layout } = parse(navigationInput, req.body);
+  const user = await prisma.user.update({
+    where: { id: req.userId },
+    data: { navLayout: layout ? JSON.stringify(layout) : null },
   });
   res.json({ user: publicUser(user) });
 });

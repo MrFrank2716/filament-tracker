@@ -40,6 +40,24 @@
   }
 }
 
+.railGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.railGroup + .railGroup {
+  margin-top: var(--space-4);
+}
+
+.railHeading {
+  padding: var(--space-1) var(--space-3);
+  color: var(--color-text-faint);
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
 .railLink {
   min-height: 2.25rem;
   margin-left: -1px;

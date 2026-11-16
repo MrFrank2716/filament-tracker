@@ -4,8 +4,9 @@
   gap: var(--space-8);
 }
 
-@media (min-width: 60rem) {
-  .layout {
+/* Inside Settings the section shares the row with two side rails, so the preview only moves beside it on wide screens. */
+@media (min-width: 80rem) {
+  .layout:not(.compact) {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 20rem;
     align-items: start;

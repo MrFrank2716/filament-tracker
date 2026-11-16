@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Monitor, Moon, RotateCcw, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Badge, Card, Chip, ChipRow, Meter, Muted, PageHeader, SectionTitle } from '@/components/ui/Display';
+import { Badge, Card, Chip, ChipRow, Meter, Muted, SectionTitle } from '@/components/ui/Display';
 import { useToast } from '@/components/ui/Toast';
 import { useTheme } from '@/context/ThemeContext';
 import {
   ACCENT_SWATCHES, DEFAULT_APPEARANCE, PRESETS, fitAccent, presetById, sameAppearance,
   type Appearance, type Scheme, type ThemeMode,
 } from '@/lib/themes';
-import styles from '@/pages/AppearancePage.module.css';
+import styles from '@/components/settings/Appearance.module.css';
 
 const MODES: Array<{ id: ThemeMode; label: string; icon: typeof Sun }> = [
   { id: 'system', label: 'Match device', icon: Monitor },
@@ -19,7 +19,11 @@ const MODES: Array<{ id: ThemeMode; label: string; icon: typeof Sun }> = [
 /** The colour input fires on every drag step; save once the pointer settles. */
 const ACCENT_SAVE_DELAY = 400;
 
-export function AppearancePage() {
+/**
+ * Mode, palette and accent for the signed-in user. Each pick applies and saves at once.
+ * `compact` drops the sample card, for the setup wizard where the page itself is the preview.
+ */
+export function AppearanceSection({ compact = false }: { compact?: boolean }) {
   const { appearance, scheme, setAppearance } = useTheme();
   const toast = useToast();
   const [draftAccent, setDraftAccent] = useState(appearance.accent);
@@ -76,9 +80,9 @@ export function AppearancePage() {
 
   return (
     <>
-      <PageHeader title="Appearance" subtitle="Your own colours. Saved to your account, so they follow you to any device." />
+      {!compact && <Muted>Your own colours. Saved to your account, so they follow you to any device.</Muted>}
 
-      <div className={styles.layout}>
+      <div className={`${styles.layout} ${compact ? styles.compact : ''}`}>
         <div className={styles.controls}>
           <section className={styles.group}>
             <SectionTitle>Mode</SectionTitle>
@@ -182,6 +186,7 @@ export function AppearancePage() {
           </div>
         </div>
 
+        {!compact && (
         <aside className={styles.preview} aria-label="Preview">
           <SectionTitle>Preview</SectionTitle>
           <Card>
@@ -209,6 +214,7 @@ export function AppearancePage() {
           </Card>
           <Muted>Showing {scheme} mode. Switch to {otherScheme} above to check it too.</Muted>
         </aside>
+        )}
       </div>
     </>
   );
