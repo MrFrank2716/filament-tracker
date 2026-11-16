@@ -329,7 +329,9 @@ void start(const store::Settings &initial, bool hasReader) {
   shared = Status{};
   shared.phase = Phase::Connecting;
   // Core 0 with Wi-Fi; the screen runs on core 1. TLS needs a deep stack.
-  xTaskCreatePinnedToCore(task, "wb-net", 12288, nullptr, 1, nullptr, 0);
+  // Idle priority: a TLS handshake is seconds of solid work, and above idle it starved core 0's idle task until
+  // the watchdog restarted the board (seen on a real board). At the same priority the two take turns.
+  xTaskCreatePinnedToCore(task, "wb-net", 12288, nullptr, tskIDLE_PRIORITY, nullptr, 0);
 }
 
 void send(const Command &command) { xQueueSend(commands, &command, 0); }
