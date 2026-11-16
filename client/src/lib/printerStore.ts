@@ -1,4 +1,4 @@
-import type { PrinterState } from '@/lib/types';
+import type { PendingSpoolEvent, PrinterState } from '@/lib/types';
 
 /**
  * Live state of connected printers, by machine.
@@ -41,3 +41,20 @@ export function watchPrinterStates(listener: () => void): () => void {
 }
 
 export const printerStates = (): Map<string, PrinterState> => states;
+
+// ---- Scan, then insert: news of a scanned spool waiting to go into a printer -------------------
+
+const pendingListeners = new Set<(event: PendingSpoolEvent) => void>();
+
+/** From the socket: a scanned spool was armed, linked to a tray, or given up on. */
+export function applyPendingSpool(event: PendingSpoolEvent): void {
+  if (!event || typeof event.machineId !== 'string') return;
+  pendingListeners.forEach((listener) => listener(event));
+}
+
+export function watchPendingSpool(listener: (event: PendingSpoolEvent) => void): () => void {
+  pendingListeners.add(listener);
+  return () => {
+    pendingListeners.delete(listener);
+  };
+}

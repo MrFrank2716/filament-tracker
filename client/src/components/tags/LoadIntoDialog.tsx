@@ -1,12 +1,19 @@
-import { PlugZap } from 'lucide-react';
-import { Badge, EmptyState, List, Loading, Row, Swatch } from '@/components/ui/Display';
+import { useEffect, useState } from 'react';
+import { PlugZap, ScanLine } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Badge, EmptyState, List, Loading, Muted, Row, SectionTitle, Swatch } from '@/components/ui/Display';
 import { Modal } from '@/components/ui/Modal';
-import { useWsQuery } from '@/context/WorkspaceContext';
+import { useAction, useToast } from '@/components/ui/Toast';
+import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
+import { api } from '@/lib/api';
+import { watchPendingSpool } from '@/lib/printerStore';
+import { refreshAll } from '@/lib/store';
+import styles from '@/components/tags/Tags.module.css';
 import type { Catalog } from '@/hooks/useCatalog';
 import { feederFor, usePrinterStates } from '@/hooks/usePrinters';
 import { useSlotActions } from '@/hooks/useSlotActions';
 import { describeDetected, matchScore } from '@/lib/spoolMatch';
-import type { Detected, Item, Slot, SubUnit } from '@/lib/types';
+import type { Detected, Item, Machine, Slot, SubUnit } from '@/lib/types';
 
 interface Props {
   item: Item;
@@ -51,9 +58,89 @@ export function LoadIntoDialog({ item, items, catalog, onClose }: Props) {
     if (await setSlot(choice.subUnit, choice.slot, item.id)) onClose();
   };
 
+  // ---- Scan, then insert: "the next spool put into this printer is this one" ----
+  const { wsPath } = useWorkspace();
+  const { run, busy: arming } = useAction();
+  const toast = useToast();
+  const [waiting, setWaiting] = useState<{ machine: Machine; expiresAt: number } | null>(null);
+  const [stopped, setStopped] = useState('');
+  const [now, setNow] = useState(() => Date.now());
+  // Only a printer that is reporting right now can be seen taking a spool.
+  const livePrinters = catalog.machines.filter((machine) => printers.get(machine.id)?.connection === 'live');
+  const pendingPath = (machine: Machine) => wsPath(`/printers/by-machine/${machine.id}/pending-spool`)!;
+
+  const arm = async (machine: Machine) => {
+    setStopped('');
+    let expiresAt = 0;
+    if (await run(async () => { expiresAt = (await api.put<{ expiresAt: number }>(pendingPath(machine), { itemId: item.id })).expiresAt; })) {
+      setNow(Date.now());
+      setWaiting({ machine, expiresAt });
+    }
+  };
+  const cancel = async () => {
+    if (!waiting) return;
+    const { machine } = waiting;
+    setWaiting(null);
+    await run(() => api.delete(pendingPath(machine)));
+  };
+
+  useEffect(() => {
+    if (!waiting) return;
+    const tick = window.setInterval(() => setNow(Date.now()), 1000);
+    const unwatch = watchPendingSpool((event) => {
+      if (event.machineId !== waiting.machine.id || event.itemId !== item.id || event.state === 'armed') return;
+      if (event.state === 'linked') {
+        refreshAll();
+        toast(`${item.name} is in ${event.place}${event.mismatch ? '. The printer describes that tray as a different filament: check its setting on the printer.' : ''}`);
+        onClose();
+        return;
+      }
+      setWaiting(null);
+      setStopped(
+        event.state === 'dropped'
+          ? event.reason === 'several' ? 'More than one tray was loaded at once, so there was no telling which holds this spool. Choose its slot below.' : 'This spool is no longer in stock.'
+          : event.state === 'expired' ? 'No spool went in within two minutes. Try again, or choose its slot below.' : '',
+      );
+    });
+    return () => {
+      window.clearInterval(tick);
+      unwatch();
+    };
+  }, [waiting, item.id, item.name, toast, onClose]);
+
+  const left = waiting ? Math.max(0, Math.ceil((waiting.expiresAt - now) / 1000)) : 0;
+
   return (
     <Modal title={`Load ${item.name} into…`} onClose={onClose}>
-      {!subUnits ? (
+      {waiting ? (
+        <div className={styles.steps}>
+          <div className={styles.status}>
+            <ScanLine size={22} aria-hidden /> Put the spool into {waiting.machine.name} now
+          </div>
+          <Muted>
+            The next tray that is loaded on {waiting.machine.name} becomes this spool. {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')} left. Load one spool at a time.
+          </Muted>
+          <div className={styles.row}>
+            <Button onClick={cancel}>Cancel</Button>
+          </div>
+        </div>
+      ) : (
+        livePrinters.length > 0 && (
+          <div className={styles.section}>
+            <SectionTitle>About to put it in?</SectionTitle>
+            <Muted>Choose the printer, then insert the spool: whichever tray it goes into is linked to it by itself. For spools the printer cannot identify.</Muted>
+            <div className={styles.row}>
+              {livePrinters.map((machine) => (
+                <Button key={machine.id} icon={ScanLine} onClick={() => void arm(machine)} disabled={arming}>
+                  Next into {machine.name}
+                </Button>
+              ))}
+            </div>
+            {stopped && <p className={styles.warning}>{stopped}</p>}
+          </div>
+        )
+      )}
+      {waiting ? null : !subUnits ? (
         <Loading />
       ) : choices.length === 0 ? (
         <EmptyState icon={PlugZap} title="Nowhere to load it yet">

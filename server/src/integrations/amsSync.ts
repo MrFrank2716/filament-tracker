@@ -3,6 +3,7 @@ import { prisma, type Json } from '@/db';
 import { compatible, detectedFrom, traySignature, type Detected, type SpoolFacts } from '@/integrations/spoolMatch';
 import type { Feeder, PrinterAdapter, PrinterReading } from '@/integrations/types';
 import { logSystemActivity } from '@/services/activity';
+import { assignTag } from '@/services/tags';
 
 /**
  * Keeps a machine's attached hardware in step with what its printer reports: one sub-unit per filament
@@ -26,7 +27,25 @@ export interface SyncResult {
   changed: boolean;
   /** A tray went empty too recently to trust; look again after this many ms. */
   retryInMs: number | null;
+  /** What became of a spool that was scanned to go in next; null while it is still waiting for a tray to change. */
+  pending: PendingOutcome | null;
 }
+
+/**
+ * "Scan, then insert": a member scanned a spool and said it goes into this printer next. The next single tray
+ * to be loaded is that spool, which ties an exact stock item to a tray whose spool the printer cannot identify.
+ */
+export interface PendingSpool {
+  itemId: string;
+  /** ms since epoch; after this the scan no longer counts. */
+  expiresAt: number;
+}
+
+export type PendingOutcome =
+  /** `mismatch`: the printer describes the tray as a different filament (often a preset left from the last spool). */
+  | { result: 'linked'; place: string; mismatch: boolean }
+  /** More than one tray changed, or the item is gone: nothing was linked rather than guess. */
+  | { result: 'dropped'; reason: 'several' | 'gone' };
 
 /** A tray must read empty for this long before its slot is unloaded: trays blink empty while a tag is read. */
 export const EMPTY_SETTLE_MS = 30_000;
@@ -106,10 +125,14 @@ async function subUnitFor(tx: Tx, target: SyncTarget, feeder: Feeder, externalId
  * Bring one printer's feeders, slots and loaded spools up to date.
  * `emptySince` remembers, between calls, when each tray was first seen empty.
  */
-export async function syncFeeders(target: SyncTarget, reading: PrinterReading, emptySince: Map<string, number>, now = Date.now()): Promise<SyncResult> {
+export async function syncFeeders(target: SyncTarget, reading: PrinterReading, emptySince: Map<string, number>, now = Date.now(), pending: PendingSpool | null = null): Promise<SyncResult> {
   const notes: string[] = [];
   let changed = false;
   let retryInMs: number | null = null;
+  let outcome: PendingOutcome | null = null;
+  const waiting = pending && now < pending.expiresAt ? pending : null;
+  /** Trays that were just loaded with a spool the printer cannot tie to stock by its own tag. */
+  const inserted: Array<{ slotId: string; place: string; tray: Feeder['trays'][number] }> = [];
   /** Items a tag has just placed somewhere in this pass; any other slot's memory of holding them is stale. */
   const placed = new Set<string>();
 
@@ -158,6 +181,9 @@ export async function syncFeeders(target: SyncTarget, reading: PrinterReading, e
           const place = `${row.name} slot ${tray.position}`;
 
           if (previous?.signature === signature) {
+            // Read empty for a moment and now the same again: a spool was taken out and one that looks the same
+            // put in. Nothing to do by itself, but it is what a scanned spool is waiting for.
+            if (waiting && emptySince.has(settleKey) && tray.state === 'loaded' && !tray.tagId) inserted.push({ slotId: slot.id, place, tray });
             emptySince.delete(settleKey);
             // Same spool: only the amount left may have moved.
             if (previous.remainingPercent !== tray.remainingPercent || previous.spoolWeightGrams !== tray.spoolWeightGrams) {
@@ -194,6 +220,8 @@ export async function syncFeeders(target: SyncTarget, reading: PrinterReading, e
             const tagged = tray.tagId
               ? await tx.item.findFirst({ where: { workspaceId: target.workspaceId, tagId: tray.tagId, archived: false }, select: { id: true, name: true } })
               : null;
+            // Not the first look at this tray, so a spool was really put in; and not one a tag already settles.
+            if (!tagged && previous) inserted.push({ slotId: slot.id, place, tray });
             if (tagged) {
               // The tag says exactly which spool this is.
               if (slot.itemId !== tagged.id) {
@@ -224,6 +252,27 @@ export async function syncFeeders(target: SyncTarget, reading: PrinterReading, e
           changed = true;
         }
       }
+
+      // A spool scanned to go in next: it is the one tray that was just loaded. Two at once could be either way
+      // round, so nothing is linked; none yet means it is still on its way to the printer.
+      if (waiting && inserted.length > 1) outcome = { result: 'dropped', reason: 'several' };
+      else if (waiting && inserted.length === 1) {
+        const [{ slotId, place, tray }] = inserted;
+        const item = await tx.item.findFirst({ where: { id: waiting.itemId, workspaceId: target.workspaceId, archived: false }, include: { itemType: { include: { fields: true } } } });
+        if (!item) outcome = { result: 'dropped', reason: 'gone' };
+        else {
+          const signature = traySignature(tray);
+          await tx.slot.updateMany({ where: { itemId: item.id, NOT: { id: slotId } }, data: { itemId: null, source: 'manual' } });
+          // A member's choice, as if they had picked the slot by hand: it stands until the tray changes again.
+          await tx.slot.update({ where: { id: slotId }, data: { itemId: item.id, source: 'manual', detected: detectedFrom(tray, signature) as unknown as Json } });
+          // A tag of its own that the printer reads and nothing in stock has yet: now it is this spool's.
+          if (tray.tagId && !item.tagId) await assignTag(tx, target.workspaceId, item.id, tray.tagId);
+          const mismatch = !compatible({ ...spoolFacts(item), tagId: null }, { material: tray.material, colour: tray.colour, tagId: null });
+          notes.push(`Loaded ${item.name} into ${place}: it was scanned just before going in`);
+          outcome = { result: 'linked', place, mismatch };
+          changed = true;
+        }
+      }
     },
     { timeout: 30_000 },
   );
@@ -235,7 +284,7 @@ export async function syncFeeders(target: SyncTarget, reading: PrinterReading, e
       entityType: 'machine', entityId: target.machineId, summary,
     });
   }
-  return { changed, retryInMs };
+  return { changed, retryInMs, pending: outcome };
 }
 
 /** When a printer is unlinked its feeders become ordinary hand-kept hardware again; nothing loaded is lost. */

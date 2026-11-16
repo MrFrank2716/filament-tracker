@@ -586,3 +586,18 @@ export interface PrinterState {
   firmware: string | null;
   modelName: string | null;
 }
+
+/** A spool scanned to go into a printer next, as told over the socket ("printer:pending-spool"). */
+export interface PendingSpoolEvent {
+  machineId: string;
+  itemId: string;
+  itemName: string;
+  state: 'armed' | 'linked' | 'dropped' | 'expired' | 'cancelled';
+  /** ms since epoch when the wait ends (armed only). */
+  expiresAt?: number;
+  /** Where it went (linked only), e.g. "AMS 1 slot 2". */
+  place?: string;
+  /** Linked, though the printer describes the tray as a different filament. */
+  mismatch?: boolean;
+  reason?: 'several' | 'gone';
+}

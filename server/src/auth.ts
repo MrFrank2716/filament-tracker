@@ -26,6 +26,8 @@ const OPERATOR_WRITES: Array<[method: string, path: RegExp]> = [
   ['PUT', /^\/queue\/[^/]+$/],
   ['POST', /^\/maintenance\/tasks\/[^/]+\/complete$/],
   ['PUT', /^\/sub-units\/[^/]+\/slots\/\d+$/],
+  ['PUT', /^\/printers\/by-machine\/[^/]+\/pending-spool$/], // "this spool goes in next"
+  ['DELETE', /^\/printers\/by-machine\/[^/]+\/pending-spool$/],
   ['POST', /^\/job-requests\/[^/]+\/comments$/],
   ['POST', /^\/job-requests\/[^/]+\/status$/],
 ];
