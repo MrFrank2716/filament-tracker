@@ -1,6 +1,7 @@
 """Save what a location display is showing as a PNG, over its USB cable.
 
-    python tools/screenshot.py COM3 shot.png
+    python tools/screenshot.py COM3 shot.png            what is on screen now
+    python tools/screenshot.py COM3 shot.png P          open the printer screen first (O: the overview)
 
 The display redraws its screen and sends each area it draws. Needs pyserial (comes with PlatformIO). Close any
 serial monitor first: only one program can hold the port.
@@ -37,6 +38,9 @@ def main():
     s.port, s.baudrate, s.timeout, s.dtr, s.rts = port, 115200, 5, False, False
     s.open()
     time.sleep(0.2)
+    if len(sys.argv) > 3:
+        s.write(sys.argv[3].encode()[:1])
+        time.sleep(0.5)
     s.reset_input_buffer()
     s.write(b"S")
     deadline = time.time() + 60

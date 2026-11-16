@@ -835,6 +835,11 @@ void showSetup(const char *apName, const char *apPassword) {
 
 void showBusy(const char *title, const char *detail) { showMessageScreen(View::Busy, title, detail, true); }
 
+void openScreen(char key) {
+  if (key == 'P') showPrinter();
+  else if (key == 'O') showOverview();
+}
+
 void poll() {
   net::Result result;
   while (net::receive(result)) handle(result);

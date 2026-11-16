@@ -73,9 +73,11 @@ static void handleOta() {}
 void loop() {
   display::tick();
   handleOta();
-  // "S" over USB: send what is on screen (tools/screenshot.py).
+  // Over USB: "S" sends what is on screen (tools/screenshot.py); "P" and "O" open the printer screen and overview.
   while (Serial.available()) {
-    if (Serial.read() == 'S') display::sendScreenshot();
+    const int key = Serial.read();
+    if (key == 'S') display::sendScreenshot();
+    else if (!inPortal && (key == 'P' || key == 'O')) ui::openScreen(static_cast<char>(key));
   }
   if (inPortal) {
     if (portal::process(settings)) {

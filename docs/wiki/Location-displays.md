@@ -2,7 +2,7 @@
 
 A location display is a small touch screen fixed to a shelf, rack or dry box. It shows what is stored there and how much of each is left, with anything running low at the top, and updates by itself. Items in a location inside it (a shelf in a rack, say) are shown too, with a small "at Shelf 2" note.
 
-With an optional tag reader fitted, tapping a spool's [sticker](Spool-tags.md) on the display shows that spool, and can put it away there, mark it as the next spool going into the printer beside it, or link a new sticker to an item.
+Give it a printer and it also shows what that printer is doing. With an optional tag reader fitted, tapping a spool's [sticker](Spool-tags.md) on the display shows that spool, and can put it away there, mark it as the next spool going into the printer beside it, or link a new sticker to an item.
 
 ## What to buy
 
@@ -41,12 +41,20 @@ If the code was mistyped or has run out, the display shows a keyboard: make a ne
 - The screen dims after five minutes untouched.
 - At most 40 items are listed; "+12 more in Wrkbench" says how many are left out.
 
+## The printer beside it
+
+When a display has a **Printer beside it** (see below), a line under the top bar shows that printer: a dot, its state and, while it prints, how far along it is and the time left, with a thin progress line. The dot is blue while it works, green when idle or finished, orange when paused or warning, red when it has stopped or reports a fault, and grey when it is not reporting (the line then says why, such as "Bridge offline"). Updates come every 15 seconds while it prints.
+
+Tap that line for the printer's own screen: progress and time left, the job's name, the layer, nozzle and bed temperatures, the printer's worst error in red, and up to eight spools along the bottom (A1 is AMS 1 slot 1) with the one feeding now outlined. Tap the top bar to go back; it also goes back by itself after two minutes.
+
+The status comes from a [connected printer](Connecting-printers.md), so it needs a bridge. A machine that is not connected to one shows "Not connected".
+
 ## Changing what it shows
 
 In **Settings**, **Displays**, each display has:
 
 - **Shows**: the location. It changes on the display within half a minute.
-- **Printer beside it**: for "going into the printer" when a spool is tapped.
+- **Printer beside it**: its status shows on the display (see below), and it is the printer used for "going into the printer" when a spool is tapped.
 - **Allow changes from this display**: on by default. When it is off, tapping a tag only shows the spool.
 - **Rename**, **New set-up code** (to set it up again, say after it was reset) and **Remove**. Removing a display stops it at once: its screen goes back to asking for a code.
 
@@ -81,6 +89,6 @@ A display has its own key, separate from any member's sign-in. With it, it can r
 
 ## Good to know
 
-- **Checked so far:** on a real 2.8" USB-C board (ST7789 panel), set-up from a phone, pairing with an `https://` server and showing a location's items all work. Still to try on real hardware: the tag reader (the code has not met a real PN532 yet), recovering from a Wi-Fi or server outage, and removing a display in Settings.
+- **Checked so far:** on a real 2.8" USB-C board (ST7789 panel), set-up from a phone, pairing with an `https://` server, showing a location's items, the printer status (with a simulated printer) and picking up again after the server restarted all work. Still to try on real hardware: the tag reader (the code has not met a real PN532 yet), a real printer's status, a Wi-Fi outage, and removing a display in Settings.
 - The display asks for updates every 30 seconds; when nothing changed the answer is a few bytes.
 - On your own server, `DEVICES_ENABLED=false` switches displays off and `DEVICE_MAX_PER_WORKSPACE` changes the limit of five. See [Self-hosting](Self-hosting.md).

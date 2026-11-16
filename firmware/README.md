@@ -34,7 +34,10 @@ and a tap on the bottom strip toggles colour inversion.
 ## Working on the screens
 
 - **See the screen from the computer:** `python tools/screenshot.py COM3 shot.png` (any port name) asks the display
-  to redraw and saves exactly what it drew as a PNG. It works with every build.
+  to redraw and saves exactly what it drew as a PNG. It works with every build. Add `P` to open the printer
+  screen first, or `O` for the overview.
+- **A printer to show without a real one:** run a bridge with `--simulate` (see the
+  [Bridge reference](../docs/wiki/Bridge-reference.md)); its pretend X1C is always mid-print.
 - **Update over Wi-Fi instead of USB:** the `cyd-st7789-dev` env also accepts new firmware over Wi-Fi, protected by
   a password you choose. Set `WB_OTA_PASSWORD` in the environment, flash that env over USB once, then
   `pio run -e cyd-st7789-dev -t upload --upload-port <the display's IP>`. The computer must accept an incoming

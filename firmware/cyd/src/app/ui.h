@@ -13,5 +13,7 @@ void showSetup(const char *apName, const char *apPassword);
 void showBusy(const char *title, const char *detail);
 /** Handle whatever the network task and the reader have for the screen. Call from loop(). */
 void poll();
+/** For screenshots over USB: "P" opens the printer screen, "O" the overview. */
+void openScreen(char key);
 
 }  // namespace ui
