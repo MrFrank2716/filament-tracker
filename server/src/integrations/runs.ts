@@ -45,9 +45,15 @@ const busy = (reading: PrinterReading) => reading.phase === 'preparing' || readi
 
 const plain = (name: string) => name.toLowerCase().replace(/\.gcode\.3mf$|\.3mf$|\.gcode$/g, '').replace(/\s+/g, ' ').trim();
 
+/**
+ * How far the print has got, 0 to 1. Only read while it is actually printing: while a print is being prepared
+ * the printer still shows the layer count and percentage of the print before it (seen on a real printer, where
+ * a print cancelled seconds after starting was charged in full because the last one had reached 100 %), and
+ * after one is stopped it resets them to zero.
+ */
 const progressOf = (reading: PrinterReading): number => {
   const print = reading.print;
-  if (!print) return 0;
+  if (!print || (reading.phase !== 'printing' && reading.phase !== 'paused')) return 0;
   if (print.layer !== null && print.totalLayers) return Math.min(1, print.layer / print.totalLayers);
   return print.progress !== null ? Math.min(1, print.progress / 100) : 0;
 };
@@ -91,7 +97,7 @@ const plateIndex = (doc: Doc): number | null => {
 };
 
 /** What the print will use, per filament, with the stock item in each tray as it stands now. */
-async function readFilaments(target: RunTarget, doc: Doc, printName: string, read: JobFileReader): Promise<RunFilament[] | null> {
+async function readFilaments(target: RunTarget, doc: Doc, printName: string, read: JobFileReader): Promise<{ filaments: RunFilament[]; seconds: number | null } | null> {
   const entries = await read([SLICE_INFO]).catch(() => null);
   const xml = entries?.[SLICE_INFO];
   if (!xml) return null;
@@ -111,7 +117,7 @@ async function readFilaments(target: RunTarget, doc: Doc, printName: string, rea
     }
     filaments.push({ ...filament, grams: round(filament.grams, 2), feeder: tray?.feeder ?? null, position: tray?.position ?? null, itemId: item?.id ?? null, itemName: item?.name ?? null });
   }
-  return filaments;
+  return { filaments, seconds: plate.seconds };
 }
 
 /** Grams become the item's own unit; an item kept in something else (pieces, metres) cannot be charged. */
@@ -173,7 +179,9 @@ async function closeRun(target: RunTarget, run: { id: string; jobId: string | nu
   }
 
   const filaments = (Array.isArray(run.filaments) ? run.filaments : []) as RunFilament[];
-  const scale = outcome === 'completed' ? 1 : Math.max(run.progress, reading ? progressOf(reading) : 0);
+  // For a stopped print, the furthest it was seen to get while printing. The report that says it stopped is no
+  // use for this: by then the printer has reset its counters.
+  const scale = outcome === 'completed' ? 1 : run.progress;
   const lines = await usageLines(target.workspaceId, filaments, scale);
   // A job the printer made, or one with nothing entered, takes the print's own figures. Materials a member
   // entered on their own job by hand are theirs to keep.
@@ -208,11 +216,19 @@ export async function reconcileRun(target: RunTarget, reading: PrinterReading, d
       // Still going: remember how far it got, and pick up the file if it was not readable at the start.
       const progress = Math.max(run.progress, progressOf(reading));
       const needsFile = run.usageSource === '' && now.getTime() - run.startedAt.getTime() < 15 * 60_000;
-      const filaments = needsFile ? await readFilaments(target, doc, run.name, read) : null;
-      if (progress !== run.progress || filaments) {
-        await prisma.printerRun.update({ where: { id: run.id }, data: { progress, ...(filaments ? { filaments: filaments as unknown as Json, usageSource: 'file' } : {}) } });
+      const file = needsFile ? await readFilaments(target, doc, run.name, read) : null;
+      if (progress !== run.progress || file) {
+        await prisma.printerRun.update({ where: { id: run.id }, data: { progress, ...(file ? { filaments: file.filaments as unknown as Json, usageSource: 'file' } : {}) } });
       }
-      return Boolean(filaments);
+      // Keep the job's run time in step with the printer's own estimate, so Jobs and the queue show the same
+      // thing the machine page does: time gone so far plus what the printer says is left.
+      const left = reading.print?.remainingMinutes;
+      if (run.jobId && left !== null && left !== undefined && reading.phase !== 'preparing') {
+        const hours = round((now.getTime() - run.startedAt.getTime()) / 3_600_000 + left / 60, 2);
+        const moved = await prisma.job.updateMany({ where: { id: run.jobId, source: 'printer', status: 'in_progress', NOT: { durationHours: hours } }, data: { durationHours: hours } });
+        if (moved.count) return true;
+      }
+      return Boolean(file);
     }
     if (same && reading.phase === 'finished') await closeRun(target, run, 'completed', reading, now);
     else if (same && reading.phase === 'failed') await closeRun(target, run, reading.errors.some((error) => error.code === '0300_400C' || error.code === '0500_400E') ? 'cancelled' : 'failed', reading, now);
@@ -224,18 +240,20 @@ export async function reconcileRun(target: RunTarget, reading: PrinterReading, d
   // Only a print that is actually under way opens a record: a finished one left on the screen never does.
   if (!busy(reading) || !name) return Boolean(run);
   const jobId = await jobFor(target, name, now);
-  const filaments = await readFilaments(target, doc, name, read);
+  const file = await readFilaments(target, doc, name, read);
   await prisma.printerRun.create({
     data: {
       workspaceId: target.workspaceId, printerLinkId: target.linkId, jobId, name: name.slice(0, 200), startedAt: now,
-      filaments: (filaments ?? []) as unknown as Json, usageSource: filaments ? 'file' : '', progress: progressOf(reading),
+      filaments: (file?.filaments ?? []) as unknown as Json, usageSource: file ? 'file' : '', progress: progressOf(reading),
     },
   });
-  if (filaments) {
-    // Show on the job what it is expected to use, while it runs; the same lines are charged when it ends.
-    const lines = await usageLines(target.workspaceId, filaments, 1);
+  if (file) {
+    // Show on the job what it is expected to use and how long it should take, while it runs; the same lines are
+    // charged when it ends, and the time is replaced by the real one.
+    const lines = await usageLines(target.workspaceId, file.filaments, 1);
     const existing = await prisma.jobUsage.count({ where: { jobId } });
     if (lines.length && existing === 0) await prisma.job.update({ where: { id: jobId }, data: { usages: { create: lines } } });
+    if (file.seconds) await prisma.job.updateMany({ where: { id: jobId, durationHours: 0 }, data: { durationHours: round(file.seconds / 3600, 2) } });
   }
   return true;
 }

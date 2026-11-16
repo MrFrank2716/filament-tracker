@@ -159,6 +159,33 @@ describe('following a print', () => {
     expect((await prisma.printerRun.findFirstOrThrow({ where: { printerLinkId: link.id } })).filaments).toMatchObject([{ feeder: 'ams:0', position: 2 }]);
   });
 
+  it('does not charge a print cancelled while it was still being prepared, even with the last print\'s 100 % on screen', async () => {
+    // Seen on a real printer: the print before finished at 100 %, and those figures are still shown while the
+    // next one is prepared. Cancelling then used to charge the whole print.
+    await prisma.printerRun.updateMany({ where: { endedAt: null }, data: { endedAt: new Date(), outcome: 'unseen' } });
+    const before = await stock(black.id);
+    printer.state = 'PREPARE'; printer.job = { name: 'cover', percent: 100, remainingMinutes: 0, layer: 100, totalLayers: 100 };
+    await step(file, T0 + 40 * HOUR);
+    const job = await prisma.job.findFirstOrThrow({ where: { name: 'cover' }, include: { usages: true } });
+    // While it runs the job shows what the file says: both spools, and the slicer's ten minutes.
+    expect(job.usages.length).toBe(2);
+    expect(job.durationHours).toBeCloseTo(0.17);
+    printer.state = 'FAILED'; printer.job.percent = 0; printer.job.layer = 0;
+    const cancelled = { ...doc(), print: { ...(doc().print as object), print_error: 50348044 } } as Doc;
+    await reconcileRun(target, readBambu(cancelled), cancelled, file, new Date(T0 + 40 * HOUR + 10_000));
+    expect(await prisma.job.findFirstOrThrow({ where: { name: 'cover' } })).toMatchObject({ status: 'failed', failureReason: 'Cancelled at the printer' });
+    expect(await stock(black.id)).toBe(before);
+  });
+
+  it('keeps a running job\'s time in step with what the printer says is left', async () => {
+    printer.state = 'RUNNING'; printer.job = { name: 'clip', percent: 10, remainingMinutes: 45, layer: 10, totalLayers: 100 };
+    await step(file, T0 + 50 * HOUR);
+    await step(file, T0 + 50.25 * HOUR);
+    // A quarter of an hour gone and 45 minutes to go.
+    expect((await prisma.job.findFirstOrThrow({ where: { name: 'clip' } })).durationHours).toBe(1);
+    await prisma.printerRun.updateMany({ where: { endedAt: null }, data: { endedAt: new Date(), outcome: 'unseen' } });
+  });
+
   it('never opens a record for a finished print left on the screen', async () => {
     await prisma.printerRun.updateMany({ where: { endedAt: null }, data: { endedAt: new Date(), outcome: 'unseen' } });
     const jobs = await prisma.job.count();
