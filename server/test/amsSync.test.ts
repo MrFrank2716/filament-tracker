@@ -103,6 +103,27 @@ describe('syncing feeders and spools', () => {
   });
 });
 
+describe('drying', () => {
+  it('marks the spools in a feeder as dried the day its drying cycle ends', async () => {
+    await prisma.customField.create({ data: { itemTypeId: filamentTypeId, key: 'last_dried', label: 'Last dried', fieldType: 'date', options: [] } });
+    const nylon = await spool('PA Black', 'PA', '#111111');
+    const unit = (await slots())[0];
+    await prisma.slot.updateMany({ where: { subUnitId: unit.id, position: 4 }, data: { itemId: nylon.id } });
+    printer.feeders[0].dryMinutes = 120;
+    await sync();
+    expect((await slots())[0].statusNote).toMatch(/^Drying, about 2 h left/);
+    expect(((await prisma.item.findUniqueOrThrow({ where: { id: nylon.id } })).fields as Record<string, unknown>).last_dried).toBeUndefined();
+    printer.feeders[0].dryMinutes = 0;
+    await sync(Date.UTC(2026, 10, 16, 9));
+    expect((await slots())[0].statusNote).toBe('');
+    expect(((await prisma.item.findUniqueOrThrow({ where: { id: nylon.id } })).fields as Record<string, unknown>).last_dried).toBe('2026-11-16');
+    const log = await prisma.activityLog.findFirstOrThrow({ where: { action: 'printer.slots' }, orderBy: { createdAt: 'desc' } });
+    expect(log.summary).toContain('as dried today');
+    // Nothing more happens while it stays idle.
+    expect((await sync()).changed).toBe(false);
+  });
+});
+
 describe('the live registry', () => {
   it('takes a full report, then patches, and asks to start over on a gap, without writing per report', async () => {
     const bridge = await prisma.bridge.create({ data: { workspaceId: target.workspaceId, name: 'B', capabilities: [] } });

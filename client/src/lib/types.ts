@@ -554,7 +554,7 @@ export interface PrinterFeeder {
   humidityPercent: number | null;
   humidityLevel: number | null;
   temperature: number | null;
-  drying: { remainingMinutes: number | null } | null;
+  drying: { remainingMinutes: number | null; targetTemp?: number | null; filament?: string | null } | null;
   trays: PrinterTray[];
 }
 

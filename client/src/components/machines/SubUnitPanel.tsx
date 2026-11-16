@@ -72,6 +72,16 @@ function liveReadings(feeder: PrinterFeeder): Array<{ label: string; value: stri
   return readings;
 }
 
+/** What a drying feeder is doing right now, in the same words the saved status note uses. */
+function dryingNote(feeder: PrinterFeeder): string {
+  if (!feeder.drying) return '';
+  const { remainingMinutes: minutes, targetTemp, filament } = feeder.drying;
+  const what = `Drying${filament ? ` ${filament}` : ''}${targetTemp ? ` at ${Math.round(targetTemp)} °C` : ''}`;
+  if (minutes === null) return what;
+  const left = minutes >= 60 ? `${Math.floor(minutes / 60)} h${minutes % 60 ? ` ${minutes % 60} min` : ''}` : `${minutes} min`;
+  return `${what}, about ${left} left`;
+}
+
 export function SubUnitPanel({ subUnit, catalog, itemById, canEdit, canLoad = canEdit, onEdit, onSlot, feeder }: SubUnitPanelProps) {
   const readings = feeder ? liveReadings(feeder) : subUnit.readings;
   return (
@@ -85,7 +95,7 @@ export function SubUnitPanel({ subUnit, catalog, itemById, canEdit, canLoad = ca
         <ReadingBadges readings={readings} />
         {canEdit && <IconButton icon={Settings2} label={`Edit ${subUnit.name}`} size="sm" onClick={onEdit} />}
       </header>
-      {subUnit.statusNote && <Muted>{subUnit.statusNote}</Muted>}
+      {(feeder ? dryingNote(feeder) : subUnit.statusNote) && <Muted>{feeder ? dryingNote(feeder) : subUnit.statusNote}</Muted>}
       {subUnit.slots.length > 0 && (
         <div className={styles.slots}>
           {subUnit.slots.map((slot) => {

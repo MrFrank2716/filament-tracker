@@ -25,6 +25,11 @@ const num = (value: unknown): number | null => {
   const parsed = Number.parseFloat(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
+/** A number that means something only when above zero (the printer sends -1 for "not set"). */
+const positive = (value: unknown): number | null => {
+  const parsed = num(value);
+  return parsed !== null && parsed > 0 ? parsed : null;
+};
 const int = (value: unknown): number | null => {
   const parsed = num(value);
   return parsed === null ? null : Math.trunc(parsed);
@@ -134,6 +139,7 @@ function readFeeders(print: Doc, info: Doc | null, modelName: string | null): Fe
     const order = (counters.get(known.kind) ?? 0) + 1;
     counters.set(known.kind, order);
     const dryMinutes = int(unit.dry_time);
+    const drySetting = obj(unit.dry_setting);
     const level = int(unit.humidity);
     feeders.push({
       key: `ams:${id}`,
@@ -143,7 +149,8 @@ function readFeeders(print: Doc, info: Doc | null, modelName: string | null): Fe
       humidityPercent: num(unit.humidity_raw),
       humidityLevel: level !== null && level >= 1 && level <= 5 ? level : null,
       temperature: num(unit.temp),
-      drying: dryMinutes && dryMinutes > 0 ? { remainingMinutes: dryMinutes } : null,
+      // Minutes left, counting down (seen on a real AMS HT: 716 with twelve hours set). The settings say what for.
+      drying: dryMinutes && dryMinutes > 0 ? { remainingMinutes: dryMinutes, targetTemp: positive(drySetting?.dry_temperature), filament: text(drySetting?.dry_filament, 30) } : null,
       trays: list(unit.tray).slice(0, 8).map((tray, index) => {
         const slot = int(obj(tray)?.id) ?? index;
         // A regular feeder's trays are numbered across feeders (feeder x 4 + tray); an HT unit is its own number.

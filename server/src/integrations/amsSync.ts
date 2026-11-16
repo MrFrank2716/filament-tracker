@@ -44,12 +44,17 @@ function readingsFor(feeder: Feeder): Array<{ label: string; value: string; unit
   return readings;
 }
 
-function statusNoteFor(feeder: Feeder): string {
+/** "Drying PETG at 65 °C, about 11 h 56 min left". Starts with "Drying" whenever a cycle is running. */
+export function statusNoteFor(feeder: Feeder): string {
   if (!feeder.drying) return '';
-  const minutes = feeder.drying.remainingMinutes;
-  if (minutes === null) return 'Drying';
-  return minutes >= 90 ? `Drying, about ${Math.round(minutes / 60)} h left` : `Drying, about ${minutes} min left`;
+  const { remainingMinutes: minutes, targetTemp, filament } = feeder.drying;
+  const what = `Drying${filament ? ` ${filament}` : ''}${targetTemp ? ` at ${Math.round(targetTemp)} °C` : ''}`;
+  if (minutes === null) return what;
+  const left = minutes >= 60 ? `${Math.floor(minutes / 60)} h${minutes % 60 ? ` ${minutes % 60} min` : ''}` : `${minutes} min`;
+  return `${what}, about ${left} left`;
 }
+
+const isDrying = (statusNote: string) => statusNote.startsWith('Drying');
 
 /** The material, colour and tag of a stock item, read from its type's own fields (workspaces name them freely). */
 export function spoolFacts(item: NonNullable<SlotRow['item']>): SpoolFacts {
@@ -123,6 +128,18 @@ export async function syncFeeders(target: SyncTarget, reading: PrinterReading, e
         if (JSON.stringify(row.readings) !== JSON.stringify(readings) || row.statusNote !== statusNote || row.machineId !== target.machineId) {
           await tx.subUnit.update({ where: { id: row.id }, data: { readings: readings as Json, statusNote, machineId: target.machineId } });
           changed = true;
+        }
+        // A drying cycle that was running last time and is not now has ended: the spools in this unit were just dried.
+        if (isDrying(row.statusNote) && !feeder.drying) {
+          const dried: string[] = [];
+          for (const slot of row.slots) {
+            const field = slot.item?.itemType.fields.find((candidate) => candidate.key === 'last_dried' && candidate.fieldType === 'date');
+            if (!slot.item || !field) continue;
+            const values = (slot.item.fields ?? {}) as Record<string, unknown>;
+            await tx.item.update({ where: { id: slot.item.id }, data: { fields: { ...values, [field.key]: new Date(now).toISOString().slice(0, 10) } as Json } });
+            dried.push(slot.item.name);
+          }
+          if (dried.length) notes.push(`Marked ${dried.join(' and ')} as dried today: the drying cycle in ${row.name} ended`);
         }
         const missing = feeder.trays.filter((tray) => !row.slots.some((slot) => slot.position === tray.position));
         if (missing.length) {

@@ -53,7 +53,8 @@ export interface Feeder {
   /** The printer's own 1 (wet) to 5 (dry) scale, when that is all it gives. */
   humidityLevel: number | null;
   temperature: number | null;
-  drying: { remainingMinutes: number | null } | null;
+  /** Set while a drying cycle runs: time left, and what it was set to (temperature in degrees C, material). */
+  drying: { remainingMinutes: number | null; targetTemp: number | null; filament: string | null } | null;
   trays: Tray[];
 }
 
