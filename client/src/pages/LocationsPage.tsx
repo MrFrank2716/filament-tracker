@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, FolderInput, MapPin, MapPinOff, Pencil, Plus, QrCode, Trash2 } from 'lucide-react';
+import { ChevronRight, FolderInput, MapPin, MapPinOff, Pencil, Plus, QrCode, ScanLine, Trash2 } from 'lucide-react';
 import { ItemPicker } from '@/components/items/ItemPicker';
 import { LabelPrintDialog } from '@/components/labels/LabelPrintDialog';
+import { ScanDialog, type ScanNote } from '@/components/scan/ScanDialog';
 import { Button } from '@/components/ui/Button';
 import { EmptyState, ErrorNote, Figure, List, Loading, Muted, PageHeader, Row, SectionTitle, Swatch, TypeIcon } from '@/components/ui/Display';
 import { FormGrid, SelectField, TextField } from '@/components/ui/Form';
@@ -13,6 +14,8 @@ import { useCatalog, useItems } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
 import { flattenLocations, formatQuantity, locationPath, locationScope, summarizeFields } from '@/lib/format';
 import { locationLabel, type Label } from '@/lib/labels';
+import { refreshAll } from '@/lib/store';
+import type { Scan } from '@/lib/scan';
 import type { Item, Location } from '@/lib/types';
 import styles from '@/pages/LocationsPage.module.css';
 
@@ -98,6 +101,7 @@ export function LocationsPage() {
   const [form, setForm] = useState<{ location?: Location } | null>(null);
   const [labels, setLabels] = useState<Label[] | null>(null);
   const [moving, setMoving] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   const locations = catalog.locations;
   const current = id ? catalog.locationById.get(id) : undefined;
@@ -258,6 +262,18 @@ export function LocationsPage() {
     if (done) setMoving(false);
   };
 
+  /** Putting things away one scan at a time: each item label scanned is moved here straight away. */
+  const scanHere = async (scan: Scan): Promise<ScanNote> => {
+    if (scan.kind === 'location') return { text: scan.id === current.id ? `That is the label for ${current.name} itself. Scan the items to put here.` : 'That is a location label. Scan the items to put here.', tone: 'danger' };
+    if (scan.kind !== 'item') return { text: scan.kind === 'text' ? `Nothing here has the code "${scan.text.slice(0, 60)}".` : 'That is a spool tag, not an item label.', tone: 'danger' };
+    const item = items.find((candidate) => candidate.id === scan.id);
+    if (!item) return { text: 'That label is not for an item in this workspace.', tone: 'danger' };
+    if (item.locationId === current.id) return { text: `${item.name} is already here.` };
+    await api.post(wsPath('/items/move')!, { itemIds: [item.id], locationId: current.id });
+    refreshAll();
+    return { text: `Moved ${item.name} here.` };
+  };
+
   return (
     <>
       <nav className={styles.crumbs} aria-label="Where this is">
@@ -283,6 +299,11 @@ export function LocationsPage() {
         {canOperate && (
           <Button variant="primary" icon={FolderInput} onClick={() => setMoving(true)}>
             Move items here
+          </Button>
+        )}
+        {canOperate && (
+          <Button icon={ScanLine} onClick={() => setScanning(true)}>
+            Scan items here
           </Button>
         )}
         <Button icon={QrCode} onClick={() => setLabels([labelFor(current)])}>
@@ -347,6 +368,7 @@ export function LocationsPage() {
         )}
       </div>
 
+      {scanning && <ScanDialog title={`Put away in ${current.name}`} hint="Scan each item's label. It is moved here as soon as it reads." onClose={() => setScanning(false)} onScan={scanHere} />}
       {moving && (
         <ItemPicker
           title={`Move items to ${current.name}`}

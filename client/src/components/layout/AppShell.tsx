@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  Boxes, Eye, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, Sunrise,
+  Boxes, Eye, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, ScanLine, Sunrise,
 } from 'lucide-react';
 import { NAV_PAGES, type NavPage } from '@/components/layout/navPages';
 import { DailyReport, useDailyReport } from '@/components/report/DailyReport';
+import { ScanDialog } from '@/components/scan/ScanDialog';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Display';
 import { Modal } from '@/components/ui/Modal';
@@ -57,6 +58,7 @@ export function AppShell() {
   const { items: stock } = useItems();
   const { machine, relates } = useMachineFocus();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [collapsed, toggleSidebar] = useSidebarCollapsed();
   const report = useDailyReport();
   const navigate = useNavigate();
@@ -129,6 +131,14 @@ export function AppShell() {
     </button>
   );
 
+  // Scanning a label is how you get to an item or a location with your hands full: always one tap away.
+  const scanButton = (className: string) => (
+    <button type="button" className={`${styles.navLink} ${styles.navButton} ${className}`} title={collapsed ? 'Scan a label' : undefined} onClick={() => setScanning(true)}>
+      <ScanLine size={20} aria-hidden />
+      <span className={styles.linkLabel}>Scan</span>
+    </button>
+  );
+
   // A guest has no email to show; offer the way to keep what they have set up instead.
   const keepWork = (onNavigate?: () => void) => (
     <Link to="/register" className={styles.accountLink} onClick={onNavigate}>
@@ -154,7 +164,8 @@ export function AppShell() {
         {!collapsed && switcher}
         <nav className={styles.nav} aria-label="Main">
           {items.map((item) => link(item, styles.navLink))}
-          {reportButton(styles.navEnd)}
+          {scanButton(styles.navEnd)}
+          {reportButton('')}
         </nav>
         <div className={styles.account}>
           <div className={styles.accountText}>
@@ -179,6 +190,7 @@ export function AppShell() {
             View only
           </Badge>
         )}
+        <IconButton icon={ScanLine} label="Scan a label" onClick={() => setScanning(true)} />
       </header>
 
       <main className={styles.main}>
@@ -223,6 +235,7 @@ export function AppShell() {
         </Modal>
       )}
 
+      {scanning && <ScanDialog onClose={() => setScanning(false)} />}
       {report.mode !== 'closed' && <DailyReport auto={report.mode === 'auto'} onClose={report.close} />}
     </div>
   );
