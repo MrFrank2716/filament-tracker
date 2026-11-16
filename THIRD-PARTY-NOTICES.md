@@ -17,6 +17,12 @@ To regenerate a full list: `npx license-checker --production --summary`.
 
 The bridge (`bridge/`) adds `mqtt` (MQTT.js, MIT) and `socket.io-client` (MIT).
 
+Labels and scanning use `qrcode-generator` (MIT, Kazuhiko Arase) to draw QR codes and `jsqr` (Apache-2.0) to read
+them where the browser has no reader of its own. "QR Code" is a registered trademark of DENSO WAVE INCORPORATED.
+
+Spool tags are written in the OpenSpool format (https://github.com/spuder/OpenSpool). The format was followed from
+its public description; no OpenSpool code is included.
+
 The reading of Bambu Lab printers' status was written from public protocol notes (OpenBambuAPI, ha-bambulab) and
 from observing behaviour. No code or data tables were copied from those projects or from any AGPL project.
 

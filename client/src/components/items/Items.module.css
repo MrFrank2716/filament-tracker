@@ -219,3 +219,20 @@
 .moveText {
   overflow-wrap: anywhere;
 }
+
+/* ---- Picker: choosing several ---------------------------------------- */
+.tick {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--color-on-accent);
+}
+
+.ticked {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+}

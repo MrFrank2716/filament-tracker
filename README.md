@@ -11,6 +11,7 @@ It started as a 3D printing filament tracker, which is why this repository is ca
 ## What you can do
 
 - **Track stock**: filament, sheet stock, endmills, screws, anything, with the details that matter for each kind. See exactly what is low and what to reorder, grouped by supplier. → [Inventory](docs/wiki/Inventory.md)
+- **Label and scan**: print a QR label for any item or location and scan it with any phone to open it. Give each shelf and bin its own page, see what belongs there, and put things away by scanning. → [Labels and scanning](docs/wiki/Labels-and-scanning.md), [Locations](docs/wiki/Locations.md)
 - **Look after your machines**: see what is fitted to each machine and what is loaded in it, down to which spool is in which feeder slot. → [Machines](docs/wiki/Machines.md)
 - **Never miss servicing**: recurring maintenance by date, by hours of use, or both. → [Maintenance](docs/wiki/Maintenance.md)
 - **Run jobs**: queue work per machine by priority. Finishing a job takes its materials out of stock, wears down tooling, and records what it cost. → [Jobs and the queue](docs/wiki/Jobs-and-queue.md)
@@ -19,6 +20,7 @@ It started as a 3D printing filament tracker, which is why this repository is ca
 - **Work as a team**: owners, admins, operators and viewers, each allowed to do what their role needs. → [Members and roles](docs/wiki/Members-and-roles.md)
 - **Add real products in one step**: a built-in catalogue of printers, lasers, CNC machines, filaments, sheet stock, endmills and fasteners. → [Catalogue and settings](docs/wiki/Catalogue-and-settings.md)
 - **Connect Bambu Lab printers**: see each AMS and the spools in it live, and link them to your stock. Prints become jobs by themselves and take the filament they used from stock. Read-only: it never controls a printer. → [Connecting printers](docs/wiki/Connecting-printers.md)
+- **Tag spools**: write an [OpenSpool](https://github.com/spuder/OpenSpool) NFC sticker for a spool, tap it to open the spool, and scan a spool just before inserting it so the right item is tied to its tray, even for spools the printer cannot identify. → [Spool tags](docs/wiki/Spool-tags.md)
 - **Keep your data**: export a workspace as JSON, or your stock as a spreadsheet, and import from CSV. → [Backups, import and export](docs/wiki/Backups-and-data.md)
 
 It works on phones as well as computers, and can be installed as an app from the browser.
@@ -76,8 +78,10 @@ The full documentation is in the [wiki](docs/wiki/Home.md), also available under
 | --- | --- | --- |
 | [Getting started](docs/wiki/Getting-started.md) | [Connecting printers](docs/wiki/Connecting-printers.md) | [Self-hosting](docs/wiki/Self-hosting.md) |
 | [Inventory](docs/wiki/Inventory.md) | [AMS and spools](docs/wiki/AMS-and-spools.md) | [Troubleshooting](docs/wiki/Troubleshooting.md) |
-| [Machines](docs/wiki/Machines.md) | [Bridge reference](docs/wiki/Bridge-reference.md) | [Contributing](CONTRIBUTING.md) |
-| [Maintenance](docs/wiki/Maintenance.md) | [Prints and filament use](docs/wiki/Prints-and-filament-use.md) | |
+| [Locations](docs/wiki/Locations.md) | [Spool tags (OpenSpool)](docs/wiki/Spool-tags.md) | [Contributing](CONTRIBUTING.md) |
+| [Labels and scanning](docs/wiki/Labels-and-scanning.md) | [Prints and filament use](docs/wiki/Prints-and-filament-use.md) | |
+| [Machines](docs/wiki/Machines.md) | [Bridge reference](docs/wiki/Bridge-reference.md) | |
+| [Maintenance](docs/wiki/Maintenance.md) | | |
 | [Jobs and the queue](docs/wiki/Jobs-and-queue.md) | | |
 | [Job requests](docs/wiki/Job-requests.md) | | |
 | [Dashboard and reports](docs/wiki/Dashboard-and-reports.md) | | |
@@ -92,7 +96,7 @@ Wrkbench is one Node.js program that keeps its data in a SQLite file, so it need
 
 ## Not built yet
 
-Sending jobs to printers, smart scales and sensors, QR and barcode scanning and label printing, other makes of connected machine, and AI suggestions.
+Sending jobs to printers, smart scales and sensors, an NFC reader at the printer, other makes of connected machine, and AI suggestions.
 
 ## Contributing and support
 

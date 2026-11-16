@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { WifiOff } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/Button';
@@ -15,6 +15,8 @@ import { NoticesPage, PrivacyPage, TermsPage } from '@/pages/LegalPages';
 import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/PasswordResetPages';
 import { InventoryPage } from '@/pages/InventoryPage';
 import { JobsPage } from '@/pages/JobsPage';
+import { LabelLinkPage } from '@/pages/LinkPages';
+import { LocationsPage } from '@/pages/LocationsPage';
 import { OverviewPage } from '@/pages/MachineOverviewPage';
 import { MachinesPage } from '@/pages/MachinesPage';
 import { MaintenancePage } from '@/pages/MaintenancePage';
@@ -26,6 +28,7 @@ import { TrackRequestPage } from '@/pages/TrackRequestPage';
 
 function RequireAuth() {
   const { user, loading, error, retry } = useAuth();
+  const location = useLocation();
   if (loading) return <Loading />;
   if (!user && error) {
     return (
@@ -34,7 +37,8 @@ function RequireAuth() {
       </EmptyState>
     );
   }
-  if (!user) return <Navigate to="/login" replace />;
+  // Remember where they were headed (a scanned label, a shared link) so signing in takes them there.
+  if (!user) return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />;
   return <Outlet />;
 }
 
@@ -78,9 +82,14 @@ export function App() {
                 <Route path="/request/:token" element={<TrackRequestPage />} />
                 <Route element={<RequireAuth />}>
                   <Route path="/new-workspace" element={<NewWorkspacePage />} />
+                  {/* What a QR label or NFC sticker opens: /s/<item id> and /l/<location id>. */}
+                  <Route path="/s/:id" element={<LabelLinkPage kind="item" />} />
+                  <Route path="/l/:id" element={<LabelLinkPage kind="location" />} />
                   <Route element={<RequireWorkspace />}>
                     <Route index element={<OverviewPage />} />
                     <Route path="inventory" element={<InventoryPage />} />
+                    <Route path="locations" element={<LocationsPage />} />
+                    <Route path="locations/:id" element={<LocationsPage />} />
                     <Route path="machines" element={<MachinesPage />} />
                     <Route path="jobs" element={<JobsPage />} />
                     <Route path="maintenance" element={<MaintenancePage />} />

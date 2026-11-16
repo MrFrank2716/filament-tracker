@@ -4,6 +4,8 @@
 
 - [Getting started](Getting-started.md)
 - [Inventory](Inventory.md)
+- [Locations](Locations.md)
+- [Labels and scanning](Labels-and-scanning.md)
 - [Machines](Machines.md)
 - [Maintenance](Maintenance.md)
 - [Jobs and the queue](Jobs-and-queue.md)
@@ -17,6 +19,7 @@
 
 - [Connecting printers](Connecting-printers.md)
 - [AMS and spools](AMS-and-spools.md)
+- [Spool tags (OpenSpool)](Spool-tags.md)
 - [Prints and filament use](Prints-and-filament-use.md)
 - [Bridge reference](Bridge-reference.md)
 

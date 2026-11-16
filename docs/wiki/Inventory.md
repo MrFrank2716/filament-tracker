@@ -33,7 +33,7 @@ Switch between views at the top of the screen. Wrkbench remembers your choice on
 
 - **By category**: one column per category.
 - **By machine**: one column per machine, showing what is loaded in it first, then what fits it.
-- **By location**: one column per storage place.
+- **By location**: one column per storage place. Locations also have their own page: see [Locations](Locations.md).
 - **List**: everything in one table.
 
 Use the search box to find items by name, material, size or location, and **Filters** to narrow by category, status (low stock, worn, offcuts, loaded in a machine), location or supplier.
@@ -47,6 +47,8 @@ Open an item to see its details and history.
 - The **plus and minus** buttons add or take away common amounts.
 - **Counted or weighed? Set the exact amount** replaces the figure with what you measured.
 - **History** lists every change: when, by whom, and why.
+
+**Print label** prints a QR label for the item; scanning it opens this sheet on any phone. See [Labels and scanning](Labels-and-scanning.md). For filament, **Spool tag** writes an NFC sticker and **Load into…** puts the spool in a machine's slot: see [Spool tags](Spool-tags.md).
 
 Every change is recorded, and an admin can undo a mistaken one from [Activity](Dashboard-and-reports.md#activity). Operators can take stock away but not add it. See [Members and roles](Members-and-roles.md).
 

@@ -1,0 +1,74 @@
+.viewport {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  max-height: 46dvh;
+  border-radius: var(--radius-lg);
+  background: #000;
+}
+
+.video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Where to hold the label: a plain square, no animation to distract from lining it up. */
+.frame {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: min(60%, 14rem);
+  aspect-ratio: 1;
+  border: 2px solid rgb(255 255 255 / 85%);
+  border-radius: var(--radius-md);
+  pointer-events: none;
+}
+
+.typed {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.typed > :first-child {
+  flex: 1;
+}
+
+.note {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.log {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.ok {
+  color: var(--color-ok, var(--color-text));
+}
+
+.danger {
+  color: var(--color-danger);
+}
+
+.nfc {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+}

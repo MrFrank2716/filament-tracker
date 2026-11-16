@@ -15,6 +15,7 @@ import { useAction } from '@/components/ui/Toast';
 import { useMachineFocus } from '@/context/FocusContext';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import { useCatalog, useItems } from '@/hooks/useCatalog';
+import { useSlotActions } from '@/hooks/useSlotActions';
 import { feederFor, usePrinterStates } from '@/hooks/usePrinters';
 import { api } from '@/lib/api';
 import { formatHours, formatQuantity, isLow } from '@/lib/format';
@@ -39,7 +40,9 @@ export function MachinesPage() {
   const { items } = useItems();
   const subUnits = useWsQuery<SubUnit[]>('/sub-units');
   const maintenance = useWsQuery<MaintenanceData>('/maintenance');
-  const { run, busy } = useAction();
+  const { run, busy: acting } = useAction();
+  const slots = useSlotActions();
+  const busy = acting || slots.busy;
   const { machine: focus } = useMachineFocus();
   const printers = usePrinterStates();
   const [dialog, setDialog] = useState<Dialog | null>(null);
@@ -63,7 +66,7 @@ export function MachinesPage() {
   const unattached = focus ? [] : subUnits.data.filter((s) => !s.machineId || !catalog.machineById.has(s.machineId));
 
   const setSlot = async (subUnit: SubUnit, slot: Slot, itemId: string | null) => {
-    if (await run(() => api.put(wsPath(`/sub-units/${subUnit.id}/slots/${slot.position}`)!, { itemId }), itemId ? 'Loaded' : 'Unloaded')) setDialog(null);
+    if (await slots.setSlot(subUnit, slot, itemId)) setDialog(null);
   };
 
   /** What the printer sees in a slot: live while it is reporting, otherwise what was last saved. */

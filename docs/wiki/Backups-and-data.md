@@ -13,18 +13,22 @@ Everything is under **Settings**, **Import / export**. Exporting is open to ever
 
 The workspace export does **not** include members, the activity log, job requests and their uploaded files, or connected printers.
 
+Both exports carry each spool's tag (the one a printer reads, or the serial of its NFC sticker; the CSV column is `tag_id`), so a restore does not untie them.
+
 ## Import a workspace file
 
 **Workspace file (JSON)** merges a file exported from Wrkbench into the current workspace. Categories, units, suppliers and machines that already exist with the same name are reused; items and jobs are added as new.
 
 To start fresh from a backup, create a new blank workspace and import the file into it.
 
+**Printed labels and written stickers** point at an item or location by its id. An import gives items and locations the same ids back whenever nothing else in that Wrkbench holds them, so restoring a backup into an emptied Wrkbench leaves every [label](Labels-and-scanning.md) and [spool tag](Spool-tags.md) working. Importing next to the originals (a second copy in the same Wrkbench) makes new ids for the copies, and the labels keep pointing at the originals. A tag that an item already in the workspace carries stays with that item.
+
 ## Import items from a spreadsheet
 
 **Items (CSV)** adds items from a CSV file, which any spreadsheet program can save.
 
 - The file needs a `name` column.
-- Optional columns: `type` (the category), `quantity`, `unit`, `min_quantity`, `unit_cost`, `supplier`, `location`, `notes`, plus any custom field by its label (for example `Colour` or `Diameter`).
+- Optional columns: `type` (the category), `quantity`, `unit`, `min_quantity`, `unit_cost`, `supplier`, `location`, `notes`, `tag_id`, plus any custom field by its label (for example `Colour` or `Diameter`).
 - Choose a **Category for rows without a type column**.
 
 The easiest way to get the columns right is to export your inventory as CSV first and use that file as a template.

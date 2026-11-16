@@ -1,4 +1,4 @@
-import { ClipboardList, Cog, History, LayoutDashboard, Package, Settings, ShoppingCart, Wrench, type LucideIcon } from 'lucide-react';
+import { ClipboardList, Cog, History, LayoutDashboard, MapPin, Package, Settings, ShoppingCart, Wrench, type LucideIcon } from 'lucide-react';
 import type { NavId } from '@/lib/navigation';
 
 export interface NavPage {
@@ -12,6 +12,7 @@ export interface NavPage {
 export const NAV_PAGES: NavPage[] = [
   { id: 'overview', to: '/', label: 'Overview', icon: LayoutDashboard },
   { id: 'inventory', to: '/inventory', label: 'Inventory', icon: Package },
+  { id: 'locations', to: '/locations', label: 'Locations', icon: MapPin },
   { id: 'jobs', to: '/jobs', label: 'Jobs', icon: ClipboardList },
   { id: 'maintenance', to: '/maintenance', label: 'Maintenance', icon: Wrench },
   { id: 'machines', to: '/machines', label: 'Machines', icon: Cog },

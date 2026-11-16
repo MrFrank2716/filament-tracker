@@ -117,4 +117,4 @@ Slots that say **Not linked to stock** hold a spool Wrkbench cannot yet tie to a
 
 - This reads the printer the same way community tools do, not through an official Bambu Lab interface. A printer firmware update can change or break it.
 - The reading was written from public notes on how the printers report, and tested against made-up data. Some details (certain models' tray reports, dual-nozzle printers, automatic discovery) are not yet confirmed on real hardware. If something on screen does not match the printer, the [record command](Bridge-reference.md#recording-what-a-printer-reports) captures what is needed to fix it.
-- Following prints as jobs, working out filament used per job, and sending jobs to the printer are planned but not built yet.
+- Prints are followed as jobs and the filament they use is taken from stock: see [Prints and filament use](Prints-and-filament-use.md). Wrkbench only reads printers; sending a job to one is not built.

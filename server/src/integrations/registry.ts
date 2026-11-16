@@ -1,6 +1,6 @@
 import { applyMergePatch, deepEqual, type CodeState, type Doc, type LinkStatus, type PrinterReport, type PrinterStatus, type ReportAck } from '@filament-tracker/protocol';
 import { prisma, type Json } from '@/db';
-import { syncFeeders } from '@/integrations/amsSync';
+import { syncFeeders, type PendingOutcome } from '@/integrations/amsSync';
 import { reconcileRun, thumbnailRunFor, type JobFileReader } from '@/integrations/runs';
 import { bambuAdapter } from '@/integrations/bambu/normalize';
 import { traySignature } from '@/integrations/spoolMatch';
@@ -53,6 +53,15 @@ interface Entry {
   runPending: boolean;
   /** The print whose picture goes with what the printer is showing, if it has one. */
   thumbnailRunId: string | null;
+  /** A spool scanned to go into this printer next (see PendingSpool in amsSync.ts). Never saved: it lasts two minutes. */
+  pendingSpool: Pending | null;
+}
+
+interface Pending {
+  itemId: string;
+  itemName: string;
+  expiresAt: number;
+  timer: ReturnType<typeof setTimeout>;
 }
 
 const entries = new Map<string, Entry>();
@@ -169,6 +178,7 @@ export function trackPrinter(link: LinkRow): void {
     syncedSignature: previous?.syncedSignature ?? null, lastSyncAt: previous?.lastSyncAt ?? 0, syncTimer: null,
     emptySince: previous?.emptySince ?? new Map(),
     runSignature: previous?.runSignature ?? null, runPending: false, thumbnailRunId: previous?.thumbnailRunId ?? null,
+    pendingSpool: previous?.pendingSpool ?? null,
   });
 }
 
@@ -182,6 +192,7 @@ export function forgetPrinter(linkId: string): void {
   if (!entry) return;
   if (entry.emitTimer) clearTimeout(entry.emitTimer);
   if (entry.syncTimer) clearTimeout(entry.syncTimer);
+  if (entry.pendingSpool) clearTimeout(entry.pendingSpool.timer);
   entries.delete(linkId);
 }
 
@@ -234,7 +245,10 @@ function scheduleSync(entry: Entry, delay = SYNC_DEBOUNCE_MS): void {
     if (!reading || entries.get(entry.linkId) !== entry) return;
     const signature = feederSignature(reading);
     void enqueueWrite(async () => {
-      const result = await syncFeeders(entry, reading, entry.emptySince);
+      // Read when the write runs, not when it was scheduled: a scan made in between still counts.
+      const pending = entries.get(entry.linkId)?.pendingSpool ?? null;
+      const result = await syncFeeders(entry, reading, entry.emptySince, Date.now(), pending);
+      if (result.pending && pending) settlePending(entry.linkId, pending, result.pending);
       entry.lastSyncAt = Date.now();
       // Until a tray that went empty has settled, the sync is not finished: keep the old signature so it runs again.
       if (result.retryInMs === null) entry.syncedSignature = signature;
@@ -243,6 +257,76 @@ function scheduleSync(entry: Entry, delay = SYNC_DEBOUNCE_MS): void {
     });
   }, delay);
   entry.syncTimer.unref();
+}
+
+// ---- Scan, then insert ---------------------------------------------------------------
+
+export const PENDING_SPOOL_MS = 2 * 60_000;
+
+/** What browsers are told about a scanned spool waiting to go into a printer ("printer:pending-spool"). */
+export interface PendingSpoolEvent {
+  machineId: string;
+  itemId: string;
+  itemName: string;
+  state: 'armed' | 'linked' | 'dropped' | 'expired' | 'cancelled';
+  /** When the wait ends (armed only). */
+  expiresAt?: number;
+  /** Where it went (linked only), e.g. "AMS 1 slot 2". */
+  place?: string;
+  mismatch?: boolean;
+  reason?: 'several' | 'gone';
+}
+
+const liveEntryFor = (workspaceId: string, machineId: string): Entry | undefined =>
+  [...entries.values()].find((entry) => entry.workspaceId === workspaceId && entry.machineId === machineId);
+
+function announce(entry: Entry, pending: Pending, rest: Omit<PendingSpoolEvent, 'machineId' | 'itemId' | 'itemName'>): void {
+  emitToWorkspace(entry.workspaceId, 'printer:pending-spool', { machineId: entry.machineId, itemId: pending.itemId, itemName: pending.itemName, ...rest } satisfies PendingSpoolEvent);
+}
+
+/**
+ * The next tray loaded on this machine's printer is this item. Replaces an earlier scan for the same printer.
+ * Returns when the wait ends, or null when the machine has no printer that is reporting right now.
+ */
+export function armPendingSpool(workspaceId: string, machineId: string, item: { id: string; name: string }): number | null {
+  const entry = liveEntryFor(workspaceId, machineId);
+  if (!entry || connectionOf(entry) !== 'live') return null;
+  if (entry.pendingSpool) clearTimeout(entry.pendingSpool.timer);
+  const expiresAt = Date.now() + PENDING_SPOOL_MS;
+  const pending: Pending = {
+    itemId: item.id, itemName: item.name, expiresAt,
+    timer: setTimeout(() => {
+      const current = entries.get(entry.linkId);
+      if (current?.pendingSpool !== pending) return;
+      current.pendingSpool = null;
+      announce(current, pending, { state: 'expired' });
+    }, PENDING_SPOOL_MS),
+  };
+  pending.timer.unref();
+  entry.pendingSpool = pending;
+  announce(entry, pending, { state: 'armed', expiresAt });
+  return expiresAt;
+}
+
+/** Stop waiting. True when there was something to stop. */
+export function cancelPendingSpool(workspaceId: string, machineId: string): boolean {
+  const entry = liveEntryFor(workspaceId, machineId);
+  const pending = entry?.pendingSpool;
+  if (!entry || !pending) return false;
+  clearTimeout(pending.timer);
+  entry.pendingSpool = null;
+  announce(entry, pending, { state: 'cancelled' });
+  return true;
+}
+
+/** A sync used the scan (or gave up on it). Ignored if the member has scanned again in the meantime. */
+function settlePending(linkId: string, pending: Pending, outcome: PendingOutcome): void {
+  const entry = entries.get(linkId);
+  if (!entry || entry.pendingSpool !== pending) return;
+  clearTimeout(pending.timer);
+  entry.pendingSpool = null;
+  if (outcome.result === 'linked') announce(entry, pending, { state: 'linked', place: outcome.place, mismatch: outcome.mismatch });
+  else announce(entry, pending, { state: 'dropped', reason: outcome.reason });
 }
 
 // ---- Prints ------------------------------------------------------------------------
@@ -297,7 +381,12 @@ function accept(entry: Entry, doc: Doc): void {
     entry.dirty = true;
     emitSoon(entry);
   }
-  if (feederSignature(reading) !== entry.syncedSignature) scheduleSync(entry);
+  if (entry.pendingSpool && before && feederSignature(before) !== feederSignature(reading)) {
+    // Someone is standing at the printer waiting for this tray: look now, not when a settling tray is next retried.
+    if (entry.syncTimer) clearTimeout(entry.syncTimer);
+    entry.syncTimer = null;
+    scheduleSync(entry);
+  } else if (feederSignature(reading) !== entry.syncedSignature) scheduleSync(entry);
   // A print starting, ending or changing is acted on at once; progress in between is caught up once a minute.
   const runSignature = `${reading.phase}|${reading.print?.name ?? ''}`;
   if (runSignature !== entry.runSignature) {

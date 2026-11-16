@@ -28,7 +28,7 @@ interface UserRecord {
 }
 
 // Keep in step with NAV_IDS in client/src/lib/navigation.ts.
-const NAV_IDS = ['overview', 'inventory', 'jobs', 'maintenance', 'machines', 'reorder', 'activity', 'settings'] as const;
+const NAV_IDS = ['overview', 'inventory', 'locations', 'jobs', 'maintenance', 'machines', 'reorder', 'activity', 'settings'] as const;
 const MAX_TAB_BAR = 4;
 
 const navigationInput = z.object({

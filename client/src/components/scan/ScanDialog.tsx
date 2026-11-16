@@ -1,0 +1,180 @@
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { CircleAlert, CircleCheck, Nfc } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { TextField } from '@/components/ui/Form';
+import { Modal } from '@/components/ui/Modal';
+import { useCatalog, useItems } from '@/hooks/useCatalog';
+import { cameraAvailable, cameraProblem, startScanner } from '@/lib/camera';
+import { listenForTags, nfcAvailable, nfcProblem, type TagContents, type TagSession } from '@/lib/nfc';
+import { stickerTag } from '@/lib/openspool';
+import { findByCode, parseScan, type Scan } from '@/lib/scan';
+import styles from '@/components/scan/Scan.module.css';
+
+export interface ScanNote {
+  text: string;
+  tone?: 'ok' | 'danger';
+}
+
+interface Props {
+  title?: string;
+  /** One line above the camera saying what to scan. */
+  hint?: string;
+  onClose: () => void;
+  /**
+   * Handle each scan and keep the scanner open, for doing the same thing to many labels in a row.
+   * Return a line saying what happened. Without this, a scan opens the item or location and closes.
+   */
+  onScan?: (scan: Scan) => Promise<ScanNote> | ScanNote;
+  /** Extra controls shown under the camera. */
+  children?: ReactNode;
+}
+
+/** What a scan of a spool tag hands to the inventory page, which offers the spools it could be or a filled-in form. */
+export interface SpoolTagState {
+  spoolTag: { record: Record<string, unknown>; tagId: string | null };
+}
+
+/**
+ * Point the camera at a label. Codes can also be typed or pasted, which is also how a USB barcode reader
+ * works (it types the code and presses Enter), and what is left when there is no camera to use.
+ */
+export function ScanDialog({ title = 'Scan a label', hint, onClose, onScan, children }: Props) {
+  const navigate = useNavigate();
+  const { items } = useItems();
+  const { locations } = useCatalog();
+  const video = useRef<HTMLVideoElement>(null);
+  const [problem, setProblem] = useState('');
+  const [typed, setTyped] = useState('');
+  const [log, setLog] = useState<Array<ScanNote & { id: number }>>([]);
+  const nextId = useRef(1);
+  const hasCamera = cameraAvailable();
+
+  const note = (entry: ScanNote) => setLog((current) => [{ ...entry, id: nextId.current++ }, ...current].slice(0, 30));
+
+  const handle = async (raw: string) => {
+    let scan = parseScan(raw);
+    // A plain code may be an item's SKU or barcode, or a location's own label code.
+    if (scan.kind === 'text') scan = findByCode(scan.text, items, locations) ?? scan;
+    await act(scan);
+  };
+
+  const act = async (scan: Scan) => {
+    navigator.vibrate?.(40);
+    if (onScan) {
+      try {
+        note(await onScan(scan));
+      } catch (error) {
+        note({ text: error instanceof Error ? error.message : 'Something went wrong', tone: 'danger' });
+      }
+      return;
+    }
+    if (scan.kind === 'item' || scan.kind === 'location') {
+      onClose();
+      // Through the link page, which finds the right workspace when the label belongs to another one.
+      navigate(`/${scan.kind === 'item' ? 's' : 'l'}/${scan.id}`);
+    } else if (scan.kind === 'openspool') {
+      onClose();
+      // A spool tag Wrkbench does not know: the inventory offers the spools it could be, or a filled-in form.
+      navigate('/inventory', { state: { spoolTag: { record: scan.record, tagId: scan.tagId ?? null } } satisfies SpoolTagState });
+    } else {
+      note({ text: `Nothing here has the code "${scan.text.slice(0, 60)}".`, tone: 'danger' });
+    }
+  };
+  // The camera loop outlives renders; it always calls the latest handler.
+  const latest = useRef(handle);
+  latest.current = handle;
+
+  useEffect(() => {
+    if (!hasCamera || !video.current) return;
+    let cancelled = false;
+    let stop: (() => void) | undefined;
+    startScanner(video.current, (text) => void latest.current(text))
+      .then((started) => {
+        if (cancelled) started();
+        else stop = started;
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setProblem(cameraProblem(error));
+      });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [hasCamera]);
+
+  // ---- NFC (Chrome on Android): starts from a tap, then every tag held to the phone is read ----
+  const [nfc, setNfc] = useState<'off' | 'on'>('off');
+  const session = useRef<TagSession | null>(null);
+  useEffect(() => () => session.current?.stop(), []);
+
+  const onTag = (contents: TagContents) => {
+    const tagId = stickerTag(contents.serial);
+    // A sticker written here is known by its serial, whatever it holds now.
+    const known = tagId ? items.find((item) => item.tagId === tagId) : undefined;
+    if (known) return void act({ kind: 'item', id: known.id });
+    const linked = contents.url ? parseScan(contents.url) : null;
+    if (linked && linked.kind !== 'text') return void act(linked);
+    const data = contents.json ? parseScan(contents.json) : null;
+    if (data?.kind === 'openspool') return void act({ ...data, tagId });
+    note({ text: 'This tag is blank, or holds nothing Wrkbench reads. To write it, open a spool and choose "Spool tag".', tone: 'danger' });
+  };
+  const latestTag = useRef(onTag);
+  latestTag.current = onTag;
+
+  const startNfc = async () => {
+    try {
+      session.current = await listenForTags((contents) => latestTag.current(contents), (message) => note({ text: message, tone: 'danger' }));
+      setNfc('on');
+    } catch (error) {
+      note({ text: nfcProblem(error), tone: 'danger' });
+    }
+  };
+
+  const submitTyped = () => {
+    if (!typed.trim()) return;
+    void handle(typed);
+    setTyped('');
+  };
+
+  return (
+    <Modal title={title} onClose={onClose} onSubmit={submitTyped} footer={<Button onClick={onClose}>{onScan ? 'Done' : 'Close'}</Button>}>
+      {hint && <p className={styles.note}>{hint}</p>}
+      {hasCamera && !problem ? (
+        <div className={styles.viewport}>
+          <video ref={video} className={styles.video} muted playsInline aria-label="Camera" />
+          <span className={styles.frame} aria-hidden />
+        </div>
+      ) : (
+        <p className={styles.note}>{problem || 'The camera only works when Wrkbench is opened at a secure (https) address. You can still type or paste a code below.'}</p>
+      )}
+      <div className={styles.typed}>
+        <TextField label="Or type a code" value={typed} onChange={setTyped} placeholder="Label code, SKU, barcode or pasted tag contents" autoComplete="off" autoCapitalize="off" enterKeyHint="go" />
+        <Button type="submit" disabled={!typed.trim()}>
+          Find
+        </Button>
+      </div>
+      {nfcAvailable() &&
+        (nfc === 'on' ? (
+          <p className={styles.nfc}>
+            <Nfc size={18} aria-hidden /> Ready for an NFC tag: hold it against the back of the phone
+          </p>
+        ) : (
+          <Button icon={Nfc} onClick={startNfc}>
+            Read an NFC tag
+          </Button>
+        ))}
+      {children}
+      {log.length > 0 && (
+        <ul className={styles.log} aria-live="polite">
+          {log.map((entry) => (
+            <li key={entry.id} className={`${styles.entry} ${entry.tone === 'danger' ? styles.danger : styles.ok}`}>
+              {entry.tone === 'danger' ? <CircleAlert size={16} aria-hidden /> : <CircleCheck size={16} aria-hidden />}
+              {entry.text}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Modal>
+  );
+}

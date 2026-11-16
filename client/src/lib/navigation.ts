@@ -4,7 +4,7 @@
  */
 
 // Keep in step with NAV_IDS in server/src/routes/auth.ts.
-export const NAV_IDS = ['overview', 'inventory', 'jobs', 'maintenance', 'machines', 'reorder', 'activity', 'settings'] as const;
+export const NAV_IDS = ['overview', 'inventory', 'locations', 'jobs', 'maintenance', 'machines', 'reorder', 'activity', 'settings'] as const;
 export type NavId = (typeof NAV_IDS)[number];
 
 export const MAX_TAB_BAR = 4;

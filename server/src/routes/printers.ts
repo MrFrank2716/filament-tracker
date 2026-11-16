@@ -10,7 +10,7 @@ import { HttpError, notFound, param, parse } from '@/http';
 import { releaseFeeders } from '@/integrations/amsSync';
 import { bambuModelName } from '@/integrations/bambu/models';
 import { bridgeOnline, disconnectBridge, discoverPrinters, pushConfig, testPrinter } from '@/integrations/bridgeGateway';
-import { forgetPrinter, statesForWorkspace, trackPrinterById } from '@/integrations/registry';
+import { armPendingSpool, cancelPendingSpool, forgetPrinter, statesForWorkspace, trackPrinterById } from '@/integrations/registry';
 import { rateLimit } from '@/rateLimit';
 import { notifyWorkspaceSoon } from '@/realtime';
 import { describeActivity } from '@/services/activity';
@@ -271,6 +271,36 @@ export function registerPrinterRoutes(router: Router): void {
   });
 
   /** Unlink a printer. The machine stays, and so does its hardware with whatever is loaded; it just stops updating. */
+  // ---- Scan, then insert ----------------------------------------------------------
+  /**
+   * "The next spool put into this machine's printer is this item." Held in memory for two minutes and used
+   * once, when exactly one tray is loaded. Nothing is sent to the printer.
+   */
+  router.put('/printers/by-machine/:machineId/pending-spool', async (req, res) => {
+    requireEnabled();
+    const { itemId } = parse(z.object({ itemId: z.string().min(1) }), req.body);
+    const machineId = param(req, 'machineId');
+    const [item, machine] = await Promise.all([
+      prisma.item.findFirst({ where: { id: itemId, workspaceId: req.workspaceId, archived: false }, select: { id: true, name: true } }),
+      prisma.machine.findFirst({ where: { id: machineId, workspaceId: req.workspaceId }, select: { name: true } }),
+    ]);
+    if (!item) throw notFound('Item');
+    if (!machine) throw notFound('Machine');
+    const expiresAt = armPendingSpool(req.workspaceId, machineId, item);
+    if (expiresAt === null) throw new HttpError(409, `${machine.name} is not reporting right now, so Wrkbench cannot see a spool go in. Choose the slot from the list instead.`);
+    describeActivity(`Scanned ${item.name} to go into ${machine.name} next`, { type: 'item', id: item.id });
+    res.json({ expiresAt });
+  });
+
+  router.delete('/printers/by-machine/:machineId/pending-spool', async (req, res) => {
+    const machineId = param(req, 'machineId');
+    const machine = await prisma.machine.findFirst({ where: { id: machineId, workspaceId: req.workspaceId }, select: { name: true } });
+    if (!machine) throw notFound('Machine');
+    const cancelled = cancelPendingSpool(req.workspaceId, machineId);
+    describeActivity(cancelled ? `Stopped waiting for a spool to go into ${machine.name}` : `Nothing was waiting to go into ${machine.name}`, { type: 'machine', id: machineId });
+    res.status(204).end();
+  });
+
   router.delete('/printers/:id', async (req, res) => {
     requireEnabled();
     const id = param(req, 'id');

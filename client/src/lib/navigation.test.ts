@@ -31,7 +31,7 @@ describe('normalizeLayout', () => {
 
 describe('editing', () => {
   it('moves a page and ignores impossible moves', () => {
-    expect(movePage(DEFAULT_LAYOUT, 5, 0).order[0]).toBe('reorder');
+    expect(movePage(DEFAULT_LAYOUT, 6, 0).order[0]).toBe('reorder');
     expect(movePage(DEFAULT_LAYOUT, 0, -1)).toBe(DEFAULT_LAYOUT);
     expect(movePage(DEFAULT_LAYOUT, 0, 99)).toBe(DEFAULT_LAYOUT);
   });

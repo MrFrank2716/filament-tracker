@@ -23,7 +23,7 @@ Bambu Lab's own spools carry a tag (RFID) that the AMS reads. Everything else do
 | --- | --- | --- |
 | Printer knows | Material, type, colour, size, percent left, and exactly which spool it is | Only the material and colour set on the printer |
 | First time loaded | One tap to link or add it | One tap to link or add it |
-| Every time after | Loaded into its slot by itself, wherever you put it | Stays linked while it sits there; link again after it has been swapped |
+| Every time after | Loaded into its slot by itself, wherever you put it | Stays linked while it sits there; link again after it has been swapped, or [scan it before inserting](Spool-tags.md#scan-then-insert) |
 
 ## Linking a spool: the one tap
 
@@ -41,6 +41,15 @@ A slot that says **Not linked to stock** holds a spool Wrkbench has not been tol
 If the spool has a tag, linking teaches Wrkbench that tag. From then on that spool is recognised by itself in any slot of any connected printer.
 
 Operators can link spools from stock. Adding a new item needs an admin, as it does everywhere else.
+
+## Starting from the spool instead
+
+The same link can be made from the spool's side, which suits a spool you are holding:
+
+- Open the spool (scan its [label](Labels-and-scanning.md) or [tag](Spool-tags.md), or find it in Inventory) and press **Load into…** to pick its slot from a list, best matches first.
+- Or press **Next into** and the printer's name, then put the spool in: the tray that changes is linked to it by itself. This is **scan, then insert**, and it is the way to tell the printer's untagged spools apart. See [Spool tags](Spool-tags.md#scan-then-insert).
+
+A spool with an NFC sticker is still an untagged spool to the printer, which cannot read the sticker.
 
 ## Taking a spool out
 
@@ -61,7 +70,7 @@ For tagged spools the printer reports a percentage, in whole percent (about 10 g
 
 When the printer's figure and your stock disagree, the slot dialog offers **Set stock to N g**. It is an ordinary stock adjustment: it shows in the item's history and in Activity, and an admin can undo it. Operators are offered it only when it lowers the figure, as with any stock change they make.
 
-Automatic deduction per print is planned with job tracking; until then, use this button or log usage on jobs as before.
+Prints take the filament they use from stock by themselves: see [Prints and filament use](Prints-and-filament-use.md). This button is for when the two figures have drifted apart.
 
 ## When the printer is not reporting
 

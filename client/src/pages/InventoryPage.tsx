@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { PackageOpen, PackageSearch, Plus, Search, SlidersHorizontal } from 'lucide-react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { PackageOpen, PackageSearch, Plus, QrCode, Search, SlidersHorizontal } from 'lucide-react';
 import { ItemBoard, type BoardGrouping } from '@/components/items/ItemBoard';
 import { ItemForm } from '@/components/items/ItemForm';
 import { ItemSheet } from '@/components/items/ItemSheet';
+import { LabelPrintDialog } from '@/components/labels/LabelPrintDialog';
+import { ScanDialog, type SpoolTagState } from '@/components/scan/ScanDialog';
+import { TagImportDialog } from '@/components/tags/TagImportDialog';
 import { Button } from '@/components/ui/Button';
 import { StockMeter } from '@/components/items/StockMeter';
 import { Badge, Chip, ChipRow, EmptyState, ErrorNote, Figure, List, Loading, Muted, PageHeader, Row, Swatch, Tabs, TypeIcon } from '@/components/ui/Display';
@@ -13,7 +16,8 @@ import { ReferencePicker } from '@/components/reference/ReferencePicker';
 import { useMachineFocus } from '@/context/FocusContext';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useCatalog, useItems } from '@/hooks/useCatalog';
-import { fits, flattenLocations, formatQuantity, isLow, isWorn, locationPath, parseNumber, summarizeFields } from '@/lib/format';
+import { fits, flattenLocations, formatQuantity, isLow, isWorn, locationPath, locationScope as scopeOf, parseNumber, summarizeFields } from '@/lib/format';
+import { itemLabel } from '@/lib/labels';
 import { ITEM_KINDS } from '@/lib/reference';
 import type { Item } from '@/lib/types';
 import itemStyles from '@/components/items/Items.module.css';
@@ -29,6 +33,9 @@ const VIEWS: Array<{ id: View; label: string }> = [
   { id: 'location', label: 'By location' },
   { id: 'list', label: 'List' },
 ];
+
+/** More labels than this in one print job is almost always a mistake, and a long wait at the printer. */
+const MAX_LABELS = 200;
 
 /** The chosen layout is remembered on this device. */
 const VIEW_KEY = 'filament-tracker.inventory-view';
@@ -61,16 +68,22 @@ export function InventoryPage() {
   const [query, setQuery] = useState('');
   const [typeId, setTypeId] = useState<string | null>(null);
   const [flags, setFlags] = useState<Set<Flag>>(new Set());
-  const [locationId, setLocationId] = useState('');
   const [supplierId, setSupplierId] = useState('');
   const [sort, setSort] = useState<Sort>('name');
   const [needed, setNeeded] = useState<Record<string, string>>({});
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(() => Boolean(params.get('location')));
   const [view, setView] = useState<View>(storedView);
   const [form, setForm] = useState<{ item?: Item; initial?: Partial<Item> } | null>(null);
   const [picking, setPicking] = useState(false);
   // Phone-width "+" button: asks how to add, since the header buttons are hidden there.
   const [choosing, setChoosing] = useState(false);
+  const [labelling, setLabelling] = useState(false);
+  const [readingTag, setReadingTag] = useState(false);
+  // A spool tag just scanned that Wrkbench does not know (handed over by the scanner).
+  const location = useLocation();
+  const navigate = useNavigate();
+  const spoolTag = (location.state as Partial<SpoolTagState> | null)?.spoolTag ?? null;
+  const dropSpoolTag = () => navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
 
   const selectedId = params.get('item');
   // Links from elsewhere open an item even when it is outside the focus.
@@ -80,28 +93,25 @@ export function InventoryPage() {
     ...(typeId ? { itemTypeId: typeId } : {}),
     ...(machine ? { compatibleMachineIds: [machine.id] } : {}),
   });
-  const open = (id: string | null) => setParams(id ? { item: id } : {}, { replace: true });
+  /** Change one thing in the address and keep the rest: opening an item must not drop the location filter. */
+  const setParam = (key: string, value: string | null) =>
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      if (value) next.set(key, value);
+      else next.delete(key);
+      return next;
+    }, { replace: true });
+  const open = (id: string | null) => setParam('item', id);
+  // The location filter lives in the address, so a location's page can link to "everything stored here".
+  const locationId = params.get('location') ?? '';
+  const setLocationId = (id: string) => setParam('location', id || null);
 
   const type = typeId ? catalog.typeById.get(typeId) : undefined;
   const sizeFields = useMemo(() => type?.fields.filter((f) => f.isSizeDimension && f.fieldType === 'number') ?? [], [type]);
   const locations = useMemo(() => flattenLocations(catalog.locations), [catalog.locations]);
 
   /** A location filter includes everything stored beneath it. */
-  const locationScope = useMemo(() => {
-    if (!locationId) return null;
-    const scope = new Set([locationId]);
-    let grew = true;
-    while (grew) {
-      grew = false;
-      for (const location of catalog.locations) {
-        if (location.parentId && scope.has(location.parentId) && !scope.has(location.id)) {
-          scope.add(location.id);
-          grew = true;
-        }
-      }
-    }
-    return scope;
-  }, [locationId, catalog.locations]);
+  const locationScope = useMemo(() => (locationId ? scopeOf(locationId, catalog.locations) : null), [locationId, catalog.locations]);
 
   const filtered = useMemo(() => {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -253,6 +263,14 @@ export function InventoryPage() {
             </SelectField>
           </FormGrid>
         )}
+        {showFilters && filtered.length > 0 && (
+          <div>
+            <Button icon={QrCode} onClick={() => setLabelling(true)} disabled={filtered.length > MAX_LABELS}>
+              {filtered.length === 1 ? 'Print a label for this item' : `Print labels for these ${filtered.length} items`}
+            </Button>
+            {filtered.length > MAX_LABELS && <Muted> Narrow the list to {MAX_LABELS} items or fewer to print their labels in one go.</Muted>}
+          </div>
+        )}
 
         {sizeFields.length > 0 && (
           <div className={styles.sizeSearch}>
@@ -374,6 +392,22 @@ export function InventoryPage() {
         />
       )}
 
+      {labelling && <LabelPrintDialog labels={filtered.map((item) => itemLabel(item, catalog, window.location.origin))} onClose={() => setLabelling(false)} />}
+      {readingTag && <ScanDialog title="Read a spool tag" hint="Hold an OpenSpool sticker to the phone, scan a label, or paste the tag's contents below." onClose={() => setReadingTag(false)} />}
+      {spoolTag && !form && (
+        <TagImportDialog
+          record={spoolTag.record}
+          tagId={spoolTag.tagId}
+          items={allItems}
+          catalog={catalog}
+          onClose={dropSpoolTag}
+          onOpen={(item) => navigate(`/inventory?item=${item.id}`, { replace: true, state: null })}
+          onAdd={(initial) => {
+            dropSpoolTag();
+            setForm({ initial });
+          }}
+        />
+      )}
       {form && <ItemForm catalog={catalog} item={form.item} initial={form.initial} onClose={() => setForm(null)} />}
       {choosing && (
         <AddChooser
@@ -382,6 +416,7 @@ export function InventoryPage() {
           scratch={{ title: 'From scratch', subtitle: 'Anything else, typed in yourself' }}
           onCatalogue={() => { setChoosing(false); setPicking(true); }}
           onScratch={() => { setChoosing(false); setForm({ initial: preset() }); }}
+          onTag={() => { setChoosing(false); setReadingTag(true); }}
           onClose={() => setChoosing(false)}
         />
       )}

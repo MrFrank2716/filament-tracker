@@ -3,7 +3,9 @@ import type { CustomField, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma, type Json } from '@/db';
 import { HttpError, notFound, param, parse } from '@/http';
+import { describeActivity } from '@/services/activity';
 import { assertInWorkspace, moveStock, round } from '@/services/stock';
+import { assignTag, TAG_PATTERN } from '@/services/tags';
 
 type FieldValue = string | number | boolean | null;
 
@@ -26,9 +28,16 @@ const itemInput = z.object({
   isRemnant: z.boolean().optional(),
   parentId: z.string().nullable().optional(),
   compatibleMachineIds: z.array(z.string()).optional(),
-  /** The id on the spool's own tag, as a connected printer read it. */
-  tagId: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{4,64}$/).nullable().optional(),
+  /** The id on the spool's own tag as a connected printer read it, or "NFC" and the serial of a sticker. */
+  tagId: z.string().trim().toUpperCase().regex(TAG_PATTERN).nullable().optional(),
 });
+
+const moveInput = z.object({
+  itemIds: z.array(z.string().min(1)).min(1).max(200),
+  locationId: z.string().nullable(),
+});
+
+const tagInput = z.object({ tagId: itemInput.shape.tagId.unwrap() });
 
 const adjustInput = z.object({
   mode: z.enum(['delta', 'set']),
@@ -98,7 +107,7 @@ export function registerItemRoutes(router: Router): void {
   });
 
   router.post('/items', async (req, res) => {
-    const { compatibleMachineIds = [], fields = {}, ...data } = parse(itemInput, req.body);
+    const { compatibleMachineIds = [], fields = {}, tagId, ...data } = parse(itemInput, req.body);
     const workspaceId = req.workspaceId;
     await assertInWorkspace(prisma, workspaceId, {
       itemType: data.itemTypeId, unit: data.unitId, supplier: data.supplierId,
@@ -121,13 +130,14 @@ export function registerItemRoutes(router: Router): void {
           data: { workspaceId, itemId: created.id, delta: created.quantity, balanceAfter: created.quantity, reason: 'initial', userId: req.userId },
         });
       }
+      if (tagId) await assignTag(tx, workspaceId, created.id, tagId);
       return tx.item.findUniqueOrThrow({ where: { id: created.id }, include: itemInclude });
     });
     res.status(201).json(present(item));
   });
 
   router.patch('/items/:id', async (req, res) => {
-    const { compatibleMachineIds, fields, quantity, ...data } = parse(itemInput.partial(), req.body);
+    const { compatibleMachineIds, fields, quantity, tagId, ...data } = parse(itemInput.partial(), req.body);
     const id = param(req, 'id');
     const workspaceId = req.workspaceId;
     const existing = await prisma.item.findFirst({ where: { id, workspaceId } });
@@ -156,6 +166,7 @@ export function registerItemRoutes(router: Router): void {
           ...(compatibleMachineIds ? { compatibleMachines: { set: compatibleMachineIds.map((machineId) => ({ id: machineId })) } } : {}),
         },
       });
+      if (tagId !== undefined) await assignTag(tx, workspaceId, id, tagId);
       // Editing the quantity on the form is still a stock change and must be audited.
       if (quantity !== undefined && quantity !== existing.quantity) {
         await moveStock(tx, { workspaceId, itemId: id, delta: quantity - existing.quantity, reason: 'adjust', note: 'Edited on item form', userId: req.userId });
@@ -199,6 +210,41 @@ export function registerItemRoutes(router: Router): void {
       });
       return tx.item.findUniqueOrThrow({ where: { id }, include: itemInclude });
     });
+    res.json(present(item));
+  });
+
+  /** Put items away somewhere else (or nowhere). Putting things back where they belong is everyday bench work. */
+  router.post('/items/move', async (req, res) => {
+    const { itemIds, locationId } = parse(moveInput, req.body);
+    const workspaceId = req.workspaceId;
+    const ids = [...new Set(itemIds)];
+    await assertInWorkspace(prisma, workspaceId, { item: ids, location: locationId });
+    const [location, items] = await Promise.all([
+      locationId ? prisma.location.findUnique({ where: { id: locationId }, select: { name: true } }) : null,
+      prisma.item.findMany({ where: { id: { in: ids }, workspaceId }, select: { id: true, name: true, locationId: true }, orderBy: { name: 'asc' } }),
+    ]);
+    const moving = items.filter((item) => item.locationId !== locationId);
+    if (moving.length) await prisma.item.updateMany({ where: { id: { in: moving.map((item) => item.id) }, workspaceId }, data: { locationId } });
+    const what = moving.length === 1 ? moving[0].name : `${moving.length} items`;
+    describeActivity(
+      moving.length === 0 ? 'Moved nothing: already there' : location ? `Moved ${what} to ${location.name}` : `Took ${what} out of ${moving.length === 1 ? 'its' : 'their'} location`,
+      { type: 'item', id: moving.length === 1 ? moving[0].id : null },
+    );
+    res.json({ moved: moving.length });
+  });
+
+  /** Tie a tag to this item (a sticker just written, say), or forget it. The tag leaves any other item. */
+  router.put('/items/:id/tag', async (req, res) => {
+    const { tagId } = parse(tagInput, req.body);
+    const id = param(req, 'id');
+    const workspaceId = req.workspaceId;
+    const item = await prisma.$transaction(async (tx) => {
+      const current = await tx.item.findFirst({ where: { id, workspaceId, archived: false } });
+      if (!current) throw notFound('Item');
+      await assignTag(tx, workspaceId, id, tagId);
+      return tx.item.findUniqueOrThrow({ where: { id }, include: itemInclude });
+    });
+    describeActivity(tagId ? `Tagged ${item.name}` : `Removed the tag from ${item.name}`, { type: 'item', id });
     res.json(present(item));
   });
 

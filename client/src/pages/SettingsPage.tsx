@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { AccountSection } from '@/components/settings/AccountSection';
 import { AppearanceSection } from '@/components/settings/AppearanceSection';
 import { NavigationSection } from '@/components/settings/NavigationSection';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Building2, LogOut, MapPin, Plus, Ruler, Shapes, Trash2, Truck } from 'lucide-react';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Building2, LogOut, Plus, Ruler, Shapes, Trash2, Truck } from 'lucide-react';
 import { CrudSection } from '@/components/settings/CrudSection';
 import { DataSection } from '@/components/settings/DataSection';
 import { MembersSection } from '@/components/settings/MembersSection';
@@ -19,11 +19,10 @@ import { useWorkspace } from '@/context/WorkspaceContext';
 import { useCatalog } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
 import { LegalLinks } from '@/pages/LegalPages';
-import { flattenLocations, locationPath } from '@/lib/format';
 import type { ItemType } from '@/lib/types';
 import styles from '@/components/settings/Settings.module.css';
 
-type Tab = 'general' | 'categories' | 'units' | 'machineTypes' | 'locations' | 'suppliers' | 'members' | 'printers' | 'requests' | 'data' | 'appearance' | 'navigation' | 'account';
+type Tab = 'general' | 'categories' | 'units' | 'machineTypes' | 'suppliers' | 'members' | 'printers' | 'requests' | 'data' | 'appearance' | 'navigation' | 'account';
 
 /** Workspace sections are shared by every member; the personal ones belong to whoever is signed in. */
 const TABS: Array<{ id: Tab; label: string; personal?: boolean }> = [
@@ -31,7 +30,6 @@ const TABS: Array<{ id: Tab; label: string; personal?: boolean }> = [
   { id: 'categories', label: 'Categories' },
   { id: 'units', label: 'Units' },
   { id: 'machineTypes', label: 'Machine types' },
-  { id: 'locations', label: 'Locations' },
   { id: 'suppliers', label: 'Suppliers' },
   { id: 'members', label: 'Members' },
   { id: 'printers', label: 'Printers' },
@@ -55,18 +53,14 @@ export function SettingsPage() {
   const [tab, setTab] = useState<Tab>(() => TABS.find((t) => t.id === params.get('tab'))?.id ?? 'general');
   const [typeEditor, setTypeEditor] = useState<{ type?: ItemType } | null>(null);
 
-  const locationOptions = useMemo(
-    () => flattenLocations(catalog.locations).map((l) => ({ value: l.id, label: `${'  '.repeat(l.depth)}${l.name}` })),
-    [catalog.locations],
-  );
-  const orderedLocations = useMemo(() => flattenLocations(catalog.locations), [catalog.locations]);
-
+  // Locations used to be a section here; they have a page of their own now, and old links still land there.
+  if (params.get('tab') === 'locations') return <Navigate to="/locations" replace />;
   if (catalog.error) return <ErrorNote>{catalog.error}</ErrorNote>;
   if (catalog.loading) return <Loading />;
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Categories, units, places and people for this workspace, and your own preferences." />
+      <PageHeader title="Settings" subtitle="Categories, units and people for this workspace, and your own preferences." />
 
       <div className={styles.layout}>
       {/* This many sections do not fit a tab strip on a phone: a list down the side on wide screens, a select on narrow ones. */}
@@ -176,27 +170,6 @@ export function SettingsPage() {
               return `${count} machine${count === 1 ? '' : 's'}`;
             }}
             deleteNote="Machines of this type keep working but lose the type, and maintenance tasks defined on the type are removed."
-          />
-        )}
-
-        {tab === 'locations' && (
-          <CrudSection
-            title="Locations"
-            noun="location"
-            icon={MapPin}
-            description="Rooms, shelves, drawers and bins, nested as deep as you like. The code is what you print on a QR or barcode label."
-            rows={orderedLocations}
-            path="/locations"
-            fields={[
-              { key: 'name', label: 'Name', required: true, placeholder: 'Shelf B' },
-              { key: 'kind', label: 'Kind', placeholder: 'Room, shelf, bin…' },
-              { key: 'parentId', label: 'Inside', kind: 'select', options: locationOptions },
-              { key: 'code', label: 'Label code', placeholder: 'LOC-014', hint: 'Optional. For QR or barcode labels.' },
-            ]}
-            rowTitle={(location) => location.name}
-            rowLeading={(location) => (location.depth > 0 ? <span className={`${styles.depth} ${styles[`depth-${Math.min(location.depth, 4)}`]}`} aria-hidden /> : undefined)}
-            rowSubtitle={(location) => [location.kind, location.code, location.depth > 0 ? locationPath(location.parentId, catalog.locations) : ''].filter(Boolean).join(' · ')}
-            deleteNote="Items and machines here will have no location. Locations inside it move up a level."
           />
         )}
 

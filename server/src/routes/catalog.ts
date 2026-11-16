@@ -100,8 +100,14 @@ export function registerCatalogRoutes(router: Router): void {
   });
   router.delete('/locations/:id', async (req, res) => {
     const id = param(req, 'id');
-    await assertInWorkspace(prisma, req.workspaceId, { location: id });
-    await prisma.location.delete({ where: { id } });
+    const location = await prisma.location.findFirst({ where: { id, workspaceId: req.workspaceId }, select: { parentId: true } });
+    if (!location) throw notFound('Location');
+    // What was inside moves up one level, to wherever this location was. Items and machines stored directly in
+    // it are left without a location (the database does that), since "up a level" may not be where they are.
+    await prisma.$transaction([
+      prisma.location.updateMany({ where: { parentId: id, workspaceId: req.workspaceId }, data: { parentId: location.parentId } }),
+      prisma.location.delete({ where: { id } }),
+    ]);
     res.status(204).end();
   });
 

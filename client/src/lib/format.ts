@@ -104,6 +104,22 @@ export function locationPath(locationId: string | null, locations: Location[]): 
   return parts.join(' › ');
 }
 
+/** A location and everything nested inside it, at any depth. */
+export function locationScope(locationId: string, locations: Location[]): Set<string> {
+  const scope = new Set([locationId]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const location of locations) {
+      if (location.parentId && scope.has(location.parentId) && !scope.has(location.id)) {
+        scope.add(location.id);
+        grew = true;
+      }
+    }
+  }
+  return scope;
+}
+
 /** Locations in tree order with their depth, for indented pickers and lists. */
 export function flattenLocations(locations: Location[]): Array<Location & { depth: number }> {
   const children = new Map<string | null, Location[]>();

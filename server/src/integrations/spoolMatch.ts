@@ -74,13 +74,21 @@ export interface SpoolFacts {
 }
 
 /**
+ * A tag a member wrote to an NFC sticker ("NFC" then the sticker's serial), not one a printer can read.
+ * A printer's own tag ids are hexadecimal, so they never start this way.
+ */
+export const isStickerTag = (tagId: string | null | undefined): boolean => Boolean(tagId?.startsWith('NFC'));
+
+/**
  * Could this stock item be what the tray holds?
- * A tag settles it either way. Without one the material must match, and the colour too when both are known.
+ * A tag the printer can read settles it either way. Without one the material must match, and the colour too
+ * when both are known. A sticker tag says nothing here: the printer never sees it.
  */
 export function compatible(item: SpoolFacts, tray: Pick<Tray, 'material' | 'colour' | 'tagId'>): boolean {
-  if (item.tagId && tray.tagId) return item.tagId === tray.tagId;
+  const itemTag = isStickerTag(item.tagId) ? null : item.tagId;
+  if (itemTag && tray.tagId) return itemTag === tray.tagId;
   // A tagged item is not what an untagged tray holds, and the other way round is only a guess.
-  if (item.tagId && !tray.tagId) return false;
+  if (itemTag && !tray.tagId) return false;
   if (!item.material || !tray.material || !materialMatches(item.material, tray.material)) return false;
   if (item.colour && tray.colour) return colourDistance(item.colour, tray.colour) <= COLOUR_CLOSE;
   return true;
