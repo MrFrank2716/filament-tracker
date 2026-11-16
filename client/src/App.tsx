@@ -16,6 +16,7 @@ import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/PasswordResetPage
 import { InventoryPage } from '@/pages/InventoryPage';
 import { JobsPage } from '@/pages/JobsPage';
 import { LabelLinkPage } from '@/pages/LinkPages';
+import { LocationsPage } from '@/pages/LocationsPage';
 import { OverviewPage } from '@/pages/MachineOverviewPage';
 import { MachinesPage } from '@/pages/MachinesPage';
 import { MaintenancePage } from '@/pages/MaintenancePage';
@@ -87,6 +88,8 @@ export function App() {
                   <Route element={<RequireWorkspace />}>
                     <Route index element={<OverviewPage />} />
                     <Route path="inventory" element={<InventoryPage />} />
+                    <Route path="locations" element={<LocationsPage />} />
+                    <Route path="locations/:id" element={<LocationsPage />} />
                     <Route path="machines" element={<MachinesPage />} />
                     <Route path="jobs" element={<JobsPage />} />
                     <Route path="maintenance" element={<MaintenancePage />} />

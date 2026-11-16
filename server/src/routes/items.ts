@@ -32,6 +32,11 @@ const itemInput = z.object({
   tagId: z.string().trim().toUpperCase().regex(TAG_PATTERN).nullable().optional(),
 });
 
+const moveInput = z.object({
+  itemIds: z.array(z.string().min(1)).min(1).max(200),
+  locationId: z.string().nullable(),
+});
+
 const tagInput = z.object({ tagId: itemInput.shape.tagId.unwrap() });
 
 const adjustInput = z.object({
@@ -206,6 +211,26 @@ export function registerItemRoutes(router: Router): void {
       return tx.item.findUniqueOrThrow({ where: { id }, include: itemInclude });
     });
     res.json(present(item));
+  });
+
+  /** Put items away somewhere else (or nowhere). Putting things back where they belong is everyday bench work. */
+  router.post('/items/move', async (req, res) => {
+    const { itemIds, locationId } = parse(moveInput, req.body);
+    const workspaceId = req.workspaceId;
+    const ids = [...new Set(itemIds)];
+    await assertInWorkspace(prisma, workspaceId, { item: ids, location: locationId });
+    const [location, items] = await Promise.all([
+      locationId ? prisma.location.findUnique({ where: { id: locationId }, select: { name: true } }) : null,
+      prisma.item.findMany({ where: { id: { in: ids }, workspaceId }, select: { id: true, name: true, locationId: true }, orderBy: { name: 'asc' } }),
+    ]);
+    const moving = items.filter((item) => item.locationId !== locationId);
+    if (moving.length) await prisma.item.updateMany({ where: { id: { in: moving.map((item) => item.id) }, workspaceId }, data: { locationId } });
+    const what = moving.length === 1 ? moving[0].name : `${moving.length} items`;
+    describeActivity(
+      moving.length === 0 ? 'Moved nothing: already there' : location ? `Moved ${what} to ${location.name}` : `Took ${what} out of ${moving.length === 1 ? 'its' : 'their'} location`,
+      { type: 'item', id: moving.length === 1 ? moving[0].id : null },
+    );
+    res.json({ moved: moving.length });
   });
 
   /** Tie a tag to this item (a sticker just written, say), or forget it. The tag leaves any other item. */
