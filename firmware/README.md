@@ -26,9 +26,19 @@ and a tap on the bottom strip toggles colour inversion.
   `$env:PLATFORMIO_WORKSPACE_DIR = "C:\wbpio"`), or turn on Windows long paths.
 - **"Wrong boot mode detected" when flashing:** some boards do not enter flashing mode by themselves. Hold the
   **BOOT** button, press and release **RST**, then release BOOT, and flash again.
-- **Red and blue swapped:** add `-DTFT_RGB_ORDER=TFT_BGR` to the env's build flags.
+- **Red and blue swapped:** set `-DTFT_RGB_ORDER` the other way in the env's build flags. The USB-C board with an
+  ST7789 needs `TFT_BGR`, which `cyd-st7789` already sets.
 - **Touch lands in the wrong place:** flash the bring-up env, note the raw readings at the four corners, and set
   `-DWB_TOUCH_X_MIN=… -DWB_TOUCH_X_MAX=… -DWB_TOUCH_Y_MIN=… -DWB_TOUCH_Y_MAX=…`.
+
+## Working on the screens
+
+- **See the screen from the computer:** `python tools/screenshot.py COM3 shot.png` (any port name) asks the display
+  to redraw and saves exactly what it drew as a PNG. It works with every build.
+- **Update over Wi-Fi instead of USB:** the `cyd-st7789-dev` env also accepts new firmware over Wi-Fi, protected by
+  a password you choose. Set `WB_OTA_PASSWORD` in the environment, flash that env over USB once, then
+  `pio run -e cyd-st7789-dev -t upload --upload-port <the display's IP>`. The computer must accept an incoming
+  connection from the display (Windows asks to allow Python through the firewall). Release envs never listen.
 
 ## Layout
 
