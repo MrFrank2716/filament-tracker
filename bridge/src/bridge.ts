@@ -181,9 +181,19 @@ export class Bridge {
       if (!request.success) return ack?.({ ok: false, code: 'invalid' });
       const held = this.held.get(request.data.printerId);
       if (!held) return ack?.({ ok: false, code: 'unknown_printer' });
+      // Said out loud, because a print with no materials or no picture is otherwise a mystery from this side.
+      const serial = held.printer.serial;
       held.session.readJobFile(request.data.entries).then(
-        ({ entries, images }) => ack?.({ ok: true, entries, images }),
-        (cause: unknown) => ack?.({ ok: false, code: 'no_file', message: String((cause as Error).message).slice(0, 100) }),
+        ({ entries, images, skipped }) => {
+          const got = [...Object.keys(entries), ...Object.entries(images).map(([name, bytes]) => `${name} (${bytes.byteLength} bytes)`)];
+          log.info(`Read the sliced file for ${serial}: ${got.join(', ') || 'nothing that was asked for'}${skipped?.length ? `. Left out: ${skipped.join('; ')}` : ''}`);
+          ack?.({ ok: true, entries, images });
+        },
+        (cause: unknown) => {
+          const reason = String((cause as Error).message).slice(0, 100);
+          log.warn(`Could not read the sliced file for ${serial}: ${reason === 'no_file' ? 'the printer has not announced one since the bridge started (the print began earlier, or was not sent through Bambu\'s cloud)' : reason}`);
+          ack?.({ ok: false, code: 'no_file', message: reason });
+        },
       );
     });
 

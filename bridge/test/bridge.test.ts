@@ -43,7 +43,10 @@ describe('reading a sliced file', () => {
   });
   it('leaves out a picture that is too big or is not a PNG, and anything not asked for', () => {
     const read = pickEntries(zip, ['Metadata/plate_2.png', 'Metadata/top_1.png']);
-    expect(read).toEqual({ entries: {}, images: {} });
+    expect(read.entries).toEqual({});
+    expect(read.images).toEqual({});
+    expect(read.skipped).toEqual(['Metadata/plate_2.png is too big (700000 bytes, limit 600000)', 'Metadata/top_1.png is not a PNG']);
+    expect(pickEntries(zip, ['Metadata/plate_9.png']).skipped).toEqual(['Metadata/plate_9.png is not in the file']);
   });
 });
 

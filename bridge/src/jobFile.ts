@@ -18,6 +18,8 @@ export interface JobFileEntries {
   entries: Record<string, string>;
   /** Plate pictures (PNG), by name. */
   images: Record<string, Uint8Array>;
+  /** Why an entry that was asked for is not here, in words for the bridge's own output. */
+  skipped: string[];
 }
 
 /** The named entries of a zip held in memory. Anything too big, or a picture that is not a PNG, is left out. */
@@ -25,13 +27,25 @@ export function pickEntries(zip: Uint8Array, names: string[]): JobFileEntries {
   const wanted = new Set(names);
   const limit = (name: string) => (JOB_IMAGE_ENTRY.test(name) ? JOB_IMAGE_MAX_BYTES : MAX_ENTRY_BYTES);
   // Only the wanted entries are inflated, and only if they are small: the models and G-code are never unpacked.
-  const files = unzipSync(zip, { filter: (file) => wanted.has(file.name) && file.originalSize <= limit(file.name) });
-  const out: JobFileEntries = { entries: {}, images: {} };
+  const out: JobFileEntries = { entries: {}, images: {}, skipped: [] };
+  const seen = new Set<string>();
+  const files = unzipSync(zip, {
+    filter: (file) => {
+      if (!wanted.has(file.name)) return false;
+      seen.add(file.name);
+      if (file.originalSize <= limit(file.name)) return true;
+      out.skipped.push(`${file.name} is too big (${file.originalSize} bytes, limit ${limit(file.name)})`);
+      return false;
+    },
+  });
   for (const [name, data] of Object.entries(files)) {
-    if (data.byteLength > limit(name)) continue; // the size a zip declares is only a claim
-    if (!JOB_IMAGE_ENTRY.test(name)) out.entries[name] = strFromU8(data);
+    // The size a zip declares is only a claim.
+    if (data.byteLength > limit(name)) out.skipped.push(`${name} is too big (${data.byteLength} bytes)`);
+    else if (!JOB_IMAGE_ENTRY.test(name)) out.entries[name] = strFromU8(data);
     else if (isPng(data)) out.images[name] = data;
+    else out.skipped.push(`${name} is not a PNG`);
   }
+  for (const name of names) if (!seen.has(name)) out.skipped.push(`${name} is not in the file`);
   return out;
 }
 
