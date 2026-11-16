@@ -48,6 +48,13 @@ void task(void *) {
 
 bool begin() {
   Wire.begin(SDA_PIN, SCL_PIN, 100000);
+  Wire.setTimeOut(50);
+  // A quick knock on the PN532's address first: without a reader the library would retry for ~20 s.
+  Wire.beginTransmission(PN532_I2C_ADDRESS);
+  if (Wire.endTransmission() != 0) {
+    Wire.end();
+    return false;
+  }
   nfc = new Adafruit_PN532(NO_PIN, NO_PIN, &Wire);
   if (!nfc->begin()) return false;
   const uint32_t version = nfc->getFirmwareVersion();
