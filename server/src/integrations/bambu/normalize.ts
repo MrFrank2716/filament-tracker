@@ -84,7 +84,8 @@ function readTray(raw: unknown, position: number, active: boolean): Tray {
     // Only Bambu Lab's own spools carry a tag.
     brand: tag ? 'Bambu Lab' : null,
     tagId: tag,
-    remainingPercent: remaining !== null && remaining >= 0 && remaining <= 100 ? remaining : null,
+    // Only a tagged spool has a real figure; without a tag the printer sends -1 or a meaningless 0.
+    remainingPercent: tag && remaining !== null && remaining >= 0 && remaining <= 100 ? remaining : null,
     spoolWeightGrams: weight !== null && weight > 0 ? weight : null,
     nozzleTemp: low !== null && high !== null && low > 0 && high >= low ? [low, high] : null,
     diameter: diameter !== null && diameter > 0 ? diameter : null,
@@ -113,6 +114,14 @@ function readFeeders(print: Doc, info: Doc | null, modelName: string | null): Fe
   const ams = obj(print.ams);
   const kinds = feederKinds(info);
   const trayNow = int(ams?.tray_now);
+  // Dual-nozzle printers say what each nozzle is fed from instead: feeder in the high byte, tray in the low one.
+  const feeding = new Set<string>();
+  for (const raw of list(obj(obj(print.device)?.extruder)?.info)) {
+    const snow = int(obj(raw)?.snow);
+    if (snow === null || (snow & 0xff) === 0xff) continue;
+    feeding.add(`${snow >> 8}:${snow & 0xff}`);
+  }
+  const fedFrom = (feederId: number, tray: number, globalIndex: number) => feeding.has(`${feederId}:${tray}`) || (feeding.size === 0 && trayNow !== null && trayNow === globalIndex);
   const feeders: Feeder[] = [];
   const counters = new Map<string, number>();
 
@@ -139,7 +148,7 @@ function readFeeders(print: Doc, info: Doc | null, modelName: string | null): Fe
         const slot = int(obj(tray)?.id) ?? index;
         // A regular feeder's trays are numbered across feeders (feeder x 4 + tray); an HT unit is its own number.
         const globalIndex = id >= 128 ? id : id * 4 + slot;
-        return readTray(tray, slot + 1, trayNow !== null && trayNow === globalIndex);
+        return readTray(tray, slot + 1, fedFrom(id, slot, globalIndex));
       }),
     });
   }
@@ -148,7 +157,7 @@ function readFeeders(print: Doc, info: Doc | null, modelName: string | null): Fe
   const holders = list(print.vir_slot).length ? list(print.vir_slot) : obj(print.vt_tray) ? [print.vt_tray] : [];
   holders.slice(0, 2).forEach((raw, index) => {
     const id = int(obj(raw)?.id);
-    const tray = readTray(raw, 1, trayNow !== null && id !== null && trayNow === id);
+    const tray = readTray(raw, 1, id !== null && fedFrom(id, 0, id));
     feeders.push({
       key: `external:${index}`,
       kind: 'external',
@@ -166,10 +175,18 @@ const NOZZLE_TYPES: Record<string, string> = {
   stainless_steel: 'Stainless steel',
   tungsten_carbide: 'Tungsten carbide',
 };
-const nozzleType = (value: unknown): string | null => {
+/**
+ * Newer printers give a short code instead of a name: a letter for the material (H hardened steel, S stainless
+ * steel), a letter for the flow (S standard, H high flow) and a size. Seen on a real X2D as "HS01" and "HH01".
+ */
+function nozzleType(value: unknown): string | null {
   const raw = text(value, 40);
-  return raw ? (NOZZLE_TYPES[raw] ?? raw.replace(/_/g, ' ')) : null;
-};
+  if (!raw) return null;
+  if (NOZZLE_TYPES[raw]) return NOZZLE_TYPES[raw];
+  const code = /^([HS])([SH])\d{2}$/.exec(raw);
+  if (code) return `${code[1] === 'H' ? 'Hardened steel' : 'Stainless steel'}${code[2] === 'H' ? ', high flow' : ''}`;
+  return raw.replace(/_/g, ' ');
+}
 
 function readExtruders(print: Doc): PrinterReading['extruders'] {
   const device = obj(print.device);
@@ -209,7 +226,9 @@ export function readBambu(doc: Doc): PrinterReading {
   const bed = num(print.bed_temper);
   // Only the enclosed, sensor-fitted models measure the chamber; the P1 and A1 series report a fixed 5 instead.
   const hasChamberSensor = !/^(P1|A1)/i.test(modelName ?? '');
-  const chamber = hasChamberSensor ? num(print.chamber_temper) : null;
+  // Newer printers report it under device.ctc, packed like the nozzle temperatures (current in the low half).
+  const ctc = int(obj(obj(obj(print.device)?.ctc)?.info)?.temp);
+  const chamber = hasChamberSensor ? (num(print.chamber_temper) ?? (ctc === null ? null : ctc & 0xffff)) : null;
   const wifi = /-?\d+/.exec(text(print.wifi_signal, 20) ?? '');
 
   const feeders = readFeeders(print, info, modelName);
@@ -226,7 +245,8 @@ export function readBambu(doc: Doc): PrinterReading {
           progress: int(print.mc_percent),
           layer: int(print.layer_num),
           totalLayers: totalLayers && totalLayers > 0 ? totalLayers : null,
-          remainingMinutes: busy ? int(print.mc_remaining_time) : null,
+          // While it is still preparing the printer says 0, which means "not worked out yet", not "done".
+          remainingMinutes: busy && !(phase === 'preparing' && !int(print.mc_remaining_time)) ? int(print.mc_remaining_time) : null,
         }
       : null,
     bed: bed === null ? null : { current: bed, target: num(print.bed_target_temper) },

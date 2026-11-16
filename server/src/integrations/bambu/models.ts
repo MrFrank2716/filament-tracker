@@ -26,6 +26,7 @@ const BY_SERIAL_PREFIX: Record<string, string> = {
   '030': 'A1 mini',
   '039': 'A1',
   '094': 'H2D',
+  '20P': 'X2D',
 };
 
 export function bambuModelName(code: string | null | undefined, serial?: string): string {

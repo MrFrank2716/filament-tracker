@@ -58,15 +58,30 @@ const progressOf = (reading: PrinterReading): number => {
  * anything else "not used".
  */
 function trayFor(doc: Doc, filamentId: number, printName: string): { feeder: string; position: number } | null {
-  const job = doc.job as { subtask_name?: unknown; use_ams?: unknown; ams_mapping?: unknown } | undefined;
+  const print = doc.print as { vir_slot?: unknown; mapping?: unknown } | undefined;
+  // Printers with two outside spool holders number them 254 and 255; others use either number for their one.
+  const holders = Array.isArray(print?.vir_slot) ? print.vir_slot.length : 1;
+  const place = (feederId: number, tray: number) => {
+    if (feederId === 254 || feederId === 255) return { feeder: holders > 1 && feederId === 255 ? 'external:1' : 'external:0', position: 1 };
+    return { feeder: `ams:${feederId}`, position: feederId >= 128 ? 1 : tray + 1 };
+  };
+
+  const job = doc.job as { subtask_name?: unknown; use_ams?: unknown; ams_mapping?: unknown; ams_mapping2?: unknown } | undefined;
   // An announcement left over from an earlier print says nothing about this one.
-  if (!job || (typeof job.subtask_name === 'string' && plain(job.subtask_name) !== plain(printName))) return null;
-  if (job.use_ams === false) return { feeder: 'external:0', position: 1 };
-  const value = Array.isArray(job.ams_mapping) ? Number(job.ams_mapping[filamentId - 1]) : Number.NaN;
-  if (!Number.isInteger(value) || value < 0) return null;
-  if (value === 254 || value === 255) return { feeder: 'external:0', position: 1 };
-  if (value >= 128) return { feeder: `ams:${value}`, position: 1 };
-  return { feeder: `ams:${Math.floor(value / 4)}`, position: (value % 4) + 1 };
+  const current = job && !(typeof job.subtask_name === 'string' && plain(job.subtask_name) !== plain(printName)) ? job : null;
+  if (current) {
+    if (current.use_ams === false) return { feeder: 'external:0', position: 1 };
+    // The fuller form names feeder and tray outright.
+    const named = Array.isArray(current.ams_mapping2) ? (current.ams_mapping2[filamentId - 1] as { ams_id?: unknown; slot_id?: unknown } | undefined) : undefined;
+    if (named && Number.isInteger(named.ams_id) && Number.isInteger(named.slot_id)) return place(Number(named.ams_id), Number(named.slot_id));
+    const value = Array.isArray(current.ams_mapping) ? Number(current.ams_mapping[filamentId - 1]) : Number.NaN;
+    if (Number.isInteger(value) && value >= 0) return value >= 128 ? place(value, 0) : place(Math.floor(value / 4), value % 4);
+  }
+  // Newer firmware repeats the mapping in every status report (feeder in the high byte, tray in the low one, 0xFFFF
+  // for "not used"), so a print whose announcement was missed can still be placed.
+  const repeated = Array.isArray(print?.mapping) ? Number(print.mapping[filamentId - 1]) : Number.NaN;
+  if (Number.isInteger(repeated) && repeated >= 0 && repeated !== 0xffff) return place(repeated >> 8, repeated & 0xff);
+  return null;
 }
 
 const plateIndex = (doc: Doc): number | null => {

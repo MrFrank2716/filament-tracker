@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Doc } from '@filament-tracker/protocol';
 import { simDocument, simFleet, type SimPrinter } from '@filament-tracker/protocol/fixtures';
@@ -136,6 +137,26 @@ describe('following a print', () => {
     expect(vase.failureReason).toMatch(/finish the job by hand/);
     expect(await stock(black.id)).toBe(before);
     expect((await prisma.job.findFirstOrThrow({ where: { name: 'hook' } })).status).toBe('in_progress');
+  });
+
+  it('places filaments from the fuller mapping, the outside holders, and the mapping repeated in status', async () => {
+    const x2d = JSON.parse(readFileSync(new URL('./fixtures/x2d.json', import.meta.url), 'utf8')) as Doc;
+    const one = `<config><plate><metadata key="index" value="1"/><filament id="1" type="PLA" color="#161616" used_g="12.5"/></plate></config>`;
+    const reader: JobFileReader = async () => ({ [SLICE_INFO]: one });
+    const machine = await prisma.machine.create({ data: { workspaceId: target.workspaceId, name: 'X2D' } });
+    const bridge = await prisma.bridge.findFirstOrThrow();
+    const link = await prisma.printerLink.create({ data: { workspaceId: target.workspaceId, machineId: machine.id, bridgeId: bridge.id, serial: 'SERIAL0000000001', host: '192.168.1.8' } });
+    const x2dTarget: RunTarget = { ...target, linkId: link.id, machineId: machine.id, machineName: 'X2D', serial: 'SERIAL0000000001' };
+    await reconcileRun(x2dTarget, readBambu(x2d), x2d, reader, new Date(T0 + 30 * HOUR));
+    const run = await prisma.printerRun.findFirstOrThrow({ where: { printerLinkId: link.id } });
+    // The real announcement said filament 1 comes from feeder 0, tray 1: the second slot.
+    expect(run.filaments).toMatchObject([{ id: 1, grams: 12.5, feeder: 'ams:0', position: 2 }]);
+
+    // The same print with its announcement missed: the mapping in the status report gives the same answer.
+    const missed = { ...x2d, job: undefined } as unknown as Doc;
+    await prisma.printerRun.deleteMany({ where: { printerLinkId: link.id } });
+    await reconcileRun(x2dTarget, readBambu(missed), missed, reader, new Date(T0 + 31 * HOUR));
+    expect((await prisma.printerRun.findFirstOrThrow({ where: { printerLinkId: link.id } })).filaments).toMatchObject([{ feeder: 'ams:0', position: 2 }]);
   });
 
   it('never opens a record for a finished print left on the screen', async () => {

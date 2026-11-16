@@ -54,7 +54,8 @@ function record(flags: Map<string, string>): void {
     text
       .split(serial).join('SERIAL0000000001')
       .replace(/"sn":"[^"]*"/g, '"sn":"SN0000000000000"')
-      .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, '192.168.0.1')
+      // Addresses on a private network only: version numbers look like addresses too and must be left alone.
+      .replace(/\b(?:10\.\d{1,3}|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}\b/g, '192.168.0.1')
       .replace(/"(?:ssid|ip|mask|wifi_ssid|user_id|uid|nickname)":("[^"]*"|\d+)/gi, (match) => `${match.split(':')[0]}:""`);
   const client = mqtt.connect(`mqtts://${host}:8883`, { username: 'bblp', password: code, rejectUnauthorized: false, protocolVersion: 4, reconnectPeriod: 0, connectTimeout: 10_000 });
   client.on('connect', () => {
