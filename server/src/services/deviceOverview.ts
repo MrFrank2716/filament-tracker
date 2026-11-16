@@ -213,7 +213,8 @@ export function displayPrinter(name: string, state: PrinterState | null): Displa
       if (trays.length >= MAX_TRAYS) break;
       trays.push({
         label: letter ? `${letter}${tray.position}` : 'Ext',
-        material: tray.state === 'loaded' ? forDisplay(tray.subType ?? tray.material ?? '', 12) || null : null,
+        // The short material ("PLA", not "PLA Basic"): each spool gets about 40 pixels on the screen.
+        material: tray.state === 'loaded' ? forDisplay(tray.material ?? tray.subType ?? '', 8) || null : null,
         color: tray.state === 'loaded' && tray.colour && /^#[0-9a-f]{6}$/i.test(tray.colour) ? tray.colour.toLowerCase() : null,
         active: tray.active,
         empty: tray.state !== 'loaded',

@@ -271,9 +271,9 @@ describe('tapping a tag on the display', () => {
       name: 'X1C', state: 'Printing', tone: 'busy', progress: 0.37, left: '1 h 34 min left', job: 'bracket_v3', layer: 'Layer 112 of 300',
     });
     const trays = printer.trays as Array<Record<string, unknown>>;
-    expect(trays[0]).toMatchObject({ label: 'A1', material: 'PLA Basic', color: '#000000', active: true, empty: false });
+    expect(trays[0]).toMatchObject({ label: 'A1', material: 'PLA', color: '#000000', active: true, empty: false });
     expect(trays[3]).toMatchObject({ label: 'A4', empty: true, color: null });
-    expect(trays.find((t) => t.label === 'B1')).toMatchObject({ material: 'PLA Matte', color: '#c12e1f' });
+    expect(trays.find((t) => t.label === 'B1')).toMatchObject({ material: 'PLA', color: '#c12e1f' });
     expect(trays.length).toBeLessThanOrEqual(8);
   });
 
