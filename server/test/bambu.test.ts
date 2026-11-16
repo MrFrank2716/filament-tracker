@@ -193,3 +193,32 @@ describe('a real X2D (recorded, see test/fixtures/x2d.json)', () => {
     expect(reading.errors[0]).toMatchObject({ code: '0501_0400_0003_0002', severity: 'warning', message: 'Threaded rods need lubrication now.' });
   });
 });
+
+describe('a real H2D running a laser job (recorded, see test/fixtures/h2d-laser.json)', () => {
+  const doc = JSON.parse(readFileSync(new URL('./fixtures/h2d-laser.json', import.meta.url), 'utf8')) as Doc;
+  const reading = readBambu(doc);
+
+  it('reads it as laser work in progress, with the laser named as the tool fitted', () => {
+    expect(reading).toMatchObject({ modelName: 'H2D', phase: 'printing', tool: 'Laser 40W' });
+    expect(reading.print).toMatchObject({ name: 'sample_laser_job', kind: 'laser', progress: 19, totalLayers: null, remainingMinutes: 5 });
+  });
+
+  it('still reads its feeders: two AMS 2 Pro and an AMS HT', () => {
+    expect(reading.feeders.filter((feeder) => feeder.kind !== 'external').map((feeder) => feeder.label)).toEqual(['AMS 2 Pro 2', 'AMS 2 Pro 3', 'AMS HT 1']);
+  });
+
+  it('does not show the printer\'s own routines as jobs', () => {
+    // Just before the laser job the recording shows "laser_mount.gcode", a routine the printer runs by itself.
+    const routine = JSON.parse(JSON.stringify(doc)) as { print: Record<string, unknown> };
+    Object.assign(routine.print, { print_type: 'system', subtask_name: 'laser_mount.gcode', gcode_file: '/usr/etc/print/O1D/laser_mount.gcode', gcode_state: 'RUNNING' });
+    const during = readBambu(routine as unknown as Doc);
+    expect(during.phase).toBe('printing');
+    expect(during.print).toBeNull();
+  });
+
+  it('an ordinary print is still a print, with no tool fitted', () => {
+    const x2d = readBambu(JSON.parse(readFileSync(new URL('./fixtures/x2d.json', import.meta.url), 'utf8')) as Doc);
+    expect(x2d.print?.kind).toBe('print');
+    expect(x2d.tool).toBeNull();
+  });
+});

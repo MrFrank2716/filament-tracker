@@ -128,7 +128,6 @@ function readFeeders(print: Doc, info: Doc | null, modelName: string | null): Fe
   }
   const fedFrom = (feederId: number, tray: number, globalIndex: number) => feeding.has(`${feederId}:${tray}`) || (feeding.size === 0 && trayNow !== null && trayNow === globalIndex);
   const feeders: Feeder[] = [];
-  const counters = new Map<string, number>();
 
   for (const raw of list(ams?.ams).slice(0, 16)) {
     const unit = obj(raw);
@@ -136,8 +135,9 @@ function readFeeders(print: Doc, info: Doc | null, modelName: string | null): Fe
     if (!unit || id === null) continue;
     // Ids from 128 are single-spool AMS HT units; an A1-series printer's feeder is an AMS Lite.
     const known = kinds.get(id) ?? (id >= 128 ? KINDS.n3s : modelName?.startsWith('A1') ? KINDS.ams_f1 : KINDS.ams);
-    const order = (counters.get(known.kind) ?? 0) + 1;
-    counters.set(known.kind, order);
+    // The printer's own numbering, so the name here matches its screen: regular feeders count from their id
+    // (a real H2D calls ids 1 and 2 "AMS 2 Pro (2)" and "(3)"), single-spool HT units from 128.
+    const order = id >= 128 ? id - 127 : id + 1;
     const dryMinutes = int(unit.dry_time);
     const drySetting = obj(unit.dry_setting);
     const level = int(unit.humidity);
@@ -242,13 +242,25 @@ export function readBambu(doc: Doc): PrinterReading {
   // "Feeding now" only means something during a print; between prints the printer's tray number is left over.
   if (!busy) for (const feeder of feeders) for (const tray of feeder.trays) tray.active = false;
 
+  // The printer runs routines of its own (fitting the laser, calibrating) and reports them like jobs, with
+  // print_type "system". They are not work anyone asked for, so they are not shown or followed as prints.
+  const housekeeping = text(print.print_type, 20) === 'system';
+  // Laser, cutting and drawing jobs run from the sliced file's 2D section (seen on a real H2D with a 40 W laser).
+  const flat = /\/Metadata2D\//.test(text(print.gcode_file, 200) ?? '');
+  // A tool fitted in place of printing: the printer says one is mounted, and lists it among its modules by name.
+  const mounted = int(obj(obj(print.device)?.ext_tool)?.mount) === 1;
+  const laserModule = list(info?.module).map(obj).find((entry) => text(entry?.name) === 'lc');
+  const tool = mounted ? (text(laserModule?.product_name, 40) ?? 'Laser or cutting tool') : null;
+
   return {
     phase,
     rawState,
+    tool,
     // Once a print is over the printer keeps its name and 100 %; that is still worth showing until the next one.
-    print: name && (busy || phase === 'finished' || phase === 'failed')
+    print: name && !housekeeping && (busy || phase === 'finished' || phase === 'failed')
       ? {
           name,
+          kind: flat ? 'laser' : 'print',
           progress: int(print.mc_percent),
           layer: int(print.layer_num),
           totalLayers: totalLayers && totalLayers > 0 ? totalLayers : null,

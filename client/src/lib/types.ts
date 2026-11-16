@@ -576,7 +576,9 @@ export interface PrinterState {
   thumbnailRunId?: string | null;
   phase: PrinterPhase;
   rawState: string;
-  print: { name: string | null; progress: number | null; layer: number | null; totalLayers: number | null; remainingMinutes: number | null } | null;
+  print: { name: string | null; kind?: 'print' | 'laser'; progress: number | null; layer: number | null; totalLayers: number | null; remainingMinutes: number | null } | null;
+  /** A tool fitted in place of printing ("Laser 40W"); missing on readings saved by older versions. */
+  tool?: string | null;
   bed: PrinterTemp | null;
   chamber: PrinterTemp | null;
   extruders: Array<{ label: string; temp: PrinterTemp | null; nozzle: { diameter: number | null; type: string | null } }>;

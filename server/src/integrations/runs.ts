@@ -155,7 +155,7 @@ async function usageLines(workspaceId: string, filaments: RunFilament[], scale: 
 }
 
 /** The job this print belongs to: one a member just started, a planned one with the very same name, or a new one. */
-async function jobFor(target: RunTarget, name: string, now: Date): Promise<string> {
+async function jobFor(target: RunTarget, name: string, now: Date, notes = ''): Promise<string> {
   const { workspaceId, machineId } = target;
   const recent = await prisma.job.findFirst({
     where: { workspaceId, machineId, status: 'in_progress', runs: { none: {} }, startedAt: { gte: new Date(now.getTime() - 10 * 60_000) } },
@@ -178,7 +178,7 @@ async function jobFor(target: RunTarget, name: string, now: Date): Promise<strin
     }
   }
   const created = await prisma.job.create({
-    data: { workspaceId, machineId, name: name.slice(0, 160), status: 'in_progress', startedAt: now, source: 'printer', queuePosition: await endOfQueue(prisma, workspaceId, machineId) },
+    data: { workspaceId, machineId, name: name.slice(0, 160), notes, status: 'in_progress', startedAt: now, source: 'printer', queuePosition: await endOfQueue(prisma, workspaceId, machineId) },
   });
   await prisma.machine.updateMany({ where: { id: machineId, status: 'ready' }, data: { status: 'in_use' } });
   return created.id;
@@ -234,7 +234,7 @@ export async function reconcileRun(target: RunTarget, reading: PrinterReading, d
       // Still going: remember how far it got, and pick up the file if it was not readable at the start.
       const progress = Math.max(run.progress, progressOf(reading));
       const needsFile = run.usageSource === '' && now.getTime() - run.startedAt.getTime() < 15 * 60_000;
-      const file = needsFile ? await readJobFile(target, doc, run.name, read) : null;
+      const file = needsFile && reading.print?.kind !== 'laser' ? await readJobFile(target, doc, run.name, read) : null;
       const usage = file?.usage ?? null;
       const thumbnail = file?.picture && !run.thumbnail ? await storeBytes(target.workspaceId, file.picture) : null;
       if (progress !== run.progress || usage || thumbnail) {
@@ -262,8 +262,10 @@ export async function reconcileRun(target: RunTarget, reading: PrinterReading, d
 
   // Only a print that is actually under way opens a record: a finished one left on the screen never does.
   if (!busy(reading) || !name) return Boolean(run);
-  const jobId = await jobFor(target, name, now);
-  const jobFile = await readJobFile(target, doc, name, read);
+  // Laser and cutting work uses sheet, not filament: there is nothing in its file to charge, so it is not fetched.
+  const laser = reading.print?.kind === 'laser';
+  const jobId = await jobFor(target, name, now, laser ? `Laser or cutting job${reading.tool ? `, ${reading.tool}` : ''}. Add the sheet it used with Edit to take it from stock.` : '');
+  const jobFile = laser ? null : await readJobFile(target, doc, name, read);
   const file = jobFile?.usage ?? null;
   await prisma.printerRun.create({
     data: {

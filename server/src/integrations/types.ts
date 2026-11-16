@@ -76,11 +76,15 @@ export interface PrinterReading {
   rawState: string;
   print: {
     name: string | null;
+    /** "print" lays down filament; "laser" is laser, cutting or drawing work on a machine that can do both. */
+    kind: 'print' | 'laser';
     progress: number | null;
     layer: number | null;
     totalLayers: number | null;
     remainingMinutes: number | null;
   } | null;
+  /** A tool fitted in place of printing, by the maker's name for it ("Laser 40W"); null when none is. */
+  tool: string | null;
   bed: Temp | null;
   chamber: Temp | null;
   /** One per extruder: one entry on most printers, two on dual-nozzle ones. */
@@ -117,6 +121,6 @@ export interface PrinterAdapter {
 }
 
 export const emptyReading = (): PrinterReading => ({
-  phase: 'unknown', rawState: '', print: null, bed: null, chamber: null, extruders: [], feeders: [], errors: [],
+  phase: 'unknown', rawState: '', print: null, tool: null, bed: null, chamber: null, extruders: [], feeders: [], errors: [],
   wifiSignal: null, firmware: null, modelName: null,
 });
