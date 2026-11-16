@@ -31,6 +31,8 @@ Run these from the root of the repository.
 | `npm run db:seed` | Add the demo account and example maker space |
 | `npm run db:reset` | Wipe the development database and seed it again |
 | `npm run bridge -- ...` | Run the printer bridge from source. See the [Bridge reference](docs/wiki/Bridge-reference.md) |
+| `pio run -d firmware/cyd` | Build the location display firmware (needs [PlatformIO](https://platformio.org/)). See [firmware/README.md](firmware/README.md) |
+| `pio run -d firmware/cyd -e cyd-st7789 -t upload` | Build and flash a display plugged in by USB |
 
 There is no linter or formatter set up yet, and no CI that runs the tests. Please run `npm test` and `npm run typecheck` before opening a pull request.
 
@@ -58,6 +60,7 @@ This is an npm workspaces monorepo, all TypeScript, with four packages:
 | `client/` | The web app: React, Vite, CSS Modules. Installable as a PWA |
 | `bridge/` | A separate command-line program that reads Bambu Lab printers on a workshop's network and reports to the server |
 | `protocol/` | The messages the server and the bridge exchange, shared by both |
+| `firmware/` | Firmware for Wrkbench's own hardware: the CYD location display. Built with PlatformIO, not an npm workspace |
 
 Where to find things:
 

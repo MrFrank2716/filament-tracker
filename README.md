@@ -21,6 +21,7 @@ It started as a 3D printing filament tracker, which is why this repository is ca
 - **Add real products in one step**: a built-in catalogue of printers, lasers, CNC machines, filaments, sheet stock, endmills and fasteners. → [Catalogue and settings](docs/wiki/Catalogue-and-settings.md)
 - **Connect Bambu Lab printers**: see each AMS and the spools in it live, and link them to your stock. Prints become jobs by themselves and take the filament they used from stock. Read-only: it never controls a printer. → [Connecting printers](docs/wiki/Connecting-printers.md)
 - **Tag spools**: write an [OpenSpool](https://github.com/spuder/OpenSpool) NFC sticker for a spool, tap it to open the spool, and scan a spool just before inserting it so the right item is tied to its tray, even for spools the printer cannot identify. → [Spool tags](docs/wiki/Spool-tags.md)
+- **Put a screen on the shelf**: a cheap 2.8" touch display (CYD) shows what a rack or dry box holds and how much is left, low stock first. Add a tag reader and tapping a spool puts it away there or marks it for the printer. → [Location displays](docs/wiki/Location-displays.md)
 - **Keep your data**: export a workspace as JSON, or your stock as a spreadsheet, and import from CSV. → [Backups, import and export](docs/wiki/Backups-and-data.md)
 
 It works on phones as well as computers, and can be installed as an app from the browser.
@@ -81,7 +82,7 @@ The full documentation is in the [wiki](docs/wiki/Home.md), also available under
 | [Locations](docs/wiki/Locations.md) | [Spool tags (OpenSpool)](docs/wiki/Spool-tags.md) | [Contributing](CONTRIBUTING.md) |
 | [Labels and scanning](docs/wiki/Labels-and-scanning.md) | [Prints and filament use](docs/wiki/Prints-and-filament-use.md) | |
 | [Machines](docs/wiki/Machines.md) | [Bridge reference](docs/wiki/Bridge-reference.md) | |
-| [Maintenance](docs/wiki/Maintenance.md) | | |
+| [Maintenance](docs/wiki/Maintenance.md) | [Location displays](docs/wiki/Location-displays.md) | |
 | [Jobs and the queue](docs/wiki/Jobs-and-queue.md) | | |
 | [Job requests](docs/wiki/Job-requests.md) | | |
 | [Dashboard and reports](docs/wiki/Dashboard-and-reports.md) | | |

@@ -111,6 +111,15 @@ Without email, password-reset links and job request updates are only printed to 
 | `PRINTER_MAX_PER_BRIDGE` | `20` | Most printers per bridge |
 | `BRIDGE_IMAGE` | `ghcr.io/hussxin5046/wrkbench-bridge:latest` | The bridge image named in the set-up command. See [Running a fork](#running-a-fork) |
 
+### Location displays
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `DEVICES_ENABLED` | `true` | `false` refuses [location displays](Location-displays.md). Must be exactly `true` or `false` |
+| `DEVICE_MAX_PER_WORKSPACE` | `5` | Most displays per workspace |
+
+A display is told the server's address from `APP_URL` (or `CLIENT_ORIGIN`). On a local network set it to an address other devices reach, such as `http://192.168.1.20:4000`, not `localhost`.
+
 ## Backups
 
 The database and uploads together are the only things to back up. With Docker, that is the volume mounted at `/data`. Turn on scheduled volume backups if your host offers them, or copy the folder regularly. Copy the database while the app is stopped, or use SQLite's own backup command, so the copy is not caught half-written.
