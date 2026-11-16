@@ -47,7 +47,7 @@ export function PrinterPanel({ state }: { state: PrinterState }) {
   return (
     <section className={styles.printer} aria-label="Printer status">
       <div className={styles.printerHead}>
-        {!waiting && <Badge tone={live ? phase.tone : 'neutral'}>{phase.label}</Badge>}
+        {!waiting && <Badge tone={live ? phase.tone : 'neutral'}>{state.print?.kind === 'laser' && state.phase === 'printing' ? 'Laser job running' : phase.label}</Badge>}
         {!live && <Badge tone={connection.tone}>{connection.label}</Badge>}
         <Muted>{[state.modelName, state.firmware && `firmware ${state.firmware}`].filter(Boolean).join(' · ')}</Muted>
       </div>
@@ -74,6 +74,12 @@ export function PrinterPanel({ state }: { state: PrinterState }) {
 
       {!waiting && (state.extruders.length > 0 || state.bed) && (
         <dl className={styles.printerFacts}>
+          {state.tool && (
+            <div>
+              <dt>Tool fitted</dt>
+              <dd>{state.tool}</dd>
+            </div>
+          )}
           {state.extruders.map((extruder) => (
             <div key={extruder.label}>
               <dt>{extruder.label}</dt>

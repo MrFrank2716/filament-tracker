@@ -231,6 +231,30 @@ describe('following a print', () => {
     await prisma.printerRun.updateMany({ where: { endedAt: null }, data: { endedAt: new Date(), outcome: 'unseen' } });
   });
 
+  it('follows a laser job as a job, without fetching a file or charging filament', async () => {
+    const h2d = JSON.parse(readFileSync(new URL('./fixtures/h2d-laser.json', import.meta.url), 'utf8')) as Doc;
+    const machine = await prisma.machine.create({ data: { workspaceId: target.workspaceId, name: 'H2D' } });
+    const bridge = await prisma.bridge.findFirstOrThrow();
+    const link = await prisma.printerLink.create({ data: { workspaceId: target.workspaceId, machineId: machine.id, bridgeId: bridge.id, serial: 'SERIAL0000000002', host: '192.168.1.7' } });
+    const h2dTarget: RunTarget = { ...target, linkId: link.id, machineId: machine.id, machineName: 'H2D', serial: 'SERIAL0000000002' };
+    let asked = 0;
+    const reader: JobFileReader = async () => {
+      asked += 1;
+      return null;
+    };
+    await reconcileRun(h2dTarget, readBambu(h2d), h2d, reader, new Date(T0 + 60 * HOUR));
+    const job = await prisma.job.findFirstOrThrow({ where: { name: 'sample_laser_job' }, include: { usages: true } });
+    expect(job).toMatchObject({ status: 'in_progress', source: 'printer', machineId: machine.id });
+    expect(job.notes).toMatch(/^Laser or cutting job, Laser 40W/);
+    expect(job.usages).toHaveLength(0);
+    expect(asked).toBe(0);
+    // It ends like any other job: finished, with the real time.
+    const done = JSON.parse(JSON.stringify(h2d)) as { print: Record<string, unknown> };
+    done.print.gcode_state = 'FINISH';
+    await reconcileRun(h2dTarget, readBambu(done as unknown as Doc), done as unknown as Doc, reader, new Date(T0 + 60.1 * HOUR));
+    expect(await prisma.job.findUniqueOrThrow({ where: { id: job.id } })).toMatchObject({ status: 'completed', durationHours: 0.1 });
+  });
+
   it('never opens a record for a finished print left on the screen', async () => {
     await prisma.printerRun.updateMany({ where: { endedAt: null }, data: { endedAt: new Date(), outcome: 'unseen' } });
     const jobs = await prisma.job.count();
