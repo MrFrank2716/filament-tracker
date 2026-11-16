@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { mkdir, rm } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Request, RequestHandler } from 'express';
@@ -67,6 +67,14 @@ const upload = multer({
 export const receiveFiles: RequestHandler = upload.array('files', uploadLimits.maxFiles);
 
 export const uploadedFiles = (req: Request): Express.Multer.File[] => (Array.isArray(req.files) ? req.files : []);
+
+/** Keep bytes we produced or checked ourselves (a print's picture) beside the workspace's other files. Returns the stored name. */
+export async function storeBytes(workspaceId: string, bytes: Uint8Array): Promise<string> {
+  const name = randomBytes(16).toString('hex');
+  await mkdir(workspaceDir(workspaceId), { recursive: true });
+  await writeFile(storedPath(workspaceId, name), bytes);
+  return name;
+}
 
 export async function removeStored(workspaceId: string, storedNames: string[]): Promise<void> {
   await Promise.all(storedNames.map((name) => rm(storedPath(workspaceId, name), { force: true })));

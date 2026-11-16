@@ -572,6 +572,8 @@ export interface PrinterState {
   connection: PrinterConnection;
   asOf: number | null;
   endsAt: number | null;
+  /** The print on the printer's screen, when the server holds the slicer's picture of it. Absent from older servers. */
+  thumbnailRunId?: string | null;
   phase: PrinterPhase;
   rawState: string;
   print: { name: string | null; progress: number | null; layer: number | null; totalLayers: number | null; remainingMinutes: number | null } | null;

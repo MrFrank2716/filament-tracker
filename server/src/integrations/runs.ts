@@ -1,4 +1,4 @@
-import type { Doc } from '@filament-tracker/protocol';
+import { JOB_IMAGE_MAX_BYTES, isPng, type Doc } from '@filament-tracker/protocol';
 import { prisma, type Json } from '@/db';
 import { HttpError } from '@/http';
 import { plateFor, readSliceInfo, SLICE_INFO } from '@/integrations/threemf';
@@ -6,6 +6,7 @@ import type { PrinterAdapter, PrinterReading } from '@/integrations/types';
 import { logSystemActivity } from '@/services/activity';
 import { endOfQueue, finishJob, startJob } from '@/services/jobs';
 import { round } from '@/services/stock';
+import { storeBytes } from '@/services/uploads';
 
 /**
  * Following prints. When a connected printer is seen printing, the print becomes a job (or joins the job a
@@ -38,8 +39,8 @@ export interface RunFilament {
   itemName: string | null;
 }
 
-/** Reads the sliced file's summary through the bridge; null when it cannot. */
-export type JobFileReader = (entries: string[]) => Promise<Record<string, string> | null>;
+/** Reads named entries of the sliced file through the bridge: text, and pictures where the bridge can. Null when it cannot. */
+export type JobFileReader = (entries: string[]) => Promise<{ entries: Record<string, string>; images?: Record<string, Uint8Array> } | null>;
 
 const busy = (reading: PrinterReading) => reading.phase === 'preparing' || reading.phase === 'printing' || reading.phase === 'paused';
 
@@ -96,11 +97,28 @@ const plateIndex = (doc: Doc): number | null => {
   return match ? Number(match[1]) : null;
 };
 
+interface JobFile {
+  /** What the print will use; null when the slicer's summary could not be read. */
+  usage: { filaments: RunFilament[]; seconds: number | null } | null;
+  /** The slicer's picture of the plate being printed, a PNG. */
+  picture: Uint8Array | null;
+}
+
+/** One download of the sliced file gives both what the print will use and what it looks like. Null when it gave neither. */
+async function readJobFile(target: RunTarget, doc: Doc, printName: string, read: JobFileReader): Promise<JobFile | null> {
+  const pictureName = `Metadata/plate_${plateIndex(doc) ?? 1}.png`;
+  const reply = await read([SLICE_INFO, pictureName]).catch(() => null);
+  if (!reply) return null;
+  const image = reply.images?.[pictureName];
+  // Checked again here: the bridge is not trusted to have sent a picture just because it was asked for one.
+  const picture = image && image.byteLength <= JOB_IMAGE_MAX_BYTES && isPng(image) ? image : null;
+  const xml = reply.entries[SLICE_INFO];
+  const usage = xml ? await readFilaments(target, doc, printName, xml) : null;
+  return usage || picture ? { usage, picture } : null;
+}
+
 /** What the print will use, per filament, with the stock item in each tray as it stands now. */
-async function readFilaments(target: RunTarget, doc: Doc, printName: string, read: JobFileReader): Promise<{ filaments: RunFilament[]; seconds: number | null } | null> {
-  const entries = await read([SLICE_INFO]).catch(() => null);
-  const xml = entries?.[SLICE_INFO];
-  if (!xml) return null;
+async function readFilaments(target: RunTarget, doc: Doc, printName: string, xml: string): Promise<{ filaments: RunFilament[]; seconds: number | null } | null> {
   const plate = plateFor(readSliceInfo(xml), plateIndex(doc));
   if (!plate || plate.filaments.length === 0) return null;
 
@@ -216,9 +234,14 @@ export async function reconcileRun(target: RunTarget, reading: PrinterReading, d
       // Still going: remember how far it got, and pick up the file if it was not readable at the start.
       const progress = Math.max(run.progress, progressOf(reading));
       const needsFile = run.usageSource === '' && now.getTime() - run.startedAt.getTime() < 15 * 60_000;
-      const file = needsFile ? await readFilaments(target, doc, run.name, read) : null;
-      if (progress !== run.progress || file) {
-        await prisma.printerRun.update({ where: { id: run.id }, data: { progress, ...(file ? { filaments: file.filaments as unknown as Json, usageSource: 'file' } : {}) } });
+      const file = needsFile ? await readJobFile(target, doc, run.name, read) : null;
+      const usage = file?.usage ?? null;
+      const thumbnail = file?.picture && !run.thumbnail ? await storeBytes(target.workspaceId, file.picture) : null;
+      if (progress !== run.progress || usage || thumbnail) {
+        await prisma.printerRun.update({
+          where: { id: run.id },
+          data: { progress, ...(usage ? { filaments: usage.filaments as unknown as Json, usageSource: 'file' } : {}), ...(thumbnail ? { thumbnail } : {}) },
+        });
       }
       // Keep the job's run time in step with the printer's own estimate, so Jobs and the queue show the same
       // thing the machine page does: time gone so far plus what the printer says is left.
@@ -228,7 +251,7 @@ export async function reconcileRun(target: RunTarget, reading: PrinterReading, d
         const moved = await prisma.job.updateMany({ where: { id: run.jobId, source: 'printer', status: 'in_progress', NOT: { durationHours: hours } }, data: { durationHours: hours } });
         if (moved.count) return true;
       }
-      return Boolean(file);
+      return Boolean(usage || thumbnail);
     }
     if (same && reading.phase === 'finished') await closeRun(target, run, 'completed', reading, now);
     else if (same && reading.phase === 'failed') await closeRun(target, run, reading.errors.some((error) => error.code === '0300_400C' || error.code === '0500_400E') ? 'cancelled' : 'failed', reading, now);
@@ -240,11 +263,13 @@ export async function reconcileRun(target: RunTarget, reading: PrinterReading, d
   // Only a print that is actually under way opens a record: a finished one left on the screen never does.
   if (!busy(reading) || !name) return Boolean(run);
   const jobId = await jobFor(target, name, now);
-  const file = await readFilaments(target, doc, name, read);
+  const jobFile = await readJobFile(target, doc, name, read);
+  const file = jobFile?.usage ?? null;
   await prisma.printerRun.create({
     data: {
       workspaceId: target.workspaceId, printerLinkId: target.linkId, jobId, name: name.slice(0, 200), startedAt: now,
       filaments: (file?.filaments ?? []) as unknown as Json, usageSource: file ? 'file' : '', progress: progressOf(reading),
+      thumbnail: jobFile?.picture ? await storeBytes(target.workspaceId, jobFile.picture) : '',
     },
   });
   if (file) {
@@ -256,4 +281,14 @@ export async function reconcileRun(target: RunTarget, reading: PrinterReading, d
     if (file.seconds) await prisma.job.updateMany({ where: { id: jobId, durationHours: 0 }, data: { durationHours: round(file.seconds / 3600, 2) } });
   }
   return true;
+}
+
+/**
+ * The print whose picture belongs beside what the printer is showing: its latest one, as long as that is still
+ * the print on its screen (running, or finished and not yet cleared). Null when there is no picture to show.
+ */
+export async function thumbnailRunFor(linkId: string, printName: string | null): Promise<string | null> {
+  if (!printName) return null;
+  const run = await prisma.printerRun.findFirst({ where: { printerLinkId: linkId }, orderBy: { startedAt: 'desc' }, select: { id: true, name: true, thumbnail: true } });
+  return run && run.thumbnail && plain(run.name) === plain(printName) ? run.id : null;
 }

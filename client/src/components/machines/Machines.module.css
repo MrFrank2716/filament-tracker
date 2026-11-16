@@ -237,8 +237,26 @@ button.slot:hover {
 
 .printJob {
   display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.printJobBody {
+  display: flex;
+  flex: 1;
   flex-direction: column;
   gap: var(--space-1);
+  min-width: 0;
+}
+
+/* The slicer's picture of the plate: clear around the model, so it sits on a quiet tile of its own. */
+.printThumb {
+  flex: none;
+  width: 6rem;
+  height: 6rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  object-fit: contain;
 }
 
 .printJobHead {

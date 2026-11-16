@@ -1,4 +1,5 @@
 import readline from 'node:readline';
+import { crc32, deflateSync } from 'node:zlib';
 import type { DiscoveredPrinter, Doc, PrinterTestAck } from '@filament-tracker/protocol';
 import { simDocument, simFleet, simTray, type SimPrinter, type SimSpool } from '@filament-tracker/protocol/fixtures';
 import type { PrinterSession, SessionEvents } from './bambu';
@@ -23,6 +24,42 @@ const SIM_SLICE_INFO = `<?xml version="1.0" encoding="UTF-8"?>
  <filament id="1" tray_info_idx="GFA00" type="PLA" color="#000000" used_m="9.80" used_g="29.20"/>
  <filament id="2" tray_info_idx="GFA00" type="PLA" color="#FFFFFF" used_m="3.10" used_g="9.20"/>
 </plate></config>`;
+
+/**
+ * A stand-in for the slicer's picture of the plate: a plain block seen from a corner, on a clear background.
+ * Drawn here rather than shipped as a file, so the bridge stays a single bundle.
+ */
+function simPlatePng(size = 192): Uint8Array {
+  const rows = Buffer.alloc(size * (1 + size * 4));
+  const centre = size / 2;
+  const half = size * 0.3; // half the block's width on screen
+  const rise = half / 2; // how far a corner sits above or below the middle of its face
+  const paint = (x: number, y: number, [r, g, b]: [number, number, number]) => rows.set([r, g, b, 255], y * (1 + size * 4) + 1 + x * 4);
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const dx = x + 0.5 - centre;
+      const dy = y + 0.5 - centre;
+      const slope = (Math.abs(dx) / half) * rise;
+      if (Math.abs(dx) > half) continue;
+      // Top face: a diamond around a point one `rise` above the centre. Sides: the two faces hanging below it.
+      if (Math.abs(dy + 2 * rise) <= rise - slope) paint(x, y, [120, 200, 235]);
+      else if (dy >= -rise - slope && dy <= 3 * rise - slope) paint(x, y, dx < 0 ? [60, 140, 190] : [35, 100, 150]);
+    }
+  }
+  const chunk = (type: string, data: Buffer) => {
+    const body = Buffer.concat([Buffer.from(type, 'latin1'), data]);
+    const out = Buffer.alloc(body.length + 8);
+    out.writeUInt32BE(data.length, 0);
+    body.copy(out, 4);
+    out.writeUInt32BE(crc32(body), body.length + 4);
+    return out;
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(size, 0);
+  header.writeUInt32BE(size, 4);
+  header.set([8, 6, 0, 0, 0], 8); // 8 bits a channel, RGBA
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', header), chunk('IDAT', deflateSync(rows)), chunk('IEND', Buffer.alloc(0))]);
+}
 
 /** What a printer says when a print is sent to it: the job's name, plate, and which tray each filament uses. */
 const announce = (name: string): Doc => ({ job: { announcedAt: Date.now(), subtask_name: name, param: 'Metadata/plate_1.gcode', use_ams: true, ams_mapping: [0, 1] } });
@@ -72,8 +109,8 @@ export class Simulator {
       },
       stop: () => void entry.listeners.delete(listener),
       refresh: () => events.onDoc(simDocument(entry.printer)),
-      // What the slicer would have written for the pretend print: two filaments, from the first two trays.
-      readJobFile: async () => ({ 'Metadata/slice_info.config': SIM_SLICE_INFO }),
+      // What the slicer would have written for the pretend print: two filaments, from the first two trays, and a picture.
+      readJobFile: async () => ({ entries: { 'Metadata/slice_info.config': SIM_SLICE_INFO }, images: { 'Metadata/plate_1.png': simPlatePng() }, skipped: [], listing: [] }),
     };
   }
 
