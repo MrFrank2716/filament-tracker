@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
+import type { PrinterState } from '@/integrations/types';
 import type { Db } from '@/db';
 import { isLow } from '@/services/reorder';
 import { round } from '@/services/stock';
@@ -130,6 +131,108 @@ export interface Overview {
   lowCount: number;
   items: DisplayRow[];
   locations: Array<{ id: string; name: string }>;
+  printer: DisplayPrinter | null;
+}
+
+// ---- The printer beside the display ---------------------------------------------------------
+
+/** Polls come faster while the printer beside the display is busy, so progress moves on screen. */
+export const BUSY_POLL_SECONDS = 15;
+const MAX_TRAYS = 8;
+
+/** ok: idle or done. busy: working. warn: paused, a warning, or figures that may be old. error: stopped or a fault. off: not reporting. */
+export type PrinterTone = 'ok' | 'busy' | 'warn' | 'error' | 'off';
+
+export interface DisplayPrinter {
+  name: string;
+  /** "Printing", "Idle", "Bridge offline" ... the web app's own words. */
+  state: string;
+  tone: PrinterTone;
+  /** 0..1, or null when nothing is running. */
+  progress: number | null;
+  /** "1 h 34 min left" */
+  left: string | null;
+  job: string | null;
+  /** "Layer 112 of 300" */
+  layer: string | null;
+  /** "Nozzle 220/220 C  Bed 60/60 C" */
+  temps: string | null;
+  /** The worst error the printer reports, in the maker's words, or its code. */
+  error: string | null;
+  /** Up to eight spool positions: "A1" for AMS 1 slot 1, "Ext" for an outside spool. */
+  trays: Array<{ label: string; material: string | null; color: string | null; active: boolean; empty: boolean }>;
+}
+
+const PHASE_WORDS: Record<PrinterState['phase'], [string, PrinterTone]> = {
+  idle: ['Idle', 'ok'],
+  preparing: ['Preparing', 'busy'],
+  printing: ['Printing', 'busy'],
+  paused: ['Paused', 'warn'],
+  finished: ['Finished', 'ok'],
+  failed: ['Stopped', 'error'],
+  unknown: ['Unknown', 'off'],
+};
+
+const CONNECTION_WORDS: Record<Exclude<PrinterState['connection'], 'live'>, string> = {
+  printer_unreachable: 'Printer not reachable',
+  bridge_offline: 'Bridge offline',
+  needs_code: 'Needs access code',
+  never_seen: 'Waiting for the printer',
+};
+
+const SEVERITY = { info: 0, warning: 1, error: 2, fatal: 3 } as const;
+
+function minutesLeft(minutes: number): string {
+  if (minutes < 60) return `${minutes} min left`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours} h${minutes % 60 ? ` ${minutes % 60} min` : ''} left`;
+}
+
+const temp = (label: string, t: { current: number | null; target: number | null } | null | undefined) =>
+  t && t.current !== null ? `${label} ${Math.round(t.current)}${t.target ? `/${Math.round(t.target)}` : ''} C` : null;
+
+/**
+ * The printer's state worded for the display. A printer that has never been connected to a bridge gives
+ * "Not connected"; one that stopped reporting keeps its last figures with the reason as its state.
+ */
+export function displayPrinter(name: string, state: PrinterState | null): DisplayPrinter {
+  const base = { name: forDisplay(name, 32), progress: null, left: null, job: null, layer: null, temps: null, error: null, trays: [] };
+  if (!state) return { ...base, state: 'Not connected', tone: 'off' };
+  const [phaseWord, phaseTone] = PHASE_WORDS[state.phase] ?? PHASE_WORDS.unknown;
+  const live = state.connection === 'live';
+  const worst = [...state.errors].sort((a, b) => SEVERITY[b.severity] - SEVERITY[a.severity])[0];
+  const tone: PrinterTone = !live ? 'off' : worst && SEVERITY[worst.severity] >= 2 ? 'error' : worst?.severity === 'warning' && phaseTone !== 'error' ? 'warn' : phaseTone;
+  const running = state.phase === 'printing' || state.phase === 'preparing' || state.phase === 'paused';
+  const print = running ? state.print : null;
+  const feederLetter = (index: number) => String.fromCharCode(65 + index);
+  let amsIndex = 0;
+  const trays: DisplayPrinter['trays'] = [];
+  for (const feeder of state.feeders) {
+    const letter = feeder.kind === 'external' ? null : feederLetter(amsIndex++);
+    for (const tray of feeder.trays) {
+      if (trays.length >= MAX_TRAYS) break;
+      trays.push({
+        label: letter ? `${letter}${tray.position}` : 'Ext',
+        material: tray.state === 'loaded' ? forDisplay(tray.subType ?? tray.material ?? '', 12) || null : null,
+        color: tray.state === 'loaded' && tray.colour && /^#[0-9a-f]{6}$/i.test(tray.colour) ? tray.colour.toLowerCase() : null,
+        active: tray.active,
+        empty: tray.state !== 'loaded',
+      });
+    }
+  }
+  const extruder = state.extruders[0]?.temp;
+  return {
+    ...base,
+    state: state.connection === 'live' ? (print?.kind === 'laser' && state.phase === 'printing' ? 'Laser job' : phaseWord) : CONNECTION_WORDS[state.connection],
+    tone,
+    progress: print?.progress !== null && print?.progress !== undefined ? Math.min(1, Math.max(0, print.progress / 100)) : null,
+    left: print?.remainingMinutes ? minutesLeft(print.remainingMinutes) : null,
+    job: print?.name ? forDisplay(print.name, 40) : null,
+    layer: print?.layer && print.totalLayers ? `Layer ${print.layer} of ${print.totalLayers}` : null,
+    temps: [temp('Nozzle', extruder), temp('Bed', state.bed)].filter(Boolean).join('  ') || null,
+    error: worst ? forDisplay(worst.message ?? `Error ${worst.code}`, 90) : null,
+    trays,
+  };
 }
 
 /** The overview for a display, of `locationId` (its own location, or one it is browsing). */
@@ -137,6 +240,7 @@ export async function buildOverview(
   db: Db,
   device: { workspaceId: string; name: string; canWrite: boolean; workspace: { name: string } },
   locationId: string | null,
+  printer: DisplayPrinter | null = null,
 ): Promise<Overview> {
   const tree = await locationTree(db, device.workspaceId);
   const shown = locationId ? tree.byId.get(locationId) : undefined;
@@ -153,7 +257,7 @@ export async function buildOverview(
     .sort((a, b) => a.name.localeCompare(b.name))
     .slice(0, MAX_LOCATIONS);
   const body = {
-    poll: POLL_SECONDS,
+    poll: printer?.tone === 'busy' ? BUSY_POLL_SECONDS : POLL_SECONDS,
     workspace: forDisplay(device.workspace.name),
     device: forDisplay(device.name),
     canWrite: device.canWrite,
@@ -162,6 +266,7 @@ export async function buildOverview(
     lowCount: rows.filter((row) => row.low).length,
     items: rows.slice(0, MAX_ROWS),
     locations,
+    printer,
   };
   const v = createHash('sha256').update(JSON.stringify(body)).digest('base64url').slice(0, 12);
   return { v, ...body };

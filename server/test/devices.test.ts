@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { simDocument, simFleet } from '@filament-tracker/protocol/fixtures';
 import { prisma } from '@/db';
 import { bridgeConnected, ingestReport, resetRegistry, setLinkStatus, trackPrinterById, writesSettled } from '@/integrations/registry';
-import { forDisplay } from '@/services/deviceOverview';
+import { displayPrinter, forDisplay } from '@/services/deviceOverview';
+import { emptyReading } from '@/integrations/types';
 import { member, startApp } from './http';
 
 /**
@@ -261,6 +262,21 @@ describe('tapping a tag on the display', () => {
     expect(await prisma.activityLog.count({ where: { workspaceId, userName: 'Dry box', summary: 'Tapped Needs a tag to go into X1C next' } })).toBe(1);
   });
 
+  it('shows the status of the printer beside it, and polls faster while it prints', async () => {
+    // The simulated X1C is printing bracket_v3: 37 %, 94 minutes left, layer 112 of 300, AMS 1 slot 1 feeding.
+    const { body } = await app.call('GET', '/device/overview', token);
+    expect(body?.poll).toBe(15);
+    const printer = body?.printer as Record<string, unknown>;
+    expect(printer).toMatchObject({
+      name: 'X1C', state: 'Printing', tone: 'busy', progress: 0.37, left: '1 h 34 min left', job: 'bracket_v3', layer: 'Layer 112 of 300',
+    });
+    const trays = printer.trays as Array<Record<string, unknown>>;
+    expect(trays[0]).toMatchObject({ label: 'A1', material: 'PLA Basic', color: '#000000', active: true, empty: false });
+    expect(trays[3]).toMatchObject({ label: 'A4', empty: true, color: null });
+    expect(trays.find((t) => t.label === 'B1')).toMatchObject({ material: 'PLA Matte', color: '#c12e1f' });
+    expect(trays.length).toBeLessThanOrEqual(8);
+  });
+
   it('refuses every change when changes from the display are switched off', async () => {
     await app.call('PATCH', ws(`/devices/${deviceId}`), admin, { canWrite: false });
     expect((await app.call('GET', '/device/tag/04A1B2C3D4E5F6', token)).body).toMatchObject({ canPutAway: false, insertInto: null });
@@ -269,6 +285,21 @@ describe('tapping a tag on the display', () => {
     expect((await app.call('POST', '/device/tag/11223344/insert', token)).status).toBe(403);
     expect((await app.call('POST', '/device/tag/AABBCCDD/link', token, { itemId: spare.id })).status).toBe(403);
     expect((await app.call('GET', '/device/overview', token)).body).toMatchObject({ canWrite: false });
+  });
+});
+
+describe('printer status for the display', () => {
+  it('says when a printer is not connected or not reporting', () => {
+    expect(displayPrinter('Laser', null)).toMatchObject({ name: 'Laser', state: 'Not connected', tone: 'off', trays: [] });
+    const reading = { ...emptyReading(), phase: 'idle' as const };
+    const offline = displayPrinter('X1C', { ...reading, v: 1, machineId: 'm', printerLinkId: 'l', connection: 'bridge_offline', asOf: 1, endsAt: null, thumbnailRunId: null });
+    expect(offline).toMatchObject({ state: 'Bridge offline', tone: 'off', progress: null });
+    const fault = displayPrinter('X1C', {
+      ...reading, phase: 'printing', v: 1, machineId: 'm', printerLinkId: 'l', connection: 'live', asOf: 1, endsAt: null, thumbnailRunId: null,
+      print: { name: 'part', kind: 'print', progress: 50, layer: null, totalLayers: null, remainingMinutes: 45 },
+      errors: [{ kind: 'hms', code: '0700_8011', severity: 'error', message: 'AMS filament ran out.', url: null }],
+    });
+    expect(fault).toMatchObject({ state: 'Printing', tone: 'error', progress: 0.5, left: '45 min left', error: 'AMS filament ran out.' });
   });
 });
 

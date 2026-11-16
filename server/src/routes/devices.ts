@@ -5,12 +5,12 @@ import { bearerToken } from '@/auth';
 import { prisma } from '@/db';
 import { env } from '@/env';
 import { HttpError, notFound, param, parse } from '@/http';
-import { armPendingSpool } from '@/integrations/registry';
+import { armPendingSpool, statesForWorkspace } from '@/integrations/registry';
 import { isStickerTag } from '@/integrations/spoolMatch';
 import { rateLimit } from '@/rateLimit';
 import { notifyWorkspaceSoon } from '@/realtime';
 import { describeActivity, logSystemActivity } from '@/services/activity';
-import { buildOverview, displayRow, forDisplay, itemSelect, locationTree, MAX_ROWS, POLL_SECONDS } from '@/services/deviceOverview';
+import { buildOverview, displayPrinter, displayRow, forDisplay, itemSelect, locationTree, MAX_ROWS, POLL_SECONDS } from '@/services/deviceOverview';
 import { itemForUid, readUid, stickerTagFor } from '@/services/deviceTags';
 import { appUrl } from '@/services/mail';
 import { assertInWorkspace, moveItems } from '@/services/stock';
@@ -208,13 +208,20 @@ deviceRouter.get('/overview', async (req, res) => {
   await touch(device, nfc);
   const asked = typeof req.query.location === 'string' && req.query.location ? req.query.location : null;
   if (asked && !(await prisma.location.count({ where: { id: asked, workspaceId: device.workspaceId } }))) throw notFound('Location');
-  const overview = await buildOverview(prisma, device, asked ?? device.locationId);
+  const overview = await buildOverview(prisma, device, asked ?? device.locationId, printerBeside(device));
   if (typeof req.query.since === 'string' && req.query.since === overview.v) {
     res.status(304).end();
     return;
   }
   res.json(overview);
 });
+
+/** The status of the printer chosen as "beside" this display, from the live readings the bridge sends. */
+function printerBeside(device: AuthedDevice) {
+  if (!env.PRINTERS_ENABLED || !device.machineId || !device.machine) return null;
+  const state = statesForWorkspace(device.workspaceId).find((s) => s.machineId === device.machineId) ?? null;
+  return displayPrinter(device.machine.name, state);
+}
 
 /** A tapped tag: what it is, where it is kept, and what this display may do with it. */
 deviceRouter.get('/tag/:uid', async (req, res) => {

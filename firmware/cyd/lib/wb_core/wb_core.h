@@ -35,6 +35,35 @@ struct Place {
   char name[PATH_LEN];
 };
 
+/** How a printer is doing, for the colour of its dot. */
+enum class Tone : uint8_t { Ok, Busy, Warn, Error, Off };
+
+constexpr size_t MAX_TRAYS = 8;
+
+struct TrayInfo {
+  char label[6];      // "A1", "Ext"
+  char material[16];
+  uint32_t color;
+  bool hasColor;
+  bool active;        // feeding the print now
+  bool empty;
+};
+
+/** The printer chosen as beside the display, worded by the server. */
+struct PrinterInfo {
+  char name[36];
+  char state[28];     // "Printing", "Idle", "Bridge offline" ...
+  Tone tone;
+  float progress;     // 0..1, or -1 when nothing is running
+  char left[24];      // "1 h 34 min left"
+  char job[44];
+  char layer[28];     // "Layer 112 of 300"
+  char temps[48];     // "Nozzle 220/220 C  Bed 60/60 C"
+  char error[96];
+  size_t trayCount;
+  TrayInfo trays[MAX_TRAYS];
+};
+
 struct Overview {
   char v[24];
   int poll;
@@ -50,6 +79,8 @@ struct Overview {
   Item items[MAX_ITEMS];
   size_t placeCount;
   Place places[MAX_LOCATIONS];
+  bool hasPrinter;    // a printer is chosen for this display in Settings
+  PrinterInfo printer;
 };
 
 /** What the server said about a tapped tag. */

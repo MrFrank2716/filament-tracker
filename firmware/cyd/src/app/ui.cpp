@@ -37,7 +37,7 @@ constexpr uint32_t BROWSE_RETURN_MS = 120000;  // back to the display's own loca
 constexpr uint32_t CARD_CLOSE_MS = 20000;
 constexpr uint32_t DIM_AFTER_MS = 5 * 60000;
 
-enum class View { None, Setup, Busy, Code, Overview, Places, About };
+enum class View { None, Setup, Busy, Code, Overview, Places, About, Printer };
 
 store::Settings settings;
 bool readerFitted = false;
@@ -247,6 +247,62 @@ void browse(const char *locationId) {
 
 void showPlaces();
 void showAbout();
+void showPrinter();
+
+lv_color_t toneColour(wb::Tone tone) {
+  switch (tone) {
+    case wb::Tone::Ok: return OK;
+    case wb::Tone::Busy: return ACCENT;
+    case wb::Tone::Warn: return WARN;
+    case wb::Tone::Error: return DANGER;
+    default: return MUTED;
+  }
+}
+
+constexpr int STRIP_H = 30;
+
+/** One line under the header: the printer beside the display, tap for more. */
+void addPrinterStrip(lv_obj_t *s, const wb::PrinterInfo &p) {
+  lv_obj_t *strip = plainBox(s);
+  lv_obj_set_size(strip, W, STRIP_H);
+  lv_obj_align(strip, LV_ALIGN_TOP_LEFT, 0, HEADER_H);
+  lv_obj_set_style_bg_color(strip, lv_color_hex(0x161B22), 0);
+  lv_obj_set_style_bg_opa(strip, LV_OPA_COVER, 0);
+  lv_obj_add_flag(strip, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(strip, [](lv_event_t *) { showPrinter(); }, LV_EVENT_CLICKED, nullptr);
+
+  lv_obj_t *dot = lv_obj_create(strip);
+  lv_obj_set_size(dot, 10, 10);
+  lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_border_width(dot, 0, 0);
+  lv_obj_set_style_bg_color(dot, toneColour(p.tone), 0);
+  lv_obj_align(dot, LV_ALIGN_LEFT_MID, 8, -1);
+  lv_obj_remove_flag(dot, LV_OBJ_FLAG_CLICKABLE);
+
+  char text[120];
+  if (p.progress >= 0) {
+    snprintf(text, sizeof text, "%s  %s %d%%%s%s", p.name, p.state, static_cast<int>(p.progress * 100 + 0.5f), p.left[0] ? ", " : "", p.left);
+  } else {
+    snprintf(text, sizeof text, "%s  %s", p.name, p.state);
+  }
+  lv_obj_t *l = label(strip, text, &lv_font_montserrat_14, p.tone == wb::Tone::Error ? DANGER : TEXT);
+  lv_obj_set_width(l, W - 46);
+  oneLine(l);
+  lv_obj_align(l, LV_ALIGN_LEFT_MID, 24, -1);
+  lv_obj_t *more = label(strip, LV_SYMBOL_RIGHT, &lv_font_montserrat_14, MUTED);
+  lv_obj_align(more, LV_ALIGN_RIGHT_MID, -8, -1);
+
+  if (p.progress >= 0) {
+    lv_obj_t *bar = lv_bar_create(strip);
+    lv_obj_set_size(bar, W, 3);
+    lv_bar_set_value(bar, static_cast<int32_t>(p.progress * 100 + 0.5f), LV_ANIM_OFF);
+    lv_obj_set_style_radius(bar, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(bar, 0, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(bar, lv_color_hex(0x2A3038), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(bar, toneColour(p.tone), LV_PART_INDICATOR);
+    lv_obj_align(bar, LV_ALIGN_BOTTOM_MID, 0, 0);
+  }
+}
 
 void onHeader(lv_event_t *e) {
   if (lv_event_get_code(e) == LV_EVENT_LONG_PRESSED) showAbout();
@@ -356,9 +412,11 @@ void showOverview() {
     lv_obj_t *pill = label(header, low, &lv_font_montserrat_14, DANGER);
     lv_obj_align(pill, LV_ALIGN_BOTTOM_RIGHT, -8, -3);
   }
+  const bool strip = overview && overview->hasPrinter;
+  if (strip) addPrinterStrip(s, overview->printer);
 
   lv_obj_t *list = lv_obj_create(s);
-  lv_obj_set_size(list, W, H - HEADER_H);
+  lv_obj_set_size(list, W, H - HEADER_H - (strip ? STRIP_H : 0));
   lv_obj_align(list, LV_ALIGN_BOTTOM_MID, 0, 0);
   lv_obj_set_style_bg_opa(list, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(list, 0, 0);
@@ -424,6 +482,90 @@ void onNewCode(lv_event_t *) {
   free(overview);
   overview = nullptr;
   showCode(nullptr);
+}
+
+/** The printer beside the display: what it is doing, its temperatures, any error, and the spools loaded. */
+void showPrinter() {
+  if (!overview || !overview->hasPrinter) {
+    showOverview();
+    return;
+  }
+  const wb::PrinterInfo &p = overview->printer;
+  lv_obj_t *s = newScreen(View::Printer);
+
+  lv_obj_t *header = plainBox(s);
+  lv_obj_set_size(header, W, HEADER_H);
+  lv_obj_set_style_bg_color(header, SURFACE, 0);
+  lv_obj_set_style_bg_opa(header, LV_OPA_COVER, 0);
+  lv_obj_add_flag(header, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(header, backToOverview, LV_EVENT_CLICKED, nullptr);
+  char title[48];
+  snprintf(title, sizeof title, LV_SYMBOL_LEFT " %s", p.name);
+  lv_obj_t *t = label(header, title, &lv_font_montserrat_20);
+  lv_obj_set_width(t, 200);
+  oneLine(t);
+  lv_obj_align(t, LV_ALIGN_LEFT_MID, 8, 0);
+  lv_obj_t *state = label(header, p.state, &lv_font_montserrat_14, toneColour(p.tone));
+  lv_obj_align(state, LV_ALIGN_RIGHT_MID, -8, 0);
+
+  int y = HEADER_H + 8;
+  if (p.progress >= 0) {
+    char line[96];
+    snprintf(line, sizeof line, "%d%%%s%s", static_cast<int>(p.progress * 100 + 0.5f), p.left[0] ? "  -  " : "", p.left);
+    lv_obj_t *pct = label(s, line, &lv_font_montserrat_20);
+    lv_obj_align(pct, LV_ALIGN_TOP_LEFT, 10, y);
+    y += 28;
+    lv_obj_t *bar = lv_bar_create(s);
+    lv_obj_set_size(bar, W - 20, 8);
+    lv_bar_set_value(bar, static_cast<int32_t>(p.progress * 100 + 0.5f), LV_ANIM_OFF);
+    lv_obj_set_style_bg_color(bar, lv_color_hex(0x2A3038), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(bar, toneColour(p.tone), LV_PART_INDICATOR);
+    lv_obj_align(bar, LV_ALIGN_TOP_LEFT, 10, y);
+    y += 14;
+  }
+  // Job, layer and temperatures, one muted line each when known.
+  const char *lines[] = {p.job, p.layer, p.temps};
+  for (const char *text : lines) {
+    if (!text[0]) continue;
+    lv_obj_t *l = label(s, text, &lv_font_montserrat_14, text == p.job ? TEXT : MUTED);
+    lv_obj_set_width(l, W - 20);
+    oneLine(l);
+    lv_obj_align(l, LV_ALIGN_TOP_LEFT, 10, y);
+    y += 19;
+  }
+  if (p.error[0]) {
+    lv_obj_t *e = label(s, p.error, &lv_font_montserrat_14, DANGER);
+    lv_obj_set_width(e, W - 20);
+    lv_label_set_long_mode(e, LV_LABEL_LONG_WRAP);
+    lv_obj_align(e, LV_ALIGN_TOP_LEFT, 10, y + 2);
+  }
+
+  // Spools along the bottom: colour, its place, the material; the one feeding now is outlined.
+  if (p.trayCount) {
+    const int slot = (W - 12) / static_cast<int>(wb::MAX_TRAYS);
+    for (size_t i = 0; i < p.trayCount; i++) {
+      const wb::TrayInfo &tray = p.trays[i];
+      const int x = 6 + static_cast<int>(i) * slot;
+      lv_obj_t *box = lv_obj_create(s);
+      lv_obj_set_size(box, slot - 8, 22);
+      lv_obj_align(box, LV_ALIGN_BOTTOM_LEFT, x + 4, -36);
+      lv_obj_set_style_radius(box, 4, 0);
+      lv_obj_set_style_pad_all(box, 0, 0);
+      lv_obj_remove_flag(box, LV_OBJ_FLAG_SCROLLABLE);
+      lv_obj_set_style_bg_color(box, tray.empty ? BG : (tray.hasColor ? lv_color_hex(tray.color) : lv_color_hex(0x3A414B)), 0);
+      lv_obj_set_style_border_color(box, tray.active ? ACCENT : lv_color_hex(0x55606C), 0);
+      lv_obj_set_style_border_width(box, tray.active ? 3 : 1, 0);
+      lv_obj_t *place = label(s, tray.label, &lv_font_montserrat_14, tray.active ? ACCENT : TEXT);
+      lv_obj_set_width(place, slot);
+      lv_obj_set_style_text_align(place, LV_TEXT_ALIGN_CENTER, 0);
+      lv_obj_align(place, LV_ALIGN_BOTTOM_LEFT, x, -18);
+      lv_obj_t *material = label(s, tray.empty ? "-" : tray.material, &lv_font_montserrat_14, MUTED);
+      lv_obj_set_width(material, slot);
+      oneLine(material);
+      lv_obj_set_style_text_align(material, LV_TEXT_ALIGN_CENTER, 0);
+      lv_obj_align(material, LV_ALIGN_BOTTOM_LEFT, x, -2);
+    }
+  }
 }
 
 void showAbout() {
@@ -624,6 +766,7 @@ void handle(net::Result &result) {
       free(overview);
       overview = static_cast<wb::Overview *>(result.data);
       if (view == View::Overview || view == View::Busy || view == View::None) showOverview();
+      else if (view == View::Printer) showPrinter();
       break;
     }
     case net::ResultType::Paired:
@@ -725,7 +868,7 @@ void poll() {
   else if (st.phase == net::Phase::Pairing && view == View::Busy && st.message[0]) showMessageScreen(View::Busy, "Setting up", st.message, true);
   refreshStatus();
   if (browsing && view == View::Overview && display::idleMs() > BROWSE_RETURN_MS) browse("");
-  if ((view == View::Places || view == View::About) && display::idleMs() > BROWSE_RETURN_MS) showOverview();
+  if ((view == View::Places || view == View::About || view == View::Printer) && display::idleMs() > BROWSE_RETURN_MS) showOverview();
   display::setBrightness(display::idleMs() > DIM_AFTER_MS && !card ? 40 : 255);
 }
 

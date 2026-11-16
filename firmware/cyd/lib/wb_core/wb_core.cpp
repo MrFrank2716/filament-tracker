@@ -45,6 +45,38 @@ static void readItem(JsonObjectConst row, Item &item) {
   item.tagged = row["tagged"] | false;
 }
 
+static Tone readTone(const char *text) {
+  if (strcmp(text, "ok") == 0) return Tone::Ok;
+  if (strcmp(text, "busy") == 0) return Tone::Busy;
+  if (strcmp(text, "warn") == 0) return Tone::Warn;
+  if (strcmp(text, "error") == 0) return Tone::Error;
+  return Tone::Off;
+}
+
+static void readPrinter(JsonObjectConst p, PrinterInfo &out) {
+  copyText(out.name, sizeof out.name, p["name"] | "");
+  copyText(out.state, sizeof out.state, p["state"] | "");
+  out.tone = readTone(p["tone"] | "off");
+  out.progress = p["progress"].is<float>() ? p["progress"].as<float>() : -1.0f;
+  if (out.progress > 1.0f) out.progress = 1.0f;
+  copyText(out.left, sizeof out.left, p["left"] | "");
+  copyText(out.job, sizeof out.job, p["job"] | "");
+  copyText(out.layer, sizeof out.layer, p["layer"] | "");
+  copyText(out.temps, sizeof out.temps, p["temps"] | "");
+  copyText(out.error, sizeof out.error, p["error"] | "");
+  out.trayCount = 0;
+  for (JsonObjectConst t : p["trays"].as<JsonArrayConst>()) {
+    if (out.trayCount >= MAX_TRAYS) break;
+    TrayInfo &tray = out.trays[out.trayCount++];
+    copyText(tray.label, sizeof tray.label, t["label"] | "");
+    copyText(tray.material, sizeof tray.material, t["material"] | "");
+    tray.hasColor = parseColor(t["color"] | "", tray.color);
+    if (!tray.hasColor) tray.color = 0;
+    tray.active = t["active"] | false;
+    tray.empty = t["empty"] | false;
+  }
+}
+
 bool parseOverview(const char *json, size_t len, Overview &out) {
   JsonDocument doc;
   if (deserializeJson(doc, json, len) != DeserializationError::Ok || !doc.is<JsonObject>()) return false;
@@ -77,6 +109,9 @@ bool parseOverview(const char *json, size_t len, Overview &out) {
     copyText(place.name, sizeof place.name, row["name"] | "");
   }
   if (out.total < static_cast<int>(out.itemCount)) out.total = static_cast<int>(out.itemCount);
+  JsonObjectConst printer = doc["printer"];
+  out.hasPrinter = !printer.isNull();
+  if (out.hasPrinter) readPrinter(printer, out.printer);
   return true;
 }
 

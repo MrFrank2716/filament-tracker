@@ -44,6 +44,31 @@ void test_overview_is_read_into_the_fixed_struct() {
   TEST_ASSERT_EQUAL_STRING("Bin", o.places[1].name);
 }
 
+void test_printer_beside_the_display() {
+  static Overview o;
+  const char *json = R"({"v":"p","items":[],"printer":{"name":"X1C","state":"Printing","tone":"busy","progress":0.37,
+    "left":"1 h 34 min left","job":"bracket_v3","layer":"Layer 112 of 300","temps":"Nozzle 220/220 C","error":null,
+    "trays":[{"label":"A1","material":"PLA Basic","color":"#000000","active":true,"empty":false},
+             {"label":"A4","material":null,"color":null,"active":false,"empty":true}]}})";
+  TEST_ASSERT_TRUE(parseOverview(json, strlen(json), o));
+  TEST_ASSERT_TRUE(o.hasPrinter);
+  TEST_ASSERT_EQUAL_STRING("Printing", o.printer.state);
+  TEST_ASSERT_TRUE(o.printer.tone == Tone::Busy);
+  TEST_ASSERT_FLOAT_WITHIN(0.001, 0.37, o.printer.progress);
+  TEST_ASSERT_EQUAL_STRING("1 h 34 min left", o.printer.left);
+  TEST_ASSERT_EQUAL_STRING("", o.printer.error);
+  TEST_ASSERT_EQUAL(2, o.printer.trayCount);
+  TEST_ASSERT_TRUE(o.printer.trays[0].active && o.printer.trays[0].hasColor);
+  TEST_ASSERT_TRUE(o.printer.trays[1].empty && !o.printer.trays[1].hasColor);
+  const char *none = R"({"v":"q","printer":null})";
+  TEST_ASSERT_TRUE(parseOverview(none, strlen(none), o));
+  TEST_ASSERT_FALSE(o.hasPrinter);
+  const char *idle = R"({"v":"r","printer":{"name":"P1S","state":"Bridge offline","tone":"off","progress":null,"trays":[]}})";
+  TEST_ASSERT_TRUE(parseOverview(idle, strlen(idle), o));
+  TEST_ASSERT_TRUE(o.printer.tone == Tone::Off);
+  TEST_ASSERT_EQUAL_FLOAT(-1.0f, o.printer.progress);
+}
+
 void test_overview_without_location_and_bad_json() {
   static Overview o;
   const char *none = R"({"v":"x","poll":2,"location":null,"total":0,"items":[],"locations":[]})";
@@ -137,6 +162,7 @@ static int runAll() {
   UNITY_BEGIN();
   RUN_TEST(test_overview_is_read_into_the_fixed_struct);
   RUN_TEST(test_overview_without_location_and_bad_json);
+  RUN_TEST(test_printer_beside_the_display);
   RUN_TEST(test_long_text_is_cut_not_overrun);
   RUN_TEST(test_tag_answers);
   RUN_TEST(test_pair_and_messages);
