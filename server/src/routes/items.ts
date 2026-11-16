@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { prisma, type Json } from '@/db';
 import { HttpError, notFound, param, parse } from '@/http';
 import { describeActivity } from '@/services/activity';
-import { assertInWorkspace, moveStock, round } from '@/services/stock';
+import { assertInWorkspace, moveItems, moveStock, round } from '@/services/stock';
 import { assignTag, TAG_PATTERN } from '@/services/tags';
 
 type FieldValue = string | number | boolean | null;
@@ -216,21 +216,9 @@ export function registerItemRoutes(router: Router): void {
   /** Put items away somewhere else (or nowhere). Putting things back where they belong is everyday bench work. */
   router.post('/items/move', async (req, res) => {
     const { itemIds, locationId } = parse(moveInput, req.body);
-    const workspaceId = req.workspaceId;
-    const ids = [...new Set(itemIds)];
-    await assertInWorkspace(prisma, workspaceId, { item: ids, location: locationId });
-    const [location, items] = await Promise.all([
-      locationId ? prisma.location.findUnique({ where: { id: locationId }, select: { name: true } }) : null,
-      prisma.item.findMany({ where: { id: { in: ids }, workspaceId }, select: { id: true, name: true, locationId: true }, orderBy: { name: 'asc' } }),
-    ]);
-    const moving = items.filter((item) => item.locationId !== locationId);
-    if (moving.length) await prisma.item.updateMany({ where: { id: { in: moving.map((item) => item.id) }, workspaceId }, data: { locationId } });
-    const what = moving.length === 1 ? moving[0].name : `${moving.length} items`;
-    describeActivity(
-      moving.length === 0 ? 'Moved nothing: already there' : location ? `Moved ${what} to ${location.name}` : `Took ${what} out of ${moving.length === 1 ? 'its' : 'their'} location`,
-      { type: 'item', id: moving.length === 1 ? moving[0].id : null },
-    );
-    res.json({ moved: moving.length });
+    const { moved, summary, entityId } = await moveItems(prisma, req.workspaceId, itemIds, locationId);
+    describeActivity(summary, { type: 'item', id: entityId });
+    res.json({ moved: moved.length });
   });
 
   /** Tie a tag to this item (a sticker just written, say), or forget it. The tag leaves any other item. */

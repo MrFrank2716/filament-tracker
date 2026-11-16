@@ -8,6 +8,9 @@ import { createHash, randomBytes, randomInt } from 'node:crypto';
 /** The long-lived token a bridge signs in with. */
 export const newBridgeToken = (): string => `wbb_${randomBytes(32).toString('base64url')}`;
 
+/** The long-lived token a location display signs in with. Its own prefix, so neither kind passes for the other. */
+export const newDeviceToken = (): string => `wbd_${randomBytes(32).toString('base64url')}`;
+
 export const hashSecret = (value: string): string => createHash('sha256').update(value).digest('hex');
 
 // No 0/O, 1/I/L or other look-alikes: the code is read off a screen and typed or pasted into a terminal.

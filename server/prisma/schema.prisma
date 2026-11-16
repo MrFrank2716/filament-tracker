@@ -63,6 +63,7 @@ model Workspace {
   activities       ActivityLog[]
   bridges          Bridge[]
   printerLinks     PrinterLink[]
+  devices          Device[]
 }
 
 /// role: "owner" | "admin" | "operator" | "viewer"
@@ -125,6 +126,7 @@ model Location {
   children  Location[] @relation("LocationTree")
   items     Item[]
   machines  Machine[]
+  devices   Device[]
 }
 
 /// A user-defined category of item. Custom fields hang off it.
@@ -260,6 +262,7 @@ model Machine {
   jobs             Job[]
   jobRequests      JobRequest[]
   printerLink      PrinterLink?
+  devices          Device[]
 }
 
 /// Hardware attached to a machine (multi-material feeder, tool changer, dryer ...).
@@ -571,6 +574,40 @@ model PrinterLink {
 
   @@unique([workspaceId, serial])
   @@index([bridgeId])
+}
+
+/// A small screen of Wrkbench's own fixed to a shelf, rack or dry box (kind "location_display").
+/// It signs in with a long random token like a bridge, but over plain HTTP polls rather than a socket,
+/// so "online" is read from lastSeenAt. Only the token's SHA-256 is stored.
+model Device {
+  id               String    @id @default(cuid())
+  workspaceId      String
+  name             String
+  kind             String    @default("location_display")
+  /// The location it shows. Null until one is chosen, or after that location is deleted.
+  locationId       String?
+  /// The printer it sits beside, for "this spool is going into the printer" from a tapped tag.
+  machineId        String?
+  /// Whether tapping a tag on it may move items, mark a spool for a printer or link a tag.
+  canWrite         Boolean   @default(true)
+  /// SHA-256 (hex) of the device token. Null until a set-up code has been swapped for one.
+  tokenHash        String?   @unique
+  /// SHA-256 (hex) of the one-time set-up code while one is waiting to be used.
+  pairingHash      String?   @unique
+  pairingExpiresAt DateTime?
+  /// Reported by the device when it pairs: its hardware ("cyd-28-st7789+pn532") and firmware version.
+  model            String    @default("")
+  version          String    @default("")
+  /// Whether its tag reader answered on the last poll.
+  hasReader        Boolean   @default(false)
+  lastSeenAt       DateTime?
+  createdAt        DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  location  Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  machine   Machine?  @relation(fields: [machineId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
 }
 
 /// One print a connected printer was seen making, from start to end. It ties the print to its job and keeps

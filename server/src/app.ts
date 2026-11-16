@@ -11,6 +11,7 @@ import { registerActivityRoutes } from '@/routes/activity';
 import { registerCatalogRoutes } from '@/routes/catalog';
 import { registerItemRoutes } from '@/routes/items';
 import { registerJobRoutes } from '@/routes/jobs';
+import { deviceRouter, registerDeviceRoutes } from '@/routes/devices';
 import { registerMachineRoutes } from '@/routes/machines';
 import { registerMaintenanceRoutes } from '@/routes/maintenance';
 import { bridgeRouter, registerPrinterRoutes } from '@/routes/printers';
@@ -58,12 +59,15 @@ export function createApp(): express.Express {
   registerQueueRoutes(workspaceScope);
   registerReferenceAddRoute(workspaceScope);
   registerPrinterRoutes(workspaceScope);
+  registerDeviceRoutes(workspaceScope);
 
   app.use('/api/auth', authRouter);
   // The only routes that need no account: sending a job request and following its progress.
   app.use('/api/public', publicRequestsRouter);
   // A bridge swapping its one-time code for a token. Mounted before the signed-in routes, which would refuse it.
   app.use('/api/bridge', bridgeRouter);
+  // Location displays: pairing, and the reads and taps made with a display's own token (never a user's).
+  app.use('/api/device', deviceRouter);
   app.use('/api', workspacesRouter);
   app.use('/api', () => {
     throw new HttpError(404, 'Not found');
