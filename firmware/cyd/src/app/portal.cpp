@@ -59,7 +59,8 @@ bool process(store::Settings &settings) {
   wb::copyText(settings.code, sizeof settings.code, code);
   settings.insecure = strcmp(insecureField.getValue(), "T") == 0;
   settings.token[0] = '\0';
-  manager.stopConfigPortal();
+  // WiFiManager usually closes the set-up network itself once connected; closing it twice crashes.
+  if (manager.getConfigPortalActive()) manager.stopConfigPortal();
   return true;
 }
 
