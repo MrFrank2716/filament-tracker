@@ -28,9 +28,15 @@ SPIClass touchSpi(VSPI);
 XPT2046_Touchscreen touch(TOUCH_CS, TOUCH_IRQ);
 uint16_t buffer[WIDTH * BUFFER_LINES];
 uint32_t lastTouch = 0;
+bool capturing = false;  // while true, each drawn area is also sent over USB (sendScreenshot)
 
 void flush(lv_display_t *disp, const lv_area_t *area, uint8_t *pixels) {
   const uint32_t w = lv_area_get_width(area), h = lv_area_get_height(area);
+  if (capturing) {
+    // Before the panel push, which may swap the bytes in place. LVGL's own RGB565, low byte first.
+    Serial.printf("WBAREA %d %d %u %u\n", area->x1, area->y1, static_cast<unsigned>(w), static_cast<unsigned>(h));
+    Serial.write(pixels, w * h * 2);
+  }
   tft.startWrite();
   tft.setAddrWindow(area->x1, area->y1, w, h);
   tft.pushColors(reinterpret_cast<uint16_t *>(pixels), w * h, true);
@@ -93,17 +99,14 @@ void setBrightness(uint8_t level) { ledcWrite(BL_CHANNEL, level); }
 uint32_t idleMs() { return millis() - lastTouch; }
 
 void sendScreenshot() {
-  static uint16_t line[WIDTH];
-  uint8_t bytes[WIDTH * 2];
+  // The panel's read-back is unreliable on these boards, so redraw the whole screen and send what LVGL draws.
   Serial.printf("WBSHOT %d %d\n", WIDTH, HEIGHT);
-  for (int y = 0; y < HEIGHT; y++) {
-    tft.readRect(0, y, WIDTH, 1, line);
-    for (int x = 0; x < WIDTH; x++) {
-      bytes[x * 2] = line[x] >> 8;
-      bytes[x * 2 + 1] = line[x] & 0xFF;
-    }
-    Serial.write(bytes, sizeof bytes);
-  }
+  capturing = true;
+  lv_obj_invalidate(lv_screen_active());
+  lv_obj_invalidate(lv_layer_top());
+  lv_refr_now(nullptr);
+  capturing = false;
+  Serial.print("WBDONE\n");
   Serial.flush();
 }
 

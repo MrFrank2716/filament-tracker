@@ -69,6 +69,15 @@ lv_obj_t *label(lv_obj_t *parent, const char *text, const lv_font_t *font = &lv_
   return l;
 }
 
+/**
+ * Keep a label to one line, ending in "..." when it does not fit. LVGL only cuts with dots when the height is
+ * fixed; left to size itself, a long name wraps onto the line below (seen on a real board).
+ */
+void oneLine(lv_obj_t *l) {
+  lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
+  lv_obj_set_height(l, lv_font_get_line_height(lv_obj_get_style_text_font(l, LV_PART_MAIN)));
+}
+
 lv_obj_t *plainBox(lv_obj_t *parent) {
   lv_obj_t *o = lv_obj_create(parent);
   lv_obj_set_style_bg_opa(o, LV_OPA_TRANSP, 0);
@@ -251,7 +260,13 @@ void refreshStatus() {
   lv_obj_set_style_bg_color(statusDot, online ? OK : WARN, 0);
   char text[120];
   if (online || st.lastOkMs == 0) {
-    snprintf(text, sizeof text, "%s", overview && overview->path[0] ? overview->path : (overview ? overview->workspace : ""));
+    // The path only when it says more than the title (a location inside another), then how many items.
+    if (!overview) text[0] = '\0';
+    else if (!overview->hasLocation) wb::copyText(text, sizeof text, overview->workspace);
+    else {
+      const bool nested = strcmp(overview->path, overview->location.name) != 0;
+      snprintf(text, sizeof text, "%s%s%d item%s", nested ? overview->path : "", nested ? " - " : "", overview->total, overview->total == 1 ? "" : "s");
+    }
   } else {
     char ago[24];
     wb::formatAgo((millis() - st.lastOkMs) / 1000, ago, sizeof ago);
@@ -263,7 +278,7 @@ void refreshStatus() {
 
 void addRow(lv_obj_t *list, const wb::Item &item, lv_event_cb_t onClick = nullptr, void *data = nullptr) {
   lv_obj_t *row = plainBox(list);
-  lv_obj_set_size(row, lv_pct(100), 46);
+  lv_obj_set_size(row, lv_pct(100), 48);
   lv_obj_set_style_bg_color(row, item.low ? LOW_ROW : SURFACE, 0);
   lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
   lv_obj_set_style_radius(row, 6, 0);
@@ -281,19 +296,19 @@ void addRow(lv_obj_t *list, const wb::Item &item, lv_event_cb_t onClick = nullpt
   lv_obj_remove_flag(swatch, LV_OBJ_FLAG_CLICKABLE);
 
   lv_obj_t *name = label(row, item.name);
-  lv_obj_set_width(name, 196);
-  lv_label_set_long_mode(name, LV_LABEL_LONG_DOT);
-  lv_obj_align(name, LV_ALIGN_TOP_LEFT, 24, 5);
+  lv_obj_set_width(name, 200);
+  oneLine(name);
+  lv_obj_align(name, LV_ALIGN_TOP_LEFT, 24, 6);
   char sub[96];
   if (item.at[0]) snprintf(sub, sizeof sub, "%s  - at %s", item.sub, item.at);
   else wb::copyText(sub, sizeof sub, item.sub);
   lv_obj_t *subLabel = label(row, sub, &lv_font_montserrat_14, MUTED);
-  lv_obj_set_width(subLabel, 196);
-  lv_label_set_long_mode(subLabel, LV_LABEL_LONG_DOT);
-  lv_obj_align(subLabel, LV_ALIGN_TOP_LEFT, 24, 24);
+  lv_obj_set_width(subLabel, 200);
+  oneLine(subLabel);
+  lv_obj_align(subLabel, LV_ALIGN_TOP_LEFT, 24, 26);
 
   lv_obj_t *qty = label(row, item.qty, &lv_font_montserrat_14, item.low ? DANGER : TEXT);
-  lv_obj_align(qty, LV_ALIGN_TOP_RIGHT, -8, 5);
+  lv_obj_align(qty, LV_ALIGN_TOP_RIGHT, -8, 6);
   if (item.fill >= 0) {
     lv_obj_t *bar = lv_bar_create(row);
     lv_obj_set_size(bar, 64, 6);
@@ -322,11 +337,11 @@ void showOverview() {
   else snprintf(title, sizeof title, "%s%s", browsing ? LV_SYMBOL_LEFT " " : "", overview->location.name);
   lv_obj_t *t = label(header, title, &lv_font_montserrat_20);
   lv_obj_set_width(t, 230);
-  lv_label_set_long_mode(t, LV_LABEL_LONG_DOT);
+  oneLine(t);
   lv_obj_align(t, LV_ALIGN_TOP_LEFT, 8, 2);
   subtitle = label(header, "", &lv_font_montserrat_14, MUTED);
   lv_obj_set_width(subtitle, 250);
-  lv_label_set_long_mode(subtitle, LV_LABEL_LONG_DOT);
+  oneLine(subtitle);
   lv_obj_align(subtitle, LV_ALIGN_BOTTOM_LEFT, 8, -2);
 
   statusDot = lv_obj_create(header);
@@ -522,7 +537,7 @@ void showTagCard() {
   lv_obj_set_style_radius(swatch, 6, 0);
   lv_obj_t *name = label(c, item.name, &lv_font_montserrat_20);
   lv_obj_set_width(name, W - 90);
-  lv_label_set_long_mode(name, LV_LABEL_LONG_DOT);
+  oneLine(name);
   lv_obj_align(name, LV_ALIGN_TOP_LEFT, 46, 0);
   lv_obj_t *sub = label(c, item.sub, &lv_font_montserrat_14, MUTED);
   lv_obj_align(sub, LV_ALIGN_TOP_LEFT, 46, 24);
@@ -543,7 +558,7 @@ void showTagCard() {
   else snprintf(where, sizeof where, "Not put away anywhere");
   lv_obj_t *w = label(c, where, &lv_font_montserrat_14, MUTED);
   lv_obj_set_width(w, W - 40);
-  lv_label_set_long_mode(w, LV_LABEL_LONG_DOT);
+  oneLine(w);
   lv_obj_align(w, LV_ALIGN_TOP_LEFT, 0, 94);
 
   lv_obj_t *row = plainBox(c);
