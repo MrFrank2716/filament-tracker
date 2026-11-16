@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { applyMergePatch, diffMergePatch, mergeDelta, touchesPaths, withoutPaths, type Doc } from '@filament-tracker/protocol';
 import { simDocument, simFleet, simTray } from '@filament-tracker/protocol/fixtures';
@@ -147,5 +148,35 @@ describe('matching spools', () => {
     expect(compatible({ material: 'PLA', colour: '#000000', tagId: 'AA' }, { ...tray, tagId: 'BB' })).toBe(false);
     expect(compatible({ material: 'PETG', colour: '#ffffff', tagId: 'AA' }, { ...tray, tagId: 'AA' })).toBe(true);
     expect(colourDistance('#000000', '#000000')).toBe(0);
+  });
+});
+
+describe('a real X2D (recorded, see test/fixtures/x2d.json)', () => {
+  const doc = JSON.parse(readFileSync(new URL('./fixtures/x2d.json', import.meta.url), 'utf8')) as Doc;
+  const reading = readBambu(doc);
+
+  it('reads the model, state, both nozzles, bed and chamber', () => {
+    expect(reading).toMatchObject({ modelName: 'X2D', phase: 'printing', bed: { current: 55, target: 55 }, chamber: { current: 25, target: null } });
+    expect(reading.print).toMatchObject({ name: 'sample_print', totalLayers: 100, remainingMinutes: 30 });
+    expect(reading.extruders).toEqual([
+      { label: 'Right nozzle', temp: { current: 25, target: 0 }, nozzle: { diameter: 0.4, type: 'Hardened steel' } },
+      { label: 'Left nozzle', temp: { current: 25, target: 0 }, nozzle: { diameter: 0.4, type: 'Hardened steel, high flow' } },
+    ]);
+  });
+
+  it('reads an AMS 2 Pro, an AMS HT and both outside holders', () => {
+    expect(reading.feeders.map((feeder) => [feeder.key, feeder.label, feeder.humidityPercent])).toEqual([
+      ['ams:0', 'AMS 2 Pro 1', 34], ['ams:128', 'AMS HT 1', 37], ['external:0', 'External spool 1', null], ['external:1', 'External spool 2', null],
+    ]);
+    const [abs, , , tagged] = reading.feeders[0].trays;
+    expect(abs).toMatchObject({ material: 'ABS-GF', colour: '#161616', tagId: null, remainingPercent: null });
+    expect(tagged).toMatchObject({ material: 'PLA', subType: 'PLA Basic', brand: 'Bambu Lab', remainingPercent: 5 });
+    // A spool without a tag reports "0 left", which is not a reading.
+    expect(reading.feeders[2].trays[0]).toMatchObject({ material: 'TPU', remainingPercent: null, nozzleTemp: [200, 240], diameter: 1.75 });
+    expect(reading.feeders[3].trays[0].state).toBe('empty');
+  });
+
+  it('gives its health messages in words', () => {
+    expect(reading.errors[0]).toMatchObject({ code: '0501_0400_0003_0002', severity: 'warning', message: 'Threaded rods need lubrication now.' });
   });
 });

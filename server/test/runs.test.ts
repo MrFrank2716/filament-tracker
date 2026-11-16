@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Doc } from '@filament-tracker/protocol';
 import { simDocument, simFleet, type SimPrinter } from '@filament-tracker/protocol/fixtures';
@@ -136,6 +137,53 @@ describe('following a print', () => {
     expect(vase.failureReason).toMatch(/finish the job by hand/);
     expect(await stock(black.id)).toBe(before);
     expect((await prisma.job.findFirstOrThrow({ where: { name: 'hook' } })).status).toBe('in_progress');
+  });
+
+  it('places filaments from the fuller mapping, the outside holders, and the mapping repeated in status', async () => {
+    const x2d = JSON.parse(readFileSync(new URL('./fixtures/x2d.json', import.meta.url), 'utf8')) as Doc;
+    const one = `<config><plate><metadata key="index" value="1"/><filament id="1" type="PLA" color="#161616" used_g="12.5"/></plate></config>`;
+    const reader: JobFileReader = async () => ({ [SLICE_INFO]: one });
+    const machine = await prisma.machine.create({ data: { workspaceId: target.workspaceId, name: 'X2D' } });
+    const bridge = await prisma.bridge.findFirstOrThrow();
+    const link = await prisma.printerLink.create({ data: { workspaceId: target.workspaceId, machineId: machine.id, bridgeId: bridge.id, serial: 'SERIAL0000000001', host: '192.168.1.8' } });
+    const x2dTarget: RunTarget = { ...target, linkId: link.id, machineId: machine.id, machineName: 'X2D', serial: 'SERIAL0000000001' };
+    await reconcileRun(x2dTarget, readBambu(x2d), x2d, reader, new Date(T0 + 30 * HOUR));
+    const run = await prisma.printerRun.findFirstOrThrow({ where: { printerLinkId: link.id } });
+    // The real announcement said filament 1 comes from feeder 0, tray 1: the second slot.
+    expect(run.filaments).toMatchObject([{ id: 1, grams: 12.5, feeder: 'ams:0', position: 2 }]);
+
+    // The same print with its announcement missed: the mapping in the status report gives the same answer.
+    const missed = { ...x2d, job: undefined } as unknown as Doc;
+    await prisma.printerRun.deleteMany({ where: { printerLinkId: link.id } });
+    await reconcileRun(x2dTarget, readBambu(missed), missed, reader, new Date(T0 + 31 * HOUR));
+    expect((await prisma.printerRun.findFirstOrThrow({ where: { printerLinkId: link.id } })).filaments).toMatchObject([{ feeder: 'ams:0', position: 2 }]);
+  });
+
+  it('does not charge a print cancelled while it was still being prepared, even with the last print\'s 100 % on screen', async () => {
+    // Seen on a real printer: the print before finished at 100 %, and those figures are still shown while the
+    // next one is prepared. Cancelling then used to charge the whole print.
+    await prisma.printerRun.updateMany({ where: { endedAt: null }, data: { endedAt: new Date(), outcome: 'unseen' } });
+    const before = await stock(black.id);
+    printer.state = 'PREPARE'; printer.job = { name: 'cover', percent: 100, remainingMinutes: 0, layer: 100, totalLayers: 100 };
+    await step(file, T0 + 40 * HOUR);
+    const job = await prisma.job.findFirstOrThrow({ where: { name: 'cover' }, include: { usages: true } });
+    // While it runs the job shows what the file says: both spools, and the slicer's ten minutes.
+    expect(job.usages.length).toBe(2);
+    expect(job.durationHours).toBeCloseTo(0.17);
+    printer.state = 'FAILED'; printer.job.percent = 0; printer.job.layer = 0;
+    const cancelled = { ...doc(), print: { ...(doc().print as object), print_error: 50348044 } } as Doc;
+    await reconcileRun(target, readBambu(cancelled), cancelled, file, new Date(T0 + 40 * HOUR + 10_000));
+    expect(await prisma.job.findFirstOrThrow({ where: { name: 'cover' } })).toMatchObject({ status: 'failed', failureReason: 'Cancelled at the printer' });
+    expect(await stock(black.id)).toBe(before);
+  });
+
+  it('keeps a running job\'s time in step with what the printer says is left', async () => {
+    printer.state = 'RUNNING'; printer.job = { name: 'clip', percent: 10, remainingMinutes: 45, layer: 10, totalLayers: 100 };
+    await step(file, T0 + 50 * HOUR);
+    await step(file, T0 + 50.25 * HOUR);
+    // A quarter of an hour gone and 45 minutes to go.
+    expect((await prisma.job.findFirstOrThrow({ where: { name: 'clip' } })).durationHours).toBe(1);
+    await prisma.printerRun.updateMany({ where: { endedAt: null }, data: { endedAt: new Date(), outcome: 'unseen' } });
   });
 
   it('never opens a record for a finished print left on the screen', async () => {
