@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { applyMergePatch, diffMergePatch, mergeDelta, touchesPaths, withoutPaths, type Doc } from '@filament-tracker/protocol';
 import { simDocument, simFleet, simTray } from '@filament-tracker/protocol/fixtures';
 import { formatHmsCode, readHms, readPrintError } from '@/integrations/bambu/hms';
+import { statusNoteFor } from '@/integrations/amsSync';
 import { bambuColour, readBambu } from '@/integrations/bambu/normalize';
 import { colourDistance, compatible, traySignature } from '@/integrations/spoolMatch';
 
@@ -174,6 +175,18 @@ describe('a real X2D (recorded, see test/fixtures/x2d.json)', () => {
     // A spool without a tag reports "0 left", which is not a reading.
     expect(reading.feeders[2].trays[0]).toMatchObject({ material: 'TPU', remainingPercent: null, nozzleTemp: [200, 240], diameter: 1.75 });
     expect(reading.feeders[3].trays[0].state).toBe('empty');
+  });
+
+  it('reads a drying cycle as a real AMS HT reported one', () => {
+    // From a recording made while the AMS HT was drying: twelve hours set, 716 minutes left.
+    const drying = JSON.parse(JSON.stringify(doc)) as { print: { ams: { ams: Array<Record<string, unknown>> } } };
+    Object.assign(drying.print.ams.ams[1], { dry_time: 716, dry_setting: { dry_duration: 12, dry_filament: 'PETG', dry_temperature: 65 }, temp: '64.9', humidity_raw: '23' });
+    const feeders = readBambu(drying as unknown as Doc).feeders;
+    expect(feeders[1]).toMatchObject({ temperature: 64.9, humidityPercent: 23, drying: { remainingMinutes: 716, targetTemp: 65, filament: 'PETG' } });
+    expect(statusNoteFor(feeders[1])).toBe('Drying PETG at 65 °C, about 11 h 56 min left');
+    // The unit that is not drying sends zero and "not set".
+    expect(feeders[0].drying).toBeNull();
+    expect(statusNoteFor(feeders[0])).toBe('');
   });
 
   it('gives its health messages in words', () => {

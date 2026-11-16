@@ -7,7 +7,7 @@ What you get on the **Machines** page once a printer is [connected](Connecting-p
 For each connected printer, Wrkbench creates and keeps up to date:
 
 - **One piece of attached hardware per AMS** (AMS, AMS Lite, AMS 2 Pro, AMS HT), with the right number of slots. An outside spool holder appears the first time something is on it.
-- **Readings**: humidity (or the printer's 1 to 5 dryness scale on models that only give that) and temperature. A drying AMS shows "Drying, about 3 h left".
+- **Readings**: humidity (or the printer's 1 to 5 dryness scale on models that only give that) and temperature. A drying AMS shows what it is doing, for example "Drying PETG at 65 °C, about 11 h 56 min left". When the cycle ends, the spools in that AMS get today's date in their "Last dried" field, if your filament category has one.
 - **What is in each tray**: material, type (for example "PLA Basic"), colour, and for tagged spools the brand and how much is left.
 - **Which tray is feeding** during a print, marked with an orange edge.
 
