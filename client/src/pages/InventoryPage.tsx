@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { PackageOpen, PackageSearch, Plus, QrCode, Search, SlidersHorizontal } from 'lucide-react';
 import { ItemBoard, type BoardGrouping } from '@/components/items/ItemBoard';
 import { ItemForm } from '@/components/items/ItemForm';
 import { ItemSheet } from '@/components/items/ItemSheet';
 import { LabelPrintDialog } from '@/components/labels/LabelPrintDialog';
+import { ScanDialog, type SpoolTagState } from '@/components/scan/ScanDialog';
+import { TagImportDialog } from '@/components/tags/TagImportDialog';
 import { Button } from '@/components/ui/Button';
 import { StockMeter } from '@/components/items/StockMeter';
 import { Badge, Chip, ChipRow, EmptyState, ErrorNote, Figure, List, Loading, Muted, PageHeader, Row, Swatch, Tabs, TypeIcon } from '@/components/ui/Display';
@@ -76,6 +78,12 @@ export function InventoryPage() {
   // Phone-width "+" button: asks how to add, since the header buttons are hidden there.
   const [choosing, setChoosing] = useState(false);
   const [labelling, setLabelling] = useState(false);
+  const [readingTag, setReadingTag] = useState(false);
+  // A spool tag just scanned that Wrkbench does not know (handed over by the scanner).
+  const location = useLocation();
+  const navigate = useNavigate();
+  const spoolTag = (location.state as Partial<SpoolTagState> | null)?.spoolTag ?? null;
+  const dropSpoolTag = () => navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
 
   const selectedId = params.get('item');
   // Links from elsewhere open an item even when it is outside the focus.
@@ -385,6 +393,21 @@ export function InventoryPage() {
       )}
 
       {labelling && <LabelPrintDialog labels={filtered.map((item) => itemLabel(item, catalog, window.location.origin))} onClose={() => setLabelling(false)} />}
+      {readingTag && <ScanDialog title="Read a spool tag" hint="Hold an OpenSpool sticker to the phone, scan a label, or paste the tag's contents below." onClose={() => setReadingTag(false)} />}
+      {spoolTag && !form && (
+        <TagImportDialog
+          record={spoolTag.record}
+          tagId={spoolTag.tagId}
+          items={allItems}
+          catalog={catalog}
+          onClose={dropSpoolTag}
+          onOpen={(item) => navigate(`/inventory?item=${item.id}`, { replace: true, state: null })}
+          onAdd={(initial) => {
+            dropSpoolTag();
+            setForm({ initial });
+          }}
+        />
+      )}
       {form && <ItemForm catalog={catalog} item={form.item} initial={form.initial} onClose={() => setForm(null)} />}
       {choosing && (
         <AddChooser
@@ -393,6 +416,7 @@ export function InventoryPage() {
           scratch={{ title: 'From scratch', subtitle: 'Anything else, typed in yourself' }}
           onCatalogue={() => { setChoosing(false); setPicking(true); }}
           onScratch={() => { setChoosing(false); setForm({ initial: preset() }); }}
+          onTag={() => { setChoosing(false); setReadingTag(true); }}
           onClose={() => setChoosing(false)}
         />
       )}

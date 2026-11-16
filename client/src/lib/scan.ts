@@ -9,7 +9,8 @@ import type { Item, Location } from '@/lib/types';
 export type Scan =
   | { kind: 'item'; id: string }
   | { kind: 'location'; id: string }
-  | { kind: 'openspool'; record: Record<string, unknown> }
+  /** `tagId` is set when the record was read from an NFC sticker with a serial ("NFC…"), not pasted or from a QR code. */
+  | { kind: 'openspool'; record: Record<string, unknown>; tagId?: string | null }
   | { kind: 'text'; text: string };
 
 const LINK = /^\/(s|l)\/([A-Za-z0-9_-]{1,64})\/?$/;

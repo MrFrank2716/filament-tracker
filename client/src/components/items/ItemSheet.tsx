@@ -1,17 +1,20 @@
 import { useState } from 'react';
-import { Minus, Pencil, Plus, QrCode, Scissors, Trash2 } from 'lucide-react';
+import { Minus, Nfc, Pencil, PlugZap, Plus, QrCode, Scissors, Trash2 } from 'lucide-react';
 import { StockMeter } from '@/components/items/StockMeter';
 import { LabelPrintDialog } from '@/components/labels/LabelPrintDialog';
+import { LoadIntoDialog } from '@/components/tags/LoadIntoDialog';
+import { TagDialog } from '@/components/tags/TagDialog';
 import { Button } from '@/components/ui/Button';
 import { Badge, Figure, Loading, Meter, Muted, SectionTitle, Swatch, TypeIcon } from '@/components/ui/Display';
 import { NumberField } from '@/components/ui/Form';
 import { Modal, useConfirm } from '@/components/ui/Modal';
 import { useAction } from '@/components/ui/Toast';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
-import type { Catalog } from '@/hooks/useCatalog';
+import { useItems, type Catalog } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
 import { itemLabel } from '@/lib/labels';
 import { formatDateTime, formatFieldValue, formatHours, formatNumber, formatQuantity, isLow, isWorn, locationPath, parseNumber } from '@/lib/format';
+import { isStickerTag, spoolFacts } from '@/lib/spoolMatch';
 import { MOVEMENT_REASON } from '@/lib/status';
 import type { Item, Movement, Unit } from '@/lib/types';
 import styles from '@/components/items/Items.module.css';
@@ -40,6 +43,11 @@ export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut }: Props
   const { data: movements } = useWsQuery<Movement[]>(`/items/${item.id}/movements`);
   const [exact, setExact] = useState('');
   const [labelling, setLabelling] = useState(false);
+  const [tagging, setTagging] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { items } = useItems();
+  // Tags and feeder slots are for filament: anything with a material.
+  const isSpool = Boolean(spoolFacts(item, catalog).material);
 
   const type = catalog.typeById.get(item.itemTypeId);
   const unit = item.unitId ? catalog.unitById.get(item.unitId) : undefined;
@@ -66,6 +74,7 @@ export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut }: Props
     ...(type?.fields ?? []).filter((f) => f.fieldType !== 'color').map((f): [string, string] => [f.label, formatFieldValue(f, item.fields[f.key])]),
     ['Location', locationPath(item.locationId, catalog.locations)],
     ['Loaded in', item.slot ? `${item.slot.subUnit.name}, slot ${item.slot.position}` : ''],
+    ['Tag', item.tagId ? (isStickerTag(item.tagId) ? 'NFC sticker' : 'Its own tag, read by the printer') : ''],
     ['Supplier', supplier?.name ?? ''],
     ['Cost', item.unitCost ? `${money(item.unitCost * (item.capacity ?? 1))} per ${formatQuantity(item.capacity ?? 1, unit)}` : ''],
     ['Value in stock', item.unitCost ? money(item.unitCost * item.quantity) : ''],
@@ -88,6 +97,16 @@ export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut }: Props
           <Button icon={QrCode} onClick={() => setLabelling(true)}>
             Print label
           </Button>
+          {isSpool && canOperate && (
+            <>
+              <Button icon={Nfc} onClick={() => setTagging(true)}>
+                Spool tag
+              </Button>
+              <Button icon={PlugZap} onClick={() => setLoading(true)}>
+                Load into…
+              </Button>
+            </>
+          )}
           {canEdit && hasSize && !item.isRemnant && (
             <Button icon={Scissors} onClick={onAddOffcut}>
               Add offcut
@@ -228,6 +247,8 @@ export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut }: Props
         )}
       </div>
       {labelling && <LabelPrintDialog labels={[itemLabel(item, catalog, window.location.origin)]} onClose={() => setLabelling(false)} />}
+      {tagging && <TagDialog item={item} items={items} catalog={catalog} onClose={() => setTagging(false)} />}
+      {loading && <LoadIntoDialog item={item} items={items} catalog={catalog} onClose={() => setLoading(false)} />}
     </Modal>
   );
 }
