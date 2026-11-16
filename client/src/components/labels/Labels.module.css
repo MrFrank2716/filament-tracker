@@ -1,38 +1,39 @@
-/* A label is always black on white, whatever the app's theme: it is a picture of what the printer will produce. */
+/*
+ * A label is always black on white, whatever the app's theme: it is a picture of what the printer will produce.
+ * Its measurements come from labelLayout() in lib/labels.ts, and --fit from LabelView, which steps the type
+ * down until the text fits. Nothing here clips text: what does not fit is left off whole, in LabelView.
+ */
 .label {
   display: flex;
   align-items: center;
-  gap: 1.5mm;
+  justify-content: center;
+  gap: var(--label-gap);
   box-sizing: border-box;
   width: var(--label-width);
   height: var(--label-height);
-  padding: 1.5mm;
+  padding: var(--label-padding);
   overflow: hidden;
   background: #fff;
   color: #000;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   line-height: 1.15;
+  /* Its size is fixed and nothing inside reaches out, so measuring one label never re-lays-out the others. */
+  contain: strict;
   /* One label per page on the roll. */
   break-after: page;
   break-inside: avoid;
 }
 
-/* Taller than wide: code on top, text beneath. */
-.portrait {
+/* Code above the text, where side by side would squeeze the text. */
+.column {
   flex-direction: column;
-  align-items: stretch;
   text-align: center;
 }
 
 .code {
   flex: none;
-  height: 100%;
-  aspect-ratio: 1;
-}
-
-.portrait .code {
-  width: 100%;
-  height: auto;
+  width: var(--label-qr);
+  height: var(--label-qr);
 }
 
 .code svg {
@@ -41,49 +42,52 @@
   height: 100%;
 }
 
+/* The room the text has. The block inside it is what gets measured against this box. */
 .text {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 0.6mm;
+  justify-content: center;
+  align-self: stretch;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+}
+
+.column .text {
+  /* Under the code the text starts at the top of its room: centred, a short name would float away from it. */
+  justify-content: flex-start;
+}
+
+.fitted {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--label-font) * var(--fit) * 0.16);
+  min-width: 0;
+}
+
+.fitted [hidden] {
+  display: none;
+}
+
+/*
+ * Lines break between words. A single word too long for its line (a part number) is split only when
+ * LabelView allows it, at the smallest type; until then it sticks out, which LabelView reads as "does not fit".
+ */
+.fitted[data-breaks] > * {
+  overflow-wrap: break-word;
 }
 
 .title {
-  display: -webkit-box;
-  flex: none;
-  overflow: hidden;
-  font-size: max(2.4mm, calc(var(--label-short) * 0.125));
+  font-size: calc(var(--label-font) * var(--fit));
   font-weight: 700;
-  overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
 }
 
 .line,
 .short {
-  font-size: max(1.9mm, calc(var(--label-short) * 0.09));
+  font-size: calc(var(--label-font) * var(--fit) * var(--label-line));
 }
 
-/* Two lines each where there is room; the box clips whatever does not fit the label. */
-.line {
-  display: -webkit-box;
-  flex: none;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-}
-
-/* A code is one unbroken word: never wrapped, since half a code is no use. */
 .short {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   font-weight: 600;
 }
@@ -93,13 +97,13 @@
   display: flex;
   justify-content: center;
   padding: var(--space-4);
-  overflow-x: auto;
+  overflow: hidden;
   border: var(--border);
   border-radius: var(--radius-md);
   background: var(--color-surface-sunken, var(--color-bg));
 }
 
-.preview .label {
+.previewBox {
   flex: none;
   box-shadow: 0 0 0 1px rgb(0 0 0 / 25%);
 }

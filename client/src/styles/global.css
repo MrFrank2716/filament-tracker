@@ -101,10 +101,15 @@ svg {
 
 /*
  * Printing labels (components/labels/LabelPrintDialog.tsx). The labels wait in a container directly under
- * <body> that screens never show; on paper they are the only thing there is, one label to a page.
+ * <body>. On screen it is laid out but out of sight, so each label's text can be measured and fitted to its
+ * size before printing; on paper it is the only thing there is, one label to a page.
  */
 .label-print-root {
-  display: none;
+  position: fixed;
+  top: 0;
+  left: -100000px;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 @media print {
@@ -118,6 +123,7 @@ svg {
   }
 
   .label-print-root {
-    display: block;
+    position: static;
+    visibility: visible;
   }
 }
