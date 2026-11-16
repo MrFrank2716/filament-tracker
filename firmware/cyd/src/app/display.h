@@ -13,5 +13,10 @@ void tick();
 void setBrightness(uint8_t level);
 /** Milliseconds since the screen was last touched. */
 uint32_t idleMs();
+/**
+ * Read the screen back from the panel and send it over USB serial, for checking a layout without seeing the
+ * board: "WBSHOT 320 240\n", then 320x240 RGB565 pixels, two bytes each, high byte first. See tools/screenshot.py.
+ */
+void sendScreenshot();
 
 }  // namespace display

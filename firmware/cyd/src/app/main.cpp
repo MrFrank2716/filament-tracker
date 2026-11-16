@@ -51,8 +51,32 @@ void setup() {
   }
 }
 
+#ifdef WB_OTA_PASSWORD
+// Developer builds only (env cyd-st7789-dev): new firmware over Wi-Fi, so a layout can be tried without the
+// BOOT button. Password-protected; release builds do not listen at all.
+#include <ArduinoOTA.h>
+static void handleOta() {
+  static bool started = false;
+  if (!started && WiFi.status() == WL_CONNECTED) {
+    ArduinoOTA.setHostname("wrkbench-display");
+    ArduinoOTA.setPassword(WB_OTA_PASSWORD);
+    ArduinoOTA.begin();
+    started = true;
+    Serial.printf("Wi-Fi updates on at %s\n", WiFi.localIP().toString().c_str());
+  }
+  if (started) ArduinoOTA.handle();
+}
+#else
+static void handleOta() {}
+#endif
+
 void loop() {
   display::tick();
+  handleOta();
+  // "S" over USB: send what is on screen (tools/screenshot.py).
+  while (Serial.available()) {
+    if (Serial.read() == 'S') display::sendScreenshot();
+  }
   if (inPortal) {
     if (portal::process(settings)) {
       store::save(settings);

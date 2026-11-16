@@ -92,4 +92,19 @@ void setBrightness(uint8_t level) { ledcWrite(BL_CHANNEL, level); }
 
 uint32_t idleMs() { return millis() - lastTouch; }
 
+void sendScreenshot() {
+  static uint16_t line[WIDTH];
+  uint8_t bytes[WIDTH * 2];
+  Serial.printf("WBSHOT %d %d\n", WIDTH, HEIGHT);
+  for (int y = 0; y < HEIGHT; y++) {
+    tft.readRect(0, y, WIDTH, 1, line);
+    for (int x = 0; x < WIDTH; x++) {
+      bytes[x * 2] = line[x] >> 8;
+      bytes[x * 2 + 1] = line[x] & 0xFF;
+    }
+    Serial.write(bytes, sizeof bytes);
+  }
+  Serial.flush();
+}
+
 }  // namespace display
