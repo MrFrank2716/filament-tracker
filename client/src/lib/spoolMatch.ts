@@ -20,6 +20,9 @@ export function colourDistance(a: string, b: string): number {
 
 const COLOUR_CLOSE = 90;
 
+/** A tag a member wrote to an NFC sticker ("NFC" then its serial), not one a printer can read. Printer tags are hexadecimal. */
+export const isStickerTag = (tagId: string | null | undefined): boolean => Boolean(tagId?.startsWith('NFC'));
+
 /** Hue in degrees and saturation 0 to 1; hue is meaningless for greys (low saturation). */
 function hueOf(hex: string): { hue: number; saturation: number } {
   const [r, g, b] = [1, 3, 5].map((start) => Number.parseInt(hex.slice(start, start + 2), 16) / 255);
@@ -69,8 +72,8 @@ export function spoolFacts(item: Item, catalog: Catalog): { material: string | n
  */
 export function matchScore(item: Item, detected: Detected, catalog: Catalog): number {
   if (detected.tagId && item.tagId === detected.tagId) return 3;
-  // An item tagged as some other spool is not this one.
-  if (item.tagId && detected.tagId) return 0;
+  // An item the printer knows as some other spool is not this one. A sticker says nothing: the printer never reads it.
+  if (item.tagId && !isStickerTag(item.tagId) && detected.tagId) return 0;
   const facts = spoolFacts(item, catalog);
   if (!facts.material || !detected.material || plain(facts.material) !== plain(detected.material)) return 0;
   if (facts.colour && detected.colour) return colourDistance(facts.colour, detected.colour) <= COLOUR_CLOSE ? 2 : 0;

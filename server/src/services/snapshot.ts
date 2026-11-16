@@ -1,10 +1,15 @@
 import { z } from 'zod';
 import type { Db, Json } from '@/db';
+import { TAG_PATTERN, tagIsFree } from '@/services/tags';
 
 /**
  * A snapshot is a portable description of a workspace. The same format powers
  * JSON export/import, workspace templates and the seeded example environment.
  * Rows point at each other with `ref` strings instead of database ids.
+ *
+ * An export uses each row's id as its `ref`. Importing gives items and locations that same id back when
+ * nothing else holds it, because printed QR labels and written NFC stickers carry it: a restore into an
+ * emptied database then leaves every label working.
  */
 
 export const FIELD_TYPES = ['text', 'number', 'select', 'boolean', 'color', 'date'] as const;
@@ -96,6 +101,7 @@ export const snapshotSchema = z.object({
         wearFlag: z.boolean().default(false),
         isRemnant: z.boolean().default(false),
         parent: optRef,
+        tagId: z.string().regex(TAG_PATTERN).nullish(),
         compatibleMachines: z.array(ref).default([]),
       }),
     )
@@ -196,6 +202,8 @@ export async function importSnapshot(db: Db, workspaceId: string, snapshot: Snap
     item: new Map<string, string>(),
   };
   const lookup = (map: Map<string, string>, key: string | null | undefined) => (key ? (map.get(key) ?? null) : null);
+  /** A ref that is a database id nobody holds can be the new row's id; a template's "shelf-a" cannot. */
+  const looksLikeId = (value: string) => /^c[a-z0-9]{20,31}$/.test(value);
 
   // Units
   const existingUnits = await db.unit.findMany({ where: { workspaceId } });
@@ -244,8 +252,9 @@ export async function importSnapshot(db: Db, workspaceId: string, snapshot: Snap
       if (found) {
         ids.location.set(location.ref, found.id);
       } else {
+        const keepId = looksLikeId(location.ref) && !(await db.location.findUnique({ where: { id: location.ref }, select: { id: true } }));
         const created = await db.location.create({
-          data: { workspaceId, name: location.name, kind: location.kind, code: location.code, parentId },
+          data: { ...(keepId ? { id: location.ref } : {}), workspaceId, name: location.name, kind: location.kind, code: location.code, parentId },
         });
         existingLocations.push(created);
         ids.location.set(location.ref, created.id);
@@ -337,10 +346,15 @@ export async function importSnapshot(db: Db, workspaceId: string, snapshot: Snap
     const itemTypeId = lookup(ids.itemType, item.type);
     if (!itemTypeId) continue;
     const machineIds = item.compatibleMachines.map((m) => ids.machine.get(m)).filter((id): id is string => Boolean(id));
+    const keepId = looksLikeId(item.ref) && !(await db.item.findUnique({ where: { id: item.ref }, select: { id: true } }));
+    // A tag already on an item here stays with it: the spool in stock is the one known to carry it.
+    const tagId = item.tagId && (await tagIsFree(db, workspaceId, item.tagId)) ? item.tagId : null;
     const created = await db.item.create({
       data: {
+        ...(keepId ? { id: item.ref } : {}),
         workspaceId,
         itemTypeId,
+        tagId,
         name: item.name,
         sku: item.sku,
         quantity: item.quantity,
@@ -499,7 +513,7 @@ export async function exportSnapshot(db: Db, workspaceId: string): Promise<Snaps
       ref: i.id, type: i.itemTypeId, name: i.name, sku: i.sku, quantity: i.quantity, capacity: i.capacity,
       minQuantity: i.minQuantity, unitCost: i.unitCost, unit: i.unitId, supplier: i.supplierId, location: i.locationId,
       notes: i.notes, fields: i.fields, usageHours: i.usageHours, lifeHours: i.lifeHours, wearFlag: i.wearFlag,
-      isRemnant: i.isRemnant, parent: i.parentId, compatibleMachines: i.compatibleMachines.map((m) => m.id),
+      isRemnant: i.isRemnant, parent: i.parentId, tagId: i.tagId, compatibleMachines: i.compatibleMachines.map((m) => m.id),
     })),
     subUnits: subUnits.map((s) => ({
       ref: s.id, name: s.name, kind: s.kind, machine: s.machineId, readings: s.readings, statusNote: s.statusNote,

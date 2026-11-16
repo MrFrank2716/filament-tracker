@@ -5,8 +5,9 @@ import { HttpError, parse } from '@/http';
 import { parseCsv, toCsv } from '@/services/csv';
 import { exportSnapshot, importSnapshot, snapshotSchema } from '@/services/snapshot';
 import { normalizeFields } from '@/routes/items';
+import { TAG_PATTERN, tagIsFree } from '@/services/tags';
 
-const BASE_COLUMNS = ['type', 'name', 'sku', 'quantity', 'unit', 'capacity', 'min_quantity', 'unit_cost', 'supplier', 'location', 'notes', 'usage_hours', 'life_hours'] as const;
+const BASE_COLUMNS = ['type', 'name', 'sku', 'quantity', 'unit', 'capacity', 'min_quantity', 'unit_cost', 'supplier', 'location', 'notes', 'usage_hours', 'life_hours', 'tag_id'] as const;
 
 const slug = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 const toNumber = (value: string | undefined): number | undefined => {
@@ -50,7 +51,7 @@ export function registerTransferRoutes(router: Router): void {
       return [
         typeById.get(item.itemTypeId)?.name ?? '', item.name, item.sku, item.quantity, item.unit?.symbol ?? '',
         item.capacity ?? '', item.minQuantity, item.unitCost, item.supplier?.name ?? '', item.location?.name ?? '',
-        item.notes, item.usageHours, item.lifeHours ?? '',
+        item.notes, item.usageHours, item.lifeHours ?? '', item.tagId ?? '',
         ...fieldKeys.map((key) => values[key] ?? ''),
       ];
     });
@@ -118,6 +119,11 @@ export function registerTransferRoutes(router: Router): void {
             }
             const fields = normalizeFields(type.fields, raw);
 
+            // A spool's tag comes back with it, unless an item already in stock carries that tag.
+            const tag = (record.tag_id ?? '').toUpperCase();
+            if (tag && !TAG_PATTERN.test(tag)) throw new Error(`tag_id "${record.tag_id}" is not a tag`);
+            const tagId = tag && (await tagIsFree(tx, workspaceId, tag)) ? tag : null;
+
             const quantity = Math.max(0, toNumber(record.quantity) ?? 0);
             const item = await tx.item.create({
               data: {
@@ -136,6 +142,7 @@ export function registerTransferRoutes(router: Router): void {
                 usageHours: Math.max(0, toNumber(record.usage_hours) ?? 0),
                 lifeHours: toNumber(record.life_hours) || null,
                 fields: fields as Json,
+                tagId,
               },
             });
             if (quantity > 0) {

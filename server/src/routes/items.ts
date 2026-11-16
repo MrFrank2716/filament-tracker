@@ -3,7 +3,9 @@ import type { CustomField, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma, type Json } from '@/db';
 import { HttpError, notFound, param, parse } from '@/http';
+import { describeActivity } from '@/services/activity';
 import { assertInWorkspace, moveStock, round } from '@/services/stock';
+import { assignTag, TAG_PATTERN } from '@/services/tags';
 
 type FieldValue = string | number | boolean | null;
 
@@ -26,9 +28,11 @@ const itemInput = z.object({
   isRemnant: z.boolean().optional(),
   parentId: z.string().nullable().optional(),
   compatibleMachineIds: z.array(z.string()).optional(),
-  /** The id on the spool's own tag, as a connected printer read it. */
-  tagId: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{4,64}$/).nullable().optional(),
+  /** The id on the spool's own tag as a connected printer read it, or "NFC" and the serial of a sticker. */
+  tagId: z.string().trim().toUpperCase().regex(TAG_PATTERN).nullable().optional(),
 });
+
+const tagInput = z.object({ tagId: itemInput.shape.tagId.unwrap() });
 
 const adjustInput = z.object({
   mode: z.enum(['delta', 'set']),
@@ -98,7 +102,7 @@ export function registerItemRoutes(router: Router): void {
   });
 
   router.post('/items', async (req, res) => {
-    const { compatibleMachineIds = [], fields = {}, ...data } = parse(itemInput, req.body);
+    const { compatibleMachineIds = [], fields = {}, tagId, ...data } = parse(itemInput, req.body);
     const workspaceId = req.workspaceId;
     await assertInWorkspace(prisma, workspaceId, {
       itemType: data.itemTypeId, unit: data.unitId, supplier: data.supplierId,
@@ -121,13 +125,14 @@ export function registerItemRoutes(router: Router): void {
           data: { workspaceId, itemId: created.id, delta: created.quantity, balanceAfter: created.quantity, reason: 'initial', userId: req.userId },
         });
       }
+      if (tagId) await assignTag(tx, workspaceId, created.id, tagId);
       return tx.item.findUniqueOrThrow({ where: { id: created.id }, include: itemInclude });
     });
     res.status(201).json(present(item));
   });
 
   router.patch('/items/:id', async (req, res) => {
-    const { compatibleMachineIds, fields, quantity, ...data } = parse(itemInput.partial(), req.body);
+    const { compatibleMachineIds, fields, quantity, tagId, ...data } = parse(itemInput.partial(), req.body);
     const id = param(req, 'id');
     const workspaceId = req.workspaceId;
     const existing = await prisma.item.findFirst({ where: { id, workspaceId } });
@@ -156,6 +161,7 @@ export function registerItemRoutes(router: Router): void {
           ...(compatibleMachineIds ? { compatibleMachines: { set: compatibleMachineIds.map((machineId) => ({ id: machineId })) } } : {}),
         },
       });
+      if (tagId !== undefined) await assignTag(tx, workspaceId, id, tagId);
       // Editing the quantity on the form is still a stock change and must be audited.
       if (quantity !== undefined && quantity !== existing.quantity) {
         await moveStock(tx, { workspaceId, itemId: id, delta: quantity - existing.quantity, reason: 'adjust', note: 'Edited on item form', userId: req.userId });
@@ -199,6 +205,21 @@ export function registerItemRoutes(router: Router): void {
       });
       return tx.item.findUniqueOrThrow({ where: { id }, include: itemInclude });
     });
+    res.json(present(item));
+  });
+
+  /** Tie a tag to this item (a sticker just written, say), or forget it. The tag leaves any other item. */
+  router.put('/items/:id/tag', async (req, res) => {
+    const { tagId } = parse(tagInput, req.body);
+    const id = param(req, 'id');
+    const workspaceId = req.workspaceId;
+    const item = await prisma.$transaction(async (tx) => {
+      const current = await tx.item.findFirst({ where: { id, workspaceId, archived: false } });
+      if (!current) throw notFound('Item');
+      await assignTag(tx, workspaceId, id, tagId);
+      return tx.item.findUniqueOrThrow({ where: { id }, include: itemInclude });
+    });
+    describeActivity(tagId ? `Tagged ${item.name}` : `Removed the tag from ${item.name}`, { type: 'item', id });
     res.json(present(item));
   });
 

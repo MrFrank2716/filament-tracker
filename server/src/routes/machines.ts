@@ -8,6 +8,7 @@ import type { Detected } from '@/integrations/spoolMatch';
 import { HttpError, notFound, param, parse } from '@/http';
 import { MACHINE_STATUSES, readingSchema } from '@/services/snapshot';
 import { assertInWorkspace } from '@/services/stock';
+import { assignTag } from '@/services/tags';
 
 const machineInput = z.object({
   name: z.string().trim().min(1, 'Give the machine a name').max(120),
@@ -177,8 +178,7 @@ export function registerMachineRoutes(router: Router): void {
       const tagId = detected?.state === 'loaded' ? detected.tagId : null;
       if (itemId && tagId) {
         // Linking a stock item to a tagged spool teaches the tag, so next time it is recognised without asking.
-        await tx.item.updateMany({ where: { workspaceId: req.workspaceId, tagId, NOT: { id: itemId } }, data: { tagId: null } });
-        await tx.item.update({ where: { id: itemId }, data: { tagId } });
+        await assignTag(tx, req.workspaceId, itemId, tagId);
       }
       return tx.slot.update({
         where: { id: slot.id },

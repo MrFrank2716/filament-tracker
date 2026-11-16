@@ -18,6 +18,7 @@ export const atLeast = (role: Role, needed: Role): boolean => rank[role] >= rank
  */
 const OPERATOR_WRITES: Array<[method: string, path: RegExp]> = [
   ['POST', /^\/items\/[^/]+\/adjust$/], // the handler only lets operators take stock away
+  ['PUT', /^\/items\/[^/]+\/tag$/], // writing or scanning a spool's sticker
   ['POST', /^\/jobs$/],
   ['PATCH', /^\/jobs\/[^/]+$/],
   ['POST', /^\/jobs\/[^/]+\/(start|finish|cancel)$/],

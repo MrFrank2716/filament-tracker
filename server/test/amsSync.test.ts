@@ -77,6 +77,19 @@ describe('syncing feeders and spools', () => {
     expect((await slots())[0].slots[2].itemId).toBeNull();
   });
 
+  it('keeps a spool carrying a member\'s NFC sticker in a tray the printer cannot identify', async () => {
+    const stickered = await spool('PETG Green', 'PETG', '#00aa00', 'NFC04A1B2C3D4E5F6');
+    const slot = (await slots())[0].slots[2];
+    printer.feeders[0].trays[2] = { type: 'PETG', color: '00aa00' };
+    await sync();
+    await prisma.slot.update({ where: { id: slot.id }, data: { itemId: stickered.id, source: 'manual' } });
+    // The printer's idea of the colour drifts a little: still the same spool, sticker or not.
+    printer.feeders[0].trays[2] = { type: 'PETG', color: '00a808' };
+    await sync();
+    expect((await slots())[0].slots[2].itemId).toBe(stickered.id);
+    await prisma.slot.update({ where: { id: slot.id }, data: { itemId: null } });
+  });
+
   it('only unloads once a tray has stayed empty', async () => {
     const black = await spool('PLA Black', 'PLA', '#000000');
     const slot = (await slots())[0].slots[0];

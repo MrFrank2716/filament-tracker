@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Catalog } from '@/hooks/useCatalog';
 import { nearestColour } from '@/components/reference/ReferencePicker';
-import { colourWord, newSpoolFrom } from '@/lib/spoolMatch';
-import type { Detected } from '@/lib/types';
+import { colourWord, matchScore, newSpoolFrom } from '@/lib/spoolMatch';
+import type { Detected, Item } from '@/lib/types';
 
 const field = (key: string, fieldType: string, options: string[] = []) => ({ id: key, key, label: key, fieldType, unit: '', options, required: false, showInList: true, isSizeDimension: false, sortOrder: 0 });
 const catalog = {
@@ -45,5 +45,15 @@ describe('filling in a new spool from what the printer reads', () => {
     expect(nearestColour([['Grey', '#808080'], ['Red', '#cc0000']], '#8a8a8a')).toBe('Grey');
     expect(nearestColour(colours, null)).toBeNull();
     expect(nearestColour([], '#000000')).toBeNull();
+  });
+});
+
+describe('ranking stock against a tray', () => {
+  const catalogWithTypes = { ...catalog, typeById: new Map(catalog.types.map((type) => [type.id, type])) } as unknown as Catalog;
+  const item = (tagId: string | null) => ({ itemTypeId: 't1', tagId, fields: { material: 'ABS', colour: '#ffffff' } }) as unknown as Item;
+  it('does not rule out a spool because it carries an NFC sticker', () => {
+    expect(matchScore(item('NFC04A1B2C3'), tray({ tagId: 'AB12' }), catalogWithTypes)).toBe(2);
+    expect(matchScore(item('CD34'), tray({ tagId: 'AB12' }), catalogWithTypes)).toBe(0);
+    expect(matchScore(item('AB12'), tray({ tagId: 'AB12' }), catalogWithTypes)).toBe(3);
   });
 });
