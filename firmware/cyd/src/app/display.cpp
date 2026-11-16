@@ -18,9 +18,6 @@ constexpr int TOUCH_CS = 33, TOUCH_IRQ = 36, TOUCH_MOSI = 32, TOUCH_MISO = 39, T
 #define WB_TOUCH_Y_MIN 240
 #define WB_TOUCH_Y_MAX 3800
 #endif
-#ifndef WB_INVERT
-#define WB_INVERT 0
-#endif
 
 constexpr int WIDTH = 320, HEIGHT = 240;
 constexpr int BUFFER_LINES = 24;
@@ -62,13 +59,17 @@ uint32_t tickSource() { return millis(); }
 }  // namespace
 
 void begin() {
+  tft.init();
+  tft.setRotation(1);  // landscape, USB on the right
+#ifdef WB_INVERT
+  // Only when a build asks for it: each driver's own start-up already sets the usual inversion for its panel.
+  tft.invertDisplay(WB_INVERT);
+#endif
+  tft.fillScreen(TFT_BLACK);
+  // After init, which takes the backlight pin as a plain output: PWM so the screen can dim.
   ledcSetup(BL_CHANNEL, 5000, 8);
   ledcAttachPin(TFT_BL, BL_CHANNEL);
   setBrightness(255);
-  tft.init();
-  tft.setRotation(1);  // landscape, USB on the right
-  tft.invertDisplay(WB_INVERT);
-  tft.fillScreen(TFT_BLACK);
 
   touchSpi.begin(TOUCH_CLK, TOUCH_MISO, TOUCH_MOSI, TOUCH_CS);
   touch.begin(touchSpi);

@@ -43,8 +43,8 @@ void open(char *apName, size_t nameLen, char *apPassword, size_t passwordLen) {
   manager.setSaveParamsCallback(onSave);
   manager.setSaveConfigCallback(onSave);
   manager.setConfigPortalBlocking(false);
+  // A wrong Wi-Fi password keeps the set-up network open so the phone can try again.
   manager.setConnectTimeout(20);
-  manager.setBreakAfterConfig(true);
   manager.startConfigPortal(apName, apPassword);
 }
 

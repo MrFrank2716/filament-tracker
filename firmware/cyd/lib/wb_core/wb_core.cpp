@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 
 namespace wb {
 
@@ -149,7 +150,8 @@ bool normalizeServer(const char *in, char *out, size_t outLen) {
   char buffer[160];
   if (scheme && static_cast<size_t>(scheme - in) < len) {
     const size_t schemeLen = static_cast<size_t>(scheme - in);
-    if (!((schemeLen == 4 && strncmp(in, "http", 4) == 0) || (schemeLen == 5 && strncmp(in, "https", 5) == 0))) return false;
+    // Phones like to capitalise the first letter: "Https://" is still https.
+    if (!((schemeLen == 4 && strncasecmp(in, "http", 4) == 0) || (schemeLen == 5 && strncasecmp(in, "https", 5) == 0))) return false;
     if (len - schemeLen <= 3) return false;
     if (len >= sizeof buffer) return false;
     memcpy(buffer, in, len);

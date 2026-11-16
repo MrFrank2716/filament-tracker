@@ -138,11 +138,34 @@ void showCode(const char *message);
 void closeCard();
 
 // ---- Set-up and pairing ----------------------------------------------------------------------
+void wipeAndRestart(lv_event_t *);
+
+/** Pressed twice: forget Wi-Fi, server and token, and start set-up from the phone again. */
+void onSetupAgain(lv_event_t *e) {
+  if (!aboutArmed) {
+    aboutArmed = true;
+    lv_label_set_text(lv_obj_get_child(static_cast<lv_obj_t *>(lv_event_get_target(e)), 0), "Press again: forget all");
+    return;
+  }
+  wipeAndRestart(e);
+}
+
+char shownTitle[64] = "";
+char shownDetail[112] = "";
+
 void showMessageScreen(View kind, const char *title, const char *detail, bool spinner) {
+  // Called every second while waiting: only redraw when something changed, so the button stays pressable.
+  if (view == kind && strcmp(shownTitle, title) == 0 && strcmp(shownDetail, detail ? detail : "") == 0) return;
+  wb::copyText(shownTitle, sizeof shownTitle, title);
+  wb::copyText(shownDetail, sizeof shownDetail, detail);
+  aboutArmed = false;
   lv_obj_t *s = newScreen(kind);
+  // A way out when the address or Wi-Fi was entered wrong and the display can never get further.
+  lv_obj_t *again = button(s, "Set up again", onSetupAgain, nullptr, lv_color_hex(0x2A3038));
+  lv_obj_align(again, LV_ALIGN_BOTTOM_RIGHT, -6, -6);
   lv_obj_t *col = plainBox(s);
-  lv_obj_set_size(col, W - 32, H - 32);
-  lv_obj_center(col);
+  lv_obj_set_size(col, W - 32, H - 60);
+  lv_obj_align(col, LV_ALIGN_TOP_MID, 0, 8);
   lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(col, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
   lv_obj_set_style_pad_row(col, 10, 0);
@@ -386,15 +409,6 @@ void onNewCode(lv_event_t *) {
   free(overview);
   overview = nullptr;
   showCode(nullptr);
-}
-
-void onSetupAgain(lv_event_t *e) {
-  if (!aboutArmed) {
-    aboutArmed = true;
-    lv_label_set_text(lv_obj_get_child(static_cast<lv_obj_t *>(lv_event_get_target(e)), 0), "Press again: forget all");
-    return;
-  }
-  wipeAndRestart(e);
 }
 
 void showAbout() {

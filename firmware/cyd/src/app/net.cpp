@@ -112,7 +112,8 @@ int request(const char *method, const char *path, const char *body = nullptr) {
   } else {
     status = http.sendRequest(method);
   }
-  if (status > 0) {
+  // A 304 has no body; waiting for one would hold the connection until it times out.
+  if (status > 0 && status != 304) {
     const int size = http.getSize();
     if (size > static_cast<int>(wb::MAX_RESPONSE)) {
       http.end();
