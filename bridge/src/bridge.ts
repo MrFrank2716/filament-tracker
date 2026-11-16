@@ -20,7 +20,7 @@ import type { Simulator } from './simulate';
  */
 
 const DEFAULT_TELEMETRY: TelemetryConfig = { liveMs: 2000, idleMs: 15_000, urgentPaths: [], ignorePaths: [], arrayKey: 'id' };
-const CAPABILITIES = ['bambu.monitor', 'discovery', 'job.files'];
+const CAPABILITIES = ['bambu.monitor', 'discovery', 'job.files', 'job.images'];
 
 interface Held {
   printer: StoredPrinter;
@@ -182,7 +182,7 @@ export class Bridge {
       const held = this.held.get(request.data.printerId);
       if (!held) return ack?.({ ok: false, code: 'unknown_printer' });
       held.session.readJobFile(request.data.entries).then(
-        (entries) => ack?.({ ok: true, entries }),
+        ({ entries, images }) => ack?.({ ok: true, entries, images }),
         (cause: unknown) => ack?.({ ok: false, code: 'no_file', message: String((cause as Error).message).slice(0, 100) }),
       );
     });

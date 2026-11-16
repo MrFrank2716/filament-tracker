@@ -1,7 +1,9 @@
+import { readFile } from 'node:fs/promises';
 import { Router } from 'express';
 import { z } from 'zod';
 import { accessCode, host, pairRequest, serial } from '@filament-tracker/protocol';
 import { atLeast } from '@/auth';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/db';
 import { env } from '@/env';
 import { HttpError, notFound, param, parse } from '@/http';
@@ -15,6 +17,7 @@ import { describeActivity } from '@/services/activity';
 import { appUrl } from '@/services/mail';
 import { assertInWorkspace } from '@/services/stock';
 import { hashSecret, newBridgeToken, newPairingCode, normalizePairingCode } from '@/services/tokens';
+import { removeStored, storedPath } from '@/services/uploads';
 
 /**
  * Connected printers: the bridges a workspace runs on its own network, and the printers reached through them.
@@ -135,10 +138,12 @@ export function registerPrinterRoutes(router: Router): void {
     const id = param(req, 'id');
     const existing = await prisma.bridge.findFirst({ where: { id, workspaceId: req.workspaceId }, include: { printers: { select: { id: true, vendor: true, serial: true } } } });
     if (!existing) throw notFound('Bridge');
+    const pictures = await runPictures({ printerLink: { bridgeId: id } });
     await prisma.$transaction(async (tx) => {
       for (const printer of existing.printers) await releaseFeeders(tx, req.workspaceId, printer.vendor, printer.serial);
       await tx.bridge.delete({ where: { id } });
     });
+    await removeStored(req.workspaceId, pictures);
     existing.printers.forEach((printer) => forgetPrinter(printer.id));
     disconnectBridge(id);
     res.status(204).end();
@@ -175,6 +180,20 @@ export function registerPrinterRoutes(router: Router): void {
   /** The latest reading of every connected printer. After this, changes arrive over the socket as "printer:state". */
   router.get('/printers/state', (req, res) => {
     res.json(env.PRINTERS_ENABLED ? statesForWorkspace(req.workspaceId) : []);
+  });
+
+  /**
+   * The slicer's picture of a print's plate, as the bridge read it from the sliced file. Only ever a PNG we
+   * checked and stored under a name of our own, and only for members of the run's workspace.
+   */
+  router.get('/printers/runs/:runId/thumbnail', async (req, res) => {
+    requireEnabled();
+    const run = await prisma.printerRun.findFirst({ where: { id: param(req, 'runId'), workspaceId: req.workspaceId }, select: { thumbnail: true } });
+    if (!run?.thumbnail) throw notFound('Picture');
+    const bytes = await readFile(storedPath(req.workspaceId, run.thumbnail)).catch(() => null);
+    if (!bytes) throw notFound('Picture');
+    // A run's picture never changes once stored, so the browser may keep it.
+    res.set({ 'Content-Type': 'image/png', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=86400, immutable' }).send(bytes);
   });
 
   /**
@@ -257,15 +276,23 @@ export function registerPrinterRoutes(router: Router): void {
     const id = param(req, 'id');
     const link = await prisma.printerLink.findFirst({ where: { id, workspaceId: req.workspaceId } });
     if (!link) throw notFound('Printer');
+    const pictures = await runPictures({ printerLinkId: id });
     await prisma.$transaction(async (tx) => {
       await releaseFeeders(tx, req.workspaceId, link.vendor, link.serial);
       await tx.printerLink.delete({ where: { id } });
     });
+    await removeStored(req.workspaceId, pictures);
     forgetPrinter(id);
     // The bridge drops the printer, and its access code with it.
     await pushConfig(link.bridgeId);
     res.status(204).end();
   });
+}
+
+/** The stored pictures of the prints about to be deleted along with their printer, so the files can go too. */
+async function runPictures(where: Prisma.PrinterRunWhereInput): Promise<string[]> {
+  const runs = await prisma.printerRun.findMany({ where: { ...where, NOT: { thumbnail: '' } }, select: { thumbnail: true } });
+  return runs.map((run) => run.thumbnail);
 }
 
 function testFailure(code: string, message?: string): string {

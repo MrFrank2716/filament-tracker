@@ -85,6 +85,8 @@ export const api = {
     const response = await send('GET', path);
     saveBlob(await response.blob(), filename);
   },
+  /** Fetch a file with the auth header, for showing on the page (a picture cannot send the header itself). */
+  blob: async (path: string) => (await send('GET', path)).blob(),
 };
 
 export function saveBlob(blob: Blob, filename: string): void {

@@ -1,6 +1,6 @@
 import type { Namespace, Server, Socket } from 'socket.io';
 import {
-  BRIDGE_NAMESPACE, MIN_PROTOCOL, bridgeHello, handshakeAuth, jobReadAck, printerReport, printerStatus,
+  BRIDGE_NAMESPACE, JOB_IMAGE_ENTRY, MIN_PROTOCOL, bridgeHello, handshakeAuth, jobReadAck, printerReport, printerStatus,
   type BridgeConfig, type BridgeToServerEvents, type ServerToBridgeEvents,
 } from '@filament-tracker/protocol';
 import { prisma, type Json } from '@/db';
@@ -120,8 +120,11 @@ export function attachBridgeGateway(io: Server): void {
     const socket = sockets.get(bridgeId);
     if (!socket?.connected || !socket.data.capabilities.includes('job.files')) return null;
     try {
-      const reply = jobReadAck.parse(await socket.timeout(120_000).emitWithAck('job.read', { printerId, entries }));
-      return reply.ok ? reply.entries : null;
+      // Pictures are only asked of bridges that send them as bytes; an older one would return them mangled, as text.
+      const wanted = socket.data.capabilities.includes('job.images') ? entries : entries.filter((entry) => !JOB_IMAGE_ENTRY.test(entry));
+      if (wanted.length === 0) return null;
+      const reply = jobReadAck.parse(await socket.timeout(120_000).emitWithAck('job.read', { printerId, entries: wanted }));
+      return reply.ok ? { entries: reply.entries, images: reply.images } : null;
     } catch {
       return null;
     }

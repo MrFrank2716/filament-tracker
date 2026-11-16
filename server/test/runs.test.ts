@@ -1,12 +1,13 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Doc } from '@filament-tracker/protocol';
 import { simDocument, simFleet, type SimPrinter } from '@filament-tracker/protocol/fixtures';
 import { prisma } from '@/db';
 import { syncFeeders } from '@/integrations/amsSync';
 import { bambuAdapter, readBambu } from '@/integrations/bambu/normalize';
-import { reconcileRun, type JobFileReader, type RunTarget } from '@/integrations/runs';
+import { reconcileRun, thumbnailRunFor, type JobFileReader, type RunTarget } from '@/integrations/runs';
 import { plateFor, readSliceInfo, SLICE_INFO } from '@/integrations/threemf';
+import { removeWorkspaceUploads, storedPath } from '@/services/uploads';
 
 const SLICE = `<config>
 <plate><metadata key="index" value="1"/><metadata key="prediction" value="600"/>
@@ -19,7 +20,7 @@ let target: RunTarget;
 let printer: SimPrinter;
 let black: { id: string };
 let white: { id: string };
-const file: JobFileReader = async () => ({ [SLICE_INFO]: SLICE });
+const file: JobFileReader = async () => ({ entries: { [SLICE_INFO]: SLICE } });
 const noFile: JobFileReader = async () => null;
 /** The document as the bridge would hold it: status plus the "print starting" announcement. */
 const doc = (): Doc => ({ ...simDocument(printer), job: { subtask_name: printer.job?.name, param: 'Metadata/plate_1.gcode', use_ams: true, ams_mapping: [0, -1, 1] } });
@@ -47,7 +48,10 @@ beforeAll(async () => {
   await prisma.slot.update({ where: { id: unit.slots.find((slot) => slot.position === 1)!.id }, data: { itemId: black.id } });
   await prisma.slot.update({ where: { id: unit.slots.find((slot) => slot.position === 2)!.id }, data: { itemId: white.id } });
 });
-afterAll(() => prisma.$disconnect());
+afterAll(async () => {
+  await removeWorkspaceUploads(target.workspaceId);
+  await prisma.$disconnect();
+});
 
 describe('reading the sliced file', () => {
   it('reads each plate, keeps skipped filament numbers, and picks the plate being printed', () => {
@@ -142,7 +146,7 @@ describe('following a print', () => {
   it('places filaments from the fuller mapping, the outside holders, and the mapping repeated in status', async () => {
     const x2d = JSON.parse(readFileSync(new URL('./fixtures/x2d.json', import.meta.url), 'utf8')) as Doc;
     const one = `<config><plate><metadata key="index" value="1"/><filament id="1" type="PLA" color="#161616" used_g="12.5"/></plate></config>`;
-    const reader: JobFileReader = async () => ({ [SLICE_INFO]: one });
+    const reader: JobFileReader = async () => ({ entries: { [SLICE_INFO]: one } });
     const machine = await prisma.machine.create({ data: { workspaceId: target.workspaceId, name: 'X2D' } });
     const bridge = await prisma.bridge.findFirstOrThrow();
     const link = await prisma.printerLink.create({ data: { workspaceId: target.workspaceId, machineId: machine.id, bridgeId: bridge.id, serial: 'SERIAL0000000001', host: '192.168.1.8' } });
@@ -175,6 +179,47 @@ describe('following a print', () => {
     await reconcileRun(target, readBambu(cancelled), cancelled, file, new Date(T0 + 40 * HOUR + 10_000));
     expect(await prisma.job.findFirstOrThrow({ where: { name: 'cover' } })).toMatchObject({ status: 'failed', failureReason: 'Cancelled at the printer' });
     expect(await stock(black.id)).toBe(before);
+  });
+
+  it('keeps the slicer\'s picture of the plate with the print, and nothing that is not a PNG', async () => {
+    await prisma.printerRun.updateMany({ where: { endedAt: null }, data: { endedAt: new Date(), outcome: 'unseen' } });
+    const png = new Uint8Array(64);
+    png.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const asked: string[][] = [];
+    const reader = (images: Record<string, Uint8Array>, entries: Record<string, string> = { [SLICE_INFO]: SLICE }): JobFileReader => async (names) => {
+      asked.push(names);
+      return { entries, images };
+    };
+
+    printer.state = 'RUNNING'; printer.job = { name: 'bowl', percent: 5, remainingMinutes: 30, layer: 5, totalLayers: 100 };
+    await step(reader({ 'Metadata/plate_1.png': png }), T0 + 44 * HOUR);
+    // One request for the summary and the picture of the plate being printed, so the file is downloaded once.
+    expect(asked).toEqual([[SLICE_INFO, 'Metadata/plate_1.png']]);
+    const run = await prisma.printerRun.findFirstOrThrow({ where: { name: 'bowl' } });
+    expect(run.usageSource).toBe('file');
+    expect(run.thumbnail).toMatch(/^[0-9a-f]{32}$/);
+    expect(new Uint8Array(readFileSync(storedPath(target.workspaceId, run.thumbnail)))).toEqual(png);
+    expect(await thumbnailRunFor(target.linkId, 'bowl.gcode.3mf')).toBe(run.id);
+    expect(await thumbnailRunFor(target.linkId, 'something else')).toBeNull();
+    await prisma.printerRun.updateMany({ where: { endedAt: null }, data: { endedAt: new Date(), outcome: 'unseen' } });
+
+    // Bytes that are not a PNG are not kept, whatever they were called.
+    printer.job = { name: 'bowl two', percent: 5, remainingMinutes: 30, layer: 5, totalLayers: 100 };
+    await step(reader({ 'Metadata/plate_1.png': new TextEncoder().encode('<svg onload="alert(1)"/>') }), T0 + 45 * HOUR);
+    const plain = await prisma.printerRun.findFirstOrThrow({ where: { name: 'bowl two' } });
+    expect(plain).toMatchObject({ usageSource: 'file', thumbnail: '' });
+    expect(await thumbnailRunFor(target.linkId, 'bowl two')).toBeNull();
+    await prisma.printerRun.updateMany({ where: { endedAt: null }, data: { endedAt: new Date(), outcome: 'unseen' } });
+
+    // A summary that cannot be read does not cost the print its picture; it arrives on a later look.
+    printer.job = { name: 'bowl three', percent: 5, remainingMinutes: 30, layer: 5, totalLayers: 100 };
+    await step(noFile, T0 + 46 * HOUR);
+    expect(await prisma.printerRun.findFirstOrThrow({ where: { name: 'bowl three' } })).toMatchObject({ thumbnail: '' });
+    await step(reader({ 'Metadata/plate_1.png': png }, {}), T0 + 46 * HOUR + 60_000);
+    const late = await prisma.printerRun.findFirstOrThrow({ where: { name: 'bowl three' } });
+    expect(late.usageSource).toBe('');
+    expect(existsSync(storedPath(target.workspaceId, late.thumbnail))).toBe(true);
+    await prisma.printerRun.updateMany({ where: { endedAt: null }, data: { endedAt: new Date(), outcome: 'unseen' } });
   });
 
   it('keeps a running job\'s time in step with what the printer says is left', async () => {

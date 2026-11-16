@@ -3,7 +3,7 @@ import tls from 'node:tls';
 import mqtt, { type MqttClient } from 'mqtt';
 import type { CodeState, Doc, LinkStatus, PrinterTestAck } from '@filament-tracker/protocol';
 import type { StoredPrinter } from './config';
-import { readZipEntries } from './jobFile';
+import { readZipEntries, type JobFileEntries } from './jobFile';
 import { log } from './log';
 
 /**
@@ -35,8 +35,8 @@ export interface PrinterSession {
   stop(): void;
   /** Ask for the full status again (rate-limited). */
   refresh(): void;
-  /** Named text entries from the sliced file of the print the printer last announced. */
-  readJobFile(entries: string[]): Promise<Record<string, string>>;
+  /** Named entries (text, and plate pictures) from the sliced file of the print the printer last announced. */
+  readJobFile(entries: string[]): Promise<JobFileEntries>;
 }
 
 /** The SHA-256 of the certificate presented at host:8883, without sending anything. */
@@ -124,7 +124,7 @@ export class BambuSession implements PrinterSession {
     this.client.publish(`device/${this.printer.serial}/request`, PUSH_ALL, { qos: 1 });
   }
 
-  async readJobFile(entries: string[]): Promise<Record<string, string>> {
+  async readJobFile(entries: string[]): Promise<JobFileEntries> {
     if (!this.jobUrl) throw new Error('no_file');
     return readZipEntries(this.jobUrl, entries);
   }
