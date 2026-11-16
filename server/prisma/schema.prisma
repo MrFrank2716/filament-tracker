@@ -590,6 +590,9 @@ model PrinterRun {
   usageSource   String    @default("")
   /// The furthest the print was seen to get, 0 to 1. Used to scale what a stopped print used.
   progress      Float     @default(0)
+  /// The slicer's picture of the plate, read from the sliced file: the name of a PNG in the workspace's upload
+  /// folder, or "" when there is none.
+  thumbnail     String    @default("")
 
   printerLink PrinterLink @relation(fields: [printerLinkId], references: [id], onDelete: Cascade)
   job         Job?        @relation(fields: [jobId], references: [id], onDelete: SetNull)

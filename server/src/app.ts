@@ -32,6 +32,8 @@ export function createApp(): express.Express {
         directives: {
           // The host's proxy redirects to HTTPS; leaving this on would break plain-HTTP runs on a local network.
           upgradeInsecureRequests: null,
+          // A print's picture is fetched with the sign-in header and shown from a blob: address.
+          imgSrc: ["'self'", 'data:', 'blob:'],
         },
       },
     }),

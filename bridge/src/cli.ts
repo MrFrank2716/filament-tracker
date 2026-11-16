@@ -18,6 +18,7 @@ Options
   --pair <code>        the one-time set-up code from Settings, Printers
   --dir <folder>       where to keep its settings (default: /data in a container, else your config folder)
   --simulate           pretend printers instead of real ones, for trying things out
+  --list-job-file      print what is inside each print's sliced file (names and sizes), to help improve Wrkbench
   --help, --version
 
 Other commands
@@ -34,7 +35,7 @@ function parseArgs(argv: string[]) {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (!arg.startsWith('--')) words.push(arg);
-    else if (['--simulate', '--help', '--version'].includes(arg)) flags.set(arg.slice(2), 'true');
+    else if (['--simulate', '--list-job-file', '--help', '--version'].includes(arg)) flags.set(arg.slice(2), 'true');
     else flags.set(arg.slice(2), argv[++index] ?? '');
   }
   return { flags, command: words[0] ?? 'run' };
@@ -115,7 +116,7 @@ async function main(): Promise<void> {
     pending = null;
   }
 
-  const bridge = new Bridge(store, flags.has('simulate') ? new Simulator() : null, pending);
+  const bridge = new Bridge(store, flags.has('simulate') ? new Simulator() : null, pending, flags.has('list-job-file') || process.env.WRKBENCH_LIST_JOB_FILE === '1');
   bridge.start();
   const stop = () => {
     bridge.stop();

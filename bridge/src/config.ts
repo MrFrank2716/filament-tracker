@@ -7,7 +7,7 @@ import path from 'node:path';
  * The access codes exist nowhere else, so this file is written with owner-only permissions and never logged.
  */
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 
 export interface StoredPrinter {
   vendor: string;

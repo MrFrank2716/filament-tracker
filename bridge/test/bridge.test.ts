@@ -1,7 +1,10 @@
+import { strToU8, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import type { PrinterReport, ReportAck, TelemetryConfig } from '@filament-tracker/protocol';
 import { checkServer } from '../src/config';
 import { parseNotice } from '../src/discovery';
+import { describeListing } from '../src/bridge';
+import { pickEntries } from '../src/jobFile';
 import { Replicator } from '../src/replicator';
 import { privateHost } from '../src/safety';
 
@@ -15,6 +18,46 @@ describe('safety', () => {
     expect(checkServer('http://192.168.1.10:4000')).toBe('http://192.168.1.10:4000');
     expect(() => checkServer('http://wrkbench.example.com')).toThrow();
     expect(() => checkServer('not an address')).toThrow();
+  });
+});
+
+describe('reading a sliced file', () => {
+  const png = (length: number) => {
+    const bytes = new Uint8Array(length);
+    bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    return bytes;
+  };
+  const zip = zipSync({
+    'Metadata/slice_info.config': strToU8('<config/>'),
+    'Metadata/plate_1.png': png(2000),
+    'Metadata/plate_2.png': png(700_000),
+    'Metadata/top_1.png': strToU8('<svg onload="alert(1)"/> pretending to be a picture'),
+    'Metadata/plate_1.gcode': strToU8('G28'),
+    '3D/3dmodel.model': strToU8('<model/>'),
+  });
+
+  it('returns text as text and a plate picture as bytes', () => {
+    const read = pickEntries(zip, ['Metadata/slice_info.config', 'Metadata/plate_1.png']);
+    expect(read.entries).toEqual({ 'Metadata/slice_info.config': '<config/>' });
+    expect(Object.keys(read.images)).toEqual(['Metadata/plate_1.png']);
+    expect(read.images['Metadata/plate_1.png']).toEqual(png(2000));
+  });
+  it('lists everything in the file by name and size, without unpacking it', () => {
+    const read = pickEntries(zip, ['Metadata/slice_info.config']);
+    expect(read.listing).toHaveLength(6);
+    expect(read.listing).toContainEqual({ name: '3D/3dmodel.model', bytes: 8 });
+    expect(read.listing).toContainEqual({ name: 'Metadata/plate_2.png', bytes: 700_000 });
+    expect(Object.keys(read.entries)).toEqual(['Metadata/slice_info.config']);
+    const text = describeListing('SERIAL', read.listing).split('\n');
+    expect(text[0]).toBe('The sliced file for SERIAL holds 6 entries, 686 kB unpacked:');
+    expect(text[1]).toBe('     684 kB  Metadata/plate_2.png');
+  });
+  it('leaves out a picture that is too big or is not a PNG, and anything not asked for', () => {
+    const read = pickEntries(zip, ['Metadata/plate_2.png', 'Metadata/top_1.png']);
+    expect(read.entries).toEqual({});
+    expect(read.images).toEqual({});
+    expect(read.skipped).toEqual(['Metadata/plate_2.png is too big (700000 bytes, limit 600000)', 'Metadata/top_1.png is not a PNG']);
+    expect(pickEntries(zip, ['Metadata/plate_9.png']).skipped).toEqual(['Metadata/plate_9.png is not in the file']);
   });
 });
 

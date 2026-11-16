@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Badge, Meter, Muted, Readout } from '@/components/ui/Display';
+import { PrintThumbnail } from '@/components/machines/PrintThumbnail';
 import { PRINTER_CONNECTION, PRINTER_ERROR_TONE, PRINTER_PHASE } from '@/lib/status';
 import type { PrinterState, PrinterTemp } from '@/lib/types';
 import styles from '@/components/machines/Machines.module.css';
@@ -54,17 +55,20 @@ export function PrinterPanel({ state }: { state: PrinterState }) {
 
       {!waiting && state.print && (
         <div className={styles.printJob}>
-          <div className={styles.printJobHead}>
-            <strong className={styles.printName}>{state.print.name}</strong>
-            {state.print.progress !== null && <Readout>{state.print.progress} %</Readout>}
+          {state.thumbnailRunId && <PrintThumbnail runId={state.thumbnailRunId} name={state.print.name} />}
+          <div className={styles.printJobBody}>
+            <div className={styles.printJobHead}>
+              <strong className={styles.printName}>{state.print.name}</strong>
+              {state.print.progress !== null && <Readout>{state.print.progress} %</Readout>}
+            </div>
+            {state.print.progress !== null && <Meter value={state.print.progress} max={100} tone={state.phase === 'failed' ? 'danger' : 'accent'} label={`${state.print.name ?? 'Print'} progress`} />}
+            <Muted>
+              {[
+                state.print.layer !== null && state.print.totalLayers ? `Layer ${state.print.layer} of ${state.print.totalLayers}` : '',
+                left !== null ? `about ${duration(left)} left` : '',
+              ].filter(Boolean).join(' · ')}
+            </Muted>
           </div>
-          {state.print.progress !== null && <Meter value={state.print.progress} max={100} tone={state.phase === 'failed' ? 'danger' : 'accent'} label={`${state.print.name ?? 'Print'} progress`} />}
-          <Muted>
-            {[
-              state.print.layer !== null && state.print.totalLayers ? `Layer ${state.print.layer} of ${state.print.totalLayers}` : '',
-              left !== null ? `about ${duration(left)} left` : '',
-            ].filter(Boolean).join(' · ')}
-          </Muted>
         </div>
       )}
 

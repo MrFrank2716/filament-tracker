@@ -21,6 +21,14 @@ Once a printer is [connected](Connecting-printers.md), Wrkbench follows its prin
 - **The bridge running when the print starts.** Some printers say which tray each filament uses only once, at the start.
 - **Bridge version 0.2.0 or newer.** Older bridges still follow prints, but cannot read the sliced file, so jobs have no materials. Update it: see [Bridge reference](Bridge-reference.md).
 
+## A picture of the print
+
+While a print runs, the machine page shows the slicer's picture of the plate beside its name and progress. It comes from the same sliced file as the materials, read once when the print starts, and stays until the printer's screen is cleared.
+
+- **Bridge version 0.3.0 or newer.** Older bridges keep working, without the picture.
+- Prints with no sliced file announced (SD card, LAN mode) have no picture.
+- It is the slicer's still image of the whole plate, not a live view or a model you can turn.
+
 ## Good to know
 
 - **The figure is the slicer's estimate**, the same number Bambu Studio shows after slicing. The printer does not measure filament. It is usually within a few percent.

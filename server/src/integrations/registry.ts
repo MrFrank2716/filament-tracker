@@ -1,7 +1,7 @@
 import { applyMergePatch, deepEqual, type CodeState, type Doc, type LinkStatus, type PrinterReport, type PrinterStatus, type ReportAck } from '@filament-tracker/protocol';
 import { prisma, type Json } from '@/db';
 import { syncFeeders } from '@/integrations/amsSync';
-import { reconcileRun, type JobFileReader } from '@/integrations/runs';
+import { reconcileRun, thumbnailRunFor, type JobFileReader } from '@/integrations/runs';
 import { bambuAdapter } from '@/integrations/bambu/normalize';
 import { traySignature } from '@/integrations/spoolMatch';
 import { emptyReading, type PrinterAdapter, type PrinterConnection, type PrinterReading, type PrinterState } from '@/integrations/types';
@@ -51,6 +51,8 @@ interface Entry {
   /** The printer's state and print name when its prints were last brought up to date. */
   runSignature: string | null;
   runPending: boolean;
+  /** The print whose picture goes with what the printer is showing, if it has one. */
+  thumbnailRunId: string | null;
 }
 
 const entries = new Map<string, Entry>();
@@ -97,6 +99,7 @@ function stateOf(entry: Entry): PrinterState {
     connection: connectionOf(entry),
     asOf: entry.asOf,
     endsAt: entry.endsAt,
+    thumbnailRunId: entry.reading?.print ? entry.thumbnailRunId : null,
   };
 }
 
@@ -165,7 +168,7 @@ export function trackPrinter(link: LinkRow): void {
     dirty: false, emitTimer: null, lastEmitAt: 0,
     syncedSignature: previous?.syncedSignature ?? null, lastSyncAt: previous?.lastSyncAt ?? 0, syncTimer: null,
     emptySince: previous?.emptySince ?? new Map(),
-    runSignature: previous?.runSignature ?? null, runPending: false,
+    runSignature: previous?.runSignature ?? null, runPending: false, thumbnailRunId: previous?.thumbnailRunId ?? null,
   });
 }
 
@@ -261,8 +264,13 @@ function followPrint(entry: Entry): void {
   // Not through the write queue: reading the sliced file can take a minute, and nothing else should wait on it.
   // Its own writes are small, and only one of these runs per printer at a time.
   reconcileRun(entry, reading, doc, fileReaderFor(entry.bridgeId, entry.linkId))
-    .then((changed) => {
+    .then(async (changed) => {
       if (changed) notifyWorkspaceSoon(entry.workspaceId);
+      const thumbnailRunId = await thumbnailRunFor(entry.linkId, reading.print?.name ?? null);
+      if (thumbnailRunId !== entry.thumbnailRunId) {
+        entry.thumbnailRunId = thumbnailRunId;
+        emitSoon(entry);
+      }
     })
     .catch((cause: unknown) => console.error('Could not follow a print', cause))
     .finally(() => {

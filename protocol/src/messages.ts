@@ -124,7 +124,8 @@ export const discoveryAck = z.union([z.object({ ok: z.literal(true), printers: z
 export type DiscoveryAck = z.output<typeof discoveryAck>;
 
 /**
- * Ask the bridge for small text files from inside the sliced file of the print a printer is running now.
+ * Ask the bridge for small files from inside the sliced file of the print a printer is running now: text
+ * (the slicer's summary) and, from bridges that list the "job.images" capability, the slicer's picture of a plate.
  * The server names entries only; where the file comes from is the bridge's business (the printer announced it),
  * so this can never be used to make a bridge fetch something of the server's choosing.
  */
@@ -133,8 +134,22 @@ export const jobRead = z.object({
   entries: z.array(z.string().regex(/^Metadata\/[A-Za-z0-9_.]{1,60}$/)).min(1).max(4),
 });
 export type JobRead = z.output<typeof jobRead>;
+
+/** The entries that are pictures: the slicer's rendering of one plate, from the front or from above. */
+export const JOB_IMAGE_ENTRY = /^Metadata\/(plate|top)_\d{1,3}\.png$/;
+/** Small enough that a reply with a picture and the summary stays under socket.io's 1 MB message limit. */
+export const JOB_IMAGE_MAX_BYTES = 600_000;
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+export const isPng = (bytes: Uint8Array): boolean => bytes.byteLength > PNG_SIGNATURE.length && PNG_SIGNATURE.every((byte, index) => bytes[index] === byte);
+
+const jobImage = z.custom<Uint8Array>((value) => value instanceof Uint8Array && value.byteLength <= JOB_IMAGE_MAX_BYTES);
 export const jobReadAck = z.union([
-  z.object({ ok: z.literal(true), entries: z.record(z.string(), z.string().max(400_000)) }),
+  z.object({
+    ok: z.literal(true),
+    entries: z.record(z.string(), z.string().max(400_000)),
+    /** Pictures, as bytes. Left out by bridges without "job.images". */
+    images: z.record(z.string(), jobImage).optional(),
+  }),
   ackError,
 ]);
 export type JobReadAck = z.output<typeof jobReadAck>;

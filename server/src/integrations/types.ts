@@ -101,6 +101,8 @@ export interface PrinterState extends PrinterReading {
   asOf: number | null;
   /** When the print should end, worked out when the reading was taken. */
   endsAt: number | null;
+  /** The print on the printer's screen, when the slicer's picture of it is held: see GET /printers/runs/:id/thumbnail. */
+  thumbnailRunId: string | null;
 }
 
 /** Everything the server needs to know about one make of printer. */
