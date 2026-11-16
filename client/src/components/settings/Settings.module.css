@@ -386,6 +386,15 @@
   user-select: all;
 }
 
+/* A display's set-up code, read off the screen and typed on the display's own keyboard if need be. */
+.pairCode {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  user-select: all;
+}
+
 /* A found printer to pick: a member-style row that is a button. */
 .choice {
   width: 100%;

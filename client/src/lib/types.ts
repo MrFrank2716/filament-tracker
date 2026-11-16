@@ -510,6 +510,37 @@ export interface Bridge {
   pairing?: Pairing;
 }
 
+export interface DevicePairing {
+  code: string;
+  expiresAt: string;
+  /** The address the display is told to reach this server at. */
+  server: string;
+}
+
+/** A location display: a small screen on a shelf that shows what is stored there. */
+export interface Device {
+  id: string;
+  name: string;
+  kind: string;
+  locationId: string | null;
+  locationName: string | null;
+  /** The printer it sits beside, for "this spool goes in next" from a tapped tag. */
+  machineId: string | null;
+  machineName: string | null;
+  /** Whether tapping a tag on it may move items, mark a spool for the printer or link a tag. */
+  canWrite: boolean;
+  model: string;
+  version: string;
+  hasReader: boolean;
+  lastSeenAt: string | null;
+  createdAt: string;
+  online: boolean;
+  paired: boolean;
+  pairingExpiresAt: string | null;
+  /** Only in the answer to adding a display or asking for a new code. */
+  pairing?: DevicePairing;
+}
+
 export interface PrinterLink {
   id: string;
   machineId: string;
