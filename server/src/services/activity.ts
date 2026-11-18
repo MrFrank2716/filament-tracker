@@ -75,6 +75,7 @@ const NOUNS: Record<string, string> = {
   machines: 'machine',
   'sub-units': 'attachment',
   jobs: 'job',
+  projects: 'project',
   'job-requests': 'request',
   members: 'member',
   queue: 'queue',
@@ -98,6 +99,7 @@ async function nameBeforeDelete(workspaceId: string, collection: string, id: str
     case 'machines': return pick(await prisma.machine.findFirst({ where, select: { name: true } }));
     case 'sub-units': return pick(await prisma.subUnit.findFirst({ where, select: { name: true } }));
     case 'jobs': return pick(await prisma.job.findFirst({ where, select: { name: true } }));
+    case 'projects': return pick(await prisma.project.findFirst({ where, select: { name: true } }));
     case 'bridges': return pick(await prisma.bridge.findFirst({ where, select: { name: true } }));
     case 'printers': {
       const link = await prisma.printerLink.findFirst({ where, select: { machine: { select: { name: true } } } });

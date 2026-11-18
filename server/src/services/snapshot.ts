@@ -15,6 +15,7 @@ import { TAG_PATTERN, tagIsFree } from '@/services/tags';
 export const FIELD_TYPES = ['text', 'number', 'select', 'boolean', 'color', 'date'] as const;
 export const MACHINE_STATUSES = ['ready', 'in_use', 'needs_service', 'offline'] as const;
 export const JOB_STATUSES = ['planned', 'in_progress', 'completed', 'failed', 'cancelled'] as const;
+export const PROJECT_STAGES = ['open', 'invoiced', 'paid'] as const;
 
 const ref = z.string().min(1);
 const optRef = ref.nullish();
@@ -40,7 +41,7 @@ export const customFieldSchema = z.object({
 
 export const snapshotSchema = z.object({
   version: z.literal(1).default(1),
-  workspace: z.object({ name: text, description: text, currency: z.string().default('GBP') }).optional(),
+  workspace: z.object({ name: text, description: text, currency: z.string().default('GBP'), targetMargin: z.number().min(0).max(95).optional() }).optional(),
   units: z
     .array(z.object({ ref, name: z.string().min(1), symbol: z.string().min(1), decimals: z.number().int().min(0).max(4).default(0) }))
     .default([]),
@@ -136,11 +137,26 @@ export const snapshotSchema = z.object({
       }),
     )
     .default([]),
+  projects: z
+    .array(
+      z.object({
+        ref,
+        name: z.string().min(1),
+        customer: text,
+        notes: text,
+        stage: z.enum(PROJECT_STAGES).default('open'),
+        price: z.number().min(0).nullish(),
+        marginPercent: z.number().min(0).max(95).nullish(),
+        createdAt: z.string().optional(),
+      }),
+    )
+    .default([]),
   jobs: z
     .array(
       z.object({
         name: z.string().min(1),
         machine: optRef,
+        project: optRef,
         status: z.enum(JOB_STATUSES).default('planned'),
         durationHours: z.number().min(0).default(0),
         notes: text,
@@ -172,6 +188,7 @@ export interface ImportSummary {
   items: number;
   subUnits: number;
   maintenanceTasks: number;
+  projects: number;
   jobs: number;
 }
 
@@ -190,7 +207,7 @@ const toDate = (value: string | null | undefined): Date | undefined => {
 export async function importSnapshot(db: Db, workspaceId: string, snapshot: Snapshot, userId: string | null): Promise<ImportSummary> {
   const summary: ImportSummary = {
     units: 0, suppliers: 0, locations: 0, itemTypes: 0, machineTypes: 0,
-    machines: 0, items: 0, subUnits: 0, maintenanceTasks: 0, jobs: 0,
+    machines: 0, items: 0, subUnits: 0, maintenanceTasks: 0, projects: 0, jobs: 0,
   };
   const ids = {
     unit: new Map<string, string>(),
@@ -200,6 +217,7 @@ export async function importSnapshot(db: Db, workspaceId: string, snapshot: Snap
     machineType: new Map<string, string>(),
     machine: new Map<string, string>(),
     item: new Map<string, string>(),
+    project: new Map<string, string>(),
   };
   const lookup = (map: Map<string, string>, key: string | null | undefined) => (key ? (map.get(key) ?? null) : null);
   /** A ref that is a database id nobody holds can be the new row's id; a template's "shelf-a" cannot. */
@@ -447,9 +465,21 @@ export async function importSnapshot(db: Db, workspaceId: string, snapshot: Snap
     }
   }
 
+  // Projects are always added, like the jobs that belong to them.
+  for (const project of snapshot.projects) {
+    const { ref: projectRef, createdAt, price, marginPercent, ...data } = project;
+    // A project past "open" always has a price; one that lost it comes back as open.
+    const stage = price == null ? 'open' : data.stage;
+    const created = await db.project.create({
+      data: { workspaceId, ...data, stage, price: price ?? null, marginPercent: marginPercent ?? null, createdAt: toDate(createdAt) },
+    });
+    ids.project.set(projectRef, created.id);
+    summary.projects++;
+  }
+
   // Jobs are imported as history: they never touch stock again.
   for (const job of snapshot.jobs) {
-    const { machine, usages, createdAt, completedAt, ...data } = job;
+    const { machine, project, usages, createdAt, completedAt, ...data } = job;
     const lines = usages
       .map((u) => ({ itemId: ids.item.get(u.item), quantity: u.quantity, hours: u.hours, cost: u.cost }))
       .filter((u): u is { itemId: string; quantity: number; hours: number; cost: number } => Boolean(u.itemId));
@@ -458,6 +488,7 @@ export async function importSnapshot(db: Db, workspaceId: string, snapshot: Snap
         workspaceId,
         ...data,
         machineId: lookup(ids.machine, machine),
+        projectId: lookup(ids.project, project),
         createdById: userId,
         createdAt: toDate(createdAt),
         completedAt: toDate(completedAt) ?? null,
@@ -472,7 +503,7 @@ export async function importSnapshot(db: Db, workspaceId: string, snapshot: Snap
 
 export async function exportSnapshot(db: Db, workspaceId: string): Promise<Snapshot> {
   const workspace = await db.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
-  const [units, suppliers, locations, itemTypes, machineTypes, machines, items, subUnits, tasks, jobs] = await Promise.all([
+  const [units, suppliers, locations, itemTypes, machineTypes, machines, items, subUnits, tasks, projects, jobs] = await Promise.all([
     db.unit.findMany({ where: { workspaceId }, orderBy: { name: 'asc' } }),
     db.supplier.findMany({ where: { workspaceId }, orderBy: { name: 'asc' } }),
     db.location.findMany({ where: { workspaceId }, orderBy: { name: 'asc' } }),
@@ -482,12 +513,13 @@ export async function exportSnapshot(db: Db, workspaceId: string): Promise<Snaps
     db.item.findMany({ where: { workspaceId, archived: false }, orderBy: { createdAt: 'asc' }, include: { compatibleMachines: { select: { id: true } } } }),
     db.subUnit.findMany({ where: { workspaceId }, include: { slots: { orderBy: { position: 'asc' } } } }),
     db.maintenanceTask.findMany({ where: { workspaceId }, include: { logs: { orderBy: { performedAt: 'asc' } } } }),
+    db.project.findMany({ where: { workspaceId }, orderBy: { createdAt: 'asc' } }),
     db.job.findMany({ where: { workspaceId }, orderBy: { createdAt: 'asc' }, include: { usages: true } }),
   ]);
 
   return snapshotSchema.parse({
     version: 1,
-    workspace: { name: workspace.name, description: workspace.description, currency: workspace.currency },
+    workspace: { name: workspace.name, description: workspace.description, currency: workspace.currency, targetMargin: workspace.targetMargin },
     units: units.map((u) => ({ ref: u.id, name: u.name, symbol: u.symbol, decimals: u.decimals })),
     suppliers: suppliers.map((s) => ({ ref: s.id, name: s.name, website: s.website, email: s.email, notes: s.notes })),
     locations: locations.map((l) => ({ ref: l.id, name: l.name, kind: l.kind, code: l.code, parent: l.parentId })),
@@ -524,8 +556,12 @@ export async function exportSnapshot(db: Db, workspaceId: string): Promise<Snaps
       intervalDays: t.intervalDays, intervalHours: t.intervalHours, active: t.active,
       logs: t.logs.map((l) => ({ machine: l.machineId, performedAt: l.performedAt.toISOString(), hoursAtService: l.hoursAtService, notes: l.notes })),
     })),
+    projects: projects.map((p) => ({
+      ref: p.id, name: p.name, customer: p.customer, notes: p.notes, stage: p.stage, price: p.price,
+      marginPercent: p.marginPercent, createdAt: p.createdAt.toISOString(),
+    })),
     jobs: jobs.map((j) => ({
-      name: j.name, machine: j.machineId, status: j.status, durationHours: j.durationHours, notes: j.notes,
+      name: j.name, machine: j.machineId, project: j.projectId, status: j.status, durationHours: j.durationHours, notes: j.notes,
       extraCost: j.extraCost, materialCost: j.materialCost, toolingCost: j.toolingCost, machineCost: j.machineCost,
       totalCost: j.totalCost, createdAt: j.createdAt.toISOString(), completedAt: j.completedAt?.toISOString() ?? null,
       usages: j.usages.map((u) => ({ item: u.itemId, quantity: u.quantity, hours: u.hours, cost: u.cost })),

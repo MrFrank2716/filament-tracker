@@ -24,6 +24,8 @@ export interface Workspace {
   name: string;
   description: string;
   currency: string;
+  /** Profit wanted on a project, as a percentage of its price. Used to recommend a price. */
+  targetMargin: number;
   role: Role;
   counts?: { items: number; machines: number; members: number };
 }
@@ -263,6 +265,8 @@ export interface Job {
   completedAt: string | null;
   machine: { id: string; name: string; hourlyCost: number } | null;
   createdBy: { name: string } | null;
+  /** The project this job is part of, if any. */
+  project: { id: string; name: string } | null;
   /** "printer" when a connected printer was seen starting the print and made the job itself. */
   source: 'manual' | 'printer';
   /** Why it failed, when a connected printer said. */
@@ -270,6 +274,38 @@ export interface Job {
   usages: JobUsage[];
   /** Set when the job came from an approved outside request. */
   request: { id: string; requesterName: string; requesterEmail: string; files: RequestFile[] } | null;
+}
+
+export type ProjectStage = 'open' | 'invoiced' | 'paid';
+
+export interface ProjectTotals {
+  /** What the project's jobs cost, including the estimate of any job still open. */
+  cost: number;
+  /** True while a job is still open, so the cost can still move. */
+  estimated: boolean;
+  /** The target margin in use: the project's own, or the workspace's. */
+  marginPercent: number;
+  recommendedPrice: number;
+  price: number | null;
+  /** Price less cost. Null until a price is set. */
+  profit: number | null;
+  /** Profit as a percentage of the price. */
+  profitMargin: number | null;
+}
+
+/** Jobs done for one piece of work, with what they cost against the price invoiced. */
+export interface Project {
+  id: string;
+  name: string;
+  customer: string;
+  notes: string;
+  stage: ProjectStage;
+  price: number | null;
+  /** This project's own target margin. Null uses the workspace's. */
+  marginPercent: number | null;
+  createdAt: string;
+  jobs: Array<{ id: string; name: string; status: JobStatus; totalCost: number; completedAt: string | null; machine: { id: string; name: string } | null }>;
+  totals: ProjectTotals;
 }
 
 export type RequestStatus = 'pending' | 'changes_requested' | 'approved' | 'in_progress' | 'done' | 'rejected';
@@ -467,6 +503,7 @@ export interface Snapshot {
   items: unknown[];
   subUnits: unknown[];
   maintenanceTasks: Array<{ ref: string; name: string; machine?: string | null; machineType?: string | null; intervalDays?: number | null; intervalHours?: number | null }>;
+  projects?: unknown[];
   jobs: unknown[];
 }
 

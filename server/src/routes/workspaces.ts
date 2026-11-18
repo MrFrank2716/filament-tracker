@@ -7,6 +7,7 @@ import { broadcastChanges } from '@/realtime';
 import { registerReferenceRoutes } from '@/routes/reference';
 import { recordActivity } from '@/services/activity';
 import { addFromReference, pickSchema } from '@/services/reference';
+import { MAX_MARGIN } from '@/services/projects';
 import { importSnapshot, snapshotSchema } from '@/services/snapshot';
 import { removeWorkspaceUploads } from '@/services/uploads';
 import { getTemplate, listTemplates } from '@/templates';
@@ -18,6 +19,8 @@ const workspaceInput = z.object({
   name: z.string().trim().min(1, 'Give the workspace a name').max(80),
   description: z.string().trim().max(500).optional(),
   currency: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/, 'Use a 3-letter currency code such as GBP').optional(),
+  /** Profit wanted on a project as a share of its price; used to recommend a price. */
+  targetMargin: z.number().min(0).max(MAX_MARGIN, `A margin can be at most ${MAX_MARGIN}%`).optional(),
 });
 
 // ---- Templates -------------------------------------------------------------
@@ -72,6 +75,7 @@ workspacesRouter.get('/workspaces', async (req, res) => {
       name: workspace.name,
       description: workspace.description,
       currency: workspace.currency,
+      targetMargin: workspace.targetMargin,
       role,
       counts: workspace._count,
     })),
@@ -124,7 +128,7 @@ workspacesRouter.use('/workspaces/:wid', workspaceGuard, broadcastChanges, recor
 export const workspaceScope = scoped;
 
 // The request-link secret has its own route (/request-link); it is left out of the plain workspace record.
-const workspaceFields = { id: true, name: true, description: true, currency: true, createdAt: true } as const;
+const workspaceFields = { id: true, name: true, description: true, currency: true, targetMargin: true, createdAt: true } as const;
 
 scoped.get('/', async (req, res) => {
   const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: req.workspaceId }, select: workspaceFields });

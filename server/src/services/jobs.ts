@@ -18,6 +18,7 @@ export async function endOfQueue(db: Db, workspaceId: string, machineId: string 
 export const jobInclude = {
   machine: { select: { id: true, name: true, hourlyCost: true } },
   createdBy: { select: { name: true } },
+  project: { select: { id: true, name: true } },
   // Jobs approved from an outside request carry the requester and their files.
   request: { select: { id: true, requesterName: true, requesterEmail: true, files: { orderBy: { createdAt: 'asc' }, select: { id: true, name: true, size: true } } } },
   usages: { include: { item: { select: { id: true, name: true, unitCost: true, lifeHours: true, quantity: true, unitId: true, itemTypeId: true } } } },
