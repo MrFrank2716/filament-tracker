@@ -6,6 +6,7 @@ import {
 import { NAV_PAGES, type NavPage } from '@/components/layout/navPages';
 import { DailyReport, useDailyReport } from '@/components/report/DailyReport';
 import { ScanDialog } from '@/components/scan/ScanDialog';
+import { ScannerProvider } from '@/components/scan/ScannerProvider';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Display';
 import { Modal } from '@/components/ui/Modal';
@@ -147,6 +148,7 @@ export function AppShell() {
   );
 
   return (
+    <ScannerProvider>
     <div className={`${styles.shell} ${collapsed ? styles.collapsed : ''}`}>
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
@@ -238,5 +240,6 @@ export function AppShell() {
       {scanning && <ScanDialog onClose={() => setScanning(false)} />}
       {report.mode !== 'closed' && <DailyReport auto={report.mode === 'auto'} onClose={report.close} />}
     </div>
+    </ScannerProvider>
   );
 }
