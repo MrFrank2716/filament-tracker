@@ -2,16 +2,17 @@ import { Router, type Request, type RequestHandler, type Response } from 'expres
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { bearerToken } from '@/auth';
-import { prisma } from '@/db';
+import { prisma, type Json } from '@/db';
 import { env } from '@/env';
 import { HttpError, notFound, param, parse } from '@/http';
 import { armPendingSpool, statesForWorkspace } from '@/integrations/registry';
+import { decodeBambuTag } from '@/integrations/bambu/tag';
 import { isStickerTag } from '@/integrations/spoolMatch';
 import { rateLimit } from '@/rateLimit';
 import { notifyWorkspaceSoon } from '@/realtime';
 import { describeActivity, logSystemActivity } from '@/services/activity';
 import { buildOverview, displayPrinter, displayRow, forDisplay, itemSelect, locationTree, MAX_ROWS, POLL_SECONDS } from '@/services/deviceOverview';
-import { itemForUid, readUid, stickerTagFor } from '@/services/deviceTags';
+import { itemForKey, readTagKey, readUid, spoolKey, tagIdFor } from '@/services/deviceTags';
 import { appUrl } from '@/services/mail';
 import { assertInWorkspace, moveItems } from '@/services/stock';
 import { assignTag } from '@/services/tags';
@@ -125,6 +126,24 @@ export function registerDeviceRoutes(router: Router): void {
     if (deleted.count !== 1) throw notFound('Display');
     res.status(204).end();
   });
+
+  // ---- Bambu Lab spools tapped on a display that nothing in stock is tied to yet -------------
+  router.get('/unknown-tags', async (req, res) => {
+    const tags = await prisma.unknownTag.findMany({
+      where: { workspaceId: req.workspaceId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, tagId: true, detected: true, createdAt: true, device: { select: { name: true, locationId: true } } },
+    });
+    res.json(tags);
+  });
+
+  /** "Not a spool of ours": forget the read. Tying the tag to an item (or adding one with it) forgets it too. */
+  router.delete('/unknown-tags/:id', async (req, res) => {
+    const removed = await prisma.unknownTag.deleteMany({ where: { id: param(req, 'id'), workspaceId: req.workspaceId } });
+    if (removed.count !== 1) throw notFound('Tag');
+    describeActivity('Dismissed a spool read at a display');
+    res.status(204).end();
+  });
 }
 
 // ---- What the display itself calls -------------------------------------------------------
@@ -223,24 +242,90 @@ function printerBeside(device: AuthedDevice) {
   return displayPrinter(device.machine.name, state);
 }
 
-/** A tapped tag: what it is, where it is kept, and what this display may do with it. */
-deviceRouter.get('/tag/:uid', async (req, res) => {
-  const device = deviceOf(res);
-  const uid = readUid(param(req, 'uid'));
-  const item = await itemForUid(prisma, device.workspaceId, uid);
-  if (!item) {
-    res.json({ known: false, uid, canLink: device.canWrite && device.locationId !== null });
-    return;
-  }
-  const tree = await locationTree(prisma, device.workspaceId);
+type TaggedItem = NonNullable<Awaited<ReturnType<typeof itemForKey>>>;
+type Tree = Awaited<ReturnType<typeof locationTree>>;
+
+/** What the display shows for a tag nothing is tied to. */
+const unknownTag = (device: AuthedDevice, key: string) => ({ known: false, uid: key, canLink: device.canWrite && device.locationId !== null });
+
+/** What the display shows for a tagged item: what it is, where it is kept, and what this display may do with it. */
+function knownTag(device: AuthedDevice, key: string, item: TaggedItem, tree: Tree) {
   const here = item.locationId !== null && item.locationId === device.locationId;
-  res.json({
+  return {
     known: true,
-    uid,
+    uid: key,
     item: { ...displayRow(item, null, () => ''), location: item.locationId ? forDisplay(tree.path(item.locationId), 64) : null, here },
     canPutAway: device.canWrite && device.locationId !== null && !here,
     insertInto: device.canWrite && device.machineId && device.machine ? { machineId: device.machineId, name: device.machine.name } : null,
-  });
+  };
+}
+
+/** A tag looked up without changing anything. */
+deviceRouter.get('/tag/:uid', async (req, res) => {
+  const device = deviceOf(res);
+  const key = readTagKey(param(req, 'uid'));
+  const item = await itemForKey(prisma, device.workspaceId, key);
+  res.json(item ? knownTag(device, key, item, await locationTree(prisma, device.workspaceId)) : unknownTag(device, key));
+});
+
+const tapInput = z.object({
+  /** A Bambu Lab spool's data blocks, as the reader unlocked them: block number to its 16 bytes in hex. */
+  blocks: z.record(z.string().regex(/^\d{1,2}$/), z.string().regex(/^[0-9a-fA-F]{32}$/)).refine((blocks) => Object.keys(blocks).length <= 64).optional(),
+});
+
+/**
+ * A tag was held to the reader. The spool is tagged in or out by itself: one kept here (or in a location inside
+ * this one) is taken out and is "on the move" until it is put away or a printer reports it loaded; any other is
+ * put away here. Answers like the lookup above, with `message` saying what was done.
+ *
+ * `:uid` is the chip's UID. With a Bambu Lab spool the display also sends the tag's data, and the spool is known
+ * by the id read from it; every later call for that tag uses the key in the answer's `uid`.
+ */
+deviceRouter.post('/tag/:uid/tap', async (req, res) => {
+  const device = deviceOf(res);
+  const chip = readUid(param(req, 'uid'));
+  const { blocks } = parse(tapInput, req.body ?? {});
+  const facts = blocks ? decodeBambuTag(blocks) : null;
+  const key = facts?.tagId ? spoolKey(facts.tagId) : chip;
+  const { workspaceId } = device;
+  const item = await itemForKey(prisma, workspaceId, key);
+
+  if (!item) {
+    if (!facts?.tagId) {
+      res.json(unknownTag(device, key));
+      return;
+    }
+    // A spool Wrkbench has not met: kept for a member to say what it is, in the app.
+    const what = [facts.brand, facts.subType ?? facts.material].filter(Boolean).join(' ');
+    const waiting = await prisma.unknownTag.findUnique({ where: { workspaceId_tagId: { workspaceId, tagId: facts.tagId } }, select: { id: true } });
+    await prisma.unknownTag.upsert({
+      where: { workspaceId_tagId: { workspaceId, tagId: facts.tagId } },
+      create: { workspaceId, deviceId: device.id, tagId: facts.tagId, detected: facts as unknown as Json },
+      update: { deviceId: device.id, detected: facts as unknown as Json },
+    });
+    if (!waiting) await logChange(device, 'device.unknown', `Read a spool that is not in stock yet: ${what}`, null);
+    res.json({ ...unknownTag(device, key), message: forDisplay(`Not in stock yet: ${what}. Add it in Wrkbench.`, 90) });
+    return;
+  }
+
+  let tree = await locationTree(prisma, workspaceId);
+  let message = '';
+  if (device.canWrite && device.locationId) {
+    const place = tree.byId.get(device.locationId)?.name ?? 'this location';
+    const keptHere = item.locationId !== null && tree.subtree(device.locationId).includes(item.locationId);
+    if (keptHere && !item.outSince) {
+      await prisma.item.update({ where: { id: item.id }, data: { locationId: null, outSince: new Date() } });
+      await logChange(device, 'item.move', `Took ${item.name} out of ${place}: it is on the move`, item.id);
+      message = 'Taken out: on the move';
+    } else {
+      await prisma.item.update({ where: { id: item.id }, data: { locationId: device.locationId, outSince: null } });
+      await logChange(device, 'item.move', `Put ${item.name} away in ${place}`, item.id);
+      message = `Put away in ${forDisplay(place, 40)}`;
+    }
+  }
+  const now = message ? await itemForKey(prisma, workspaceId, key) : item;
+  if (message) tree = await locationTree(prisma, workspaceId);
+  res.json({ ...knownTag(device, key, now ?? item, tree), ...(message ? { message } : {}) });
 });
 
 /** Items in this display's location (and below) without a tag, to link a new sticker to. Printer-tagged spools are left out. */
@@ -261,7 +346,7 @@ deviceRouter.get('/untagged', async (_req, res) => {
 });
 
 async function taggedItem(req: Request, device: AuthedDevice) {
-  const item = await itemForUid(prisma, device.workspaceId, readUid(param(req, 'uid')));
+  const item = await itemForKey(prisma, device.workspaceId, readTagKey(param(req, 'uid')));
   if (!item) throw notFound('Item with that tag');
   return item;
 }
@@ -293,12 +378,12 @@ deviceRouter.post('/tag/:uid/insert', async (req, res) => {
 deviceRouter.post('/tag/:uid/link', async (req, res) => {
   const device = deviceOf(res);
   requireWrite(device);
-  const uid = readUid(param(req, 'uid'));
+  const key = readTagKey(param(req, 'uid'));
   const { itemId } = parse(z.object({ itemId: z.string().min(1) }), req.body);
   const item = await prisma.item.findFirst({ where: { id: itemId, workspaceId: device.workspaceId, archived: false }, select: { id: true, name: true, tagId: true } });
   if (!item) throw notFound('Item');
   if (item.tagId && !isStickerTag(item.tagId)) throw new HttpError(409, `${item.name} already has its spool's own tag, which the printer uses to recognise it`);
-  await prisma.$transaction((tx) => assignTag(tx, device.workspaceId, item.id, stickerTagFor(uid)));
+  await prisma.$transaction((tx) => assignTag(tx, device.workspaceId, item.id, tagIdFor(key)));
   await logChange(device, 'item.tag', `Tagged ${item.name}`, item.id);
   res.json({ ok: true, message: `Linked to ${forDisplay(item.name)}` });
 });

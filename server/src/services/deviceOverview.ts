@@ -69,7 +69,7 @@ export async function locationTree(db: Db, workspaceId: string) {
 }
 
 export const itemSelect = {
-  id: true, name: true, quantity: true, capacity: true, minQuantity: true, fields: true, tagId: true, locationId: true,
+  id: true, name: true, quantity: true, capacity: true, minQuantity: true, fields: true, tagId: true, locationId: true, outSince: true,
   unit: { select: { symbol: true, decimals: true } },
   supplier: { select: { name: true } },
   itemType: { select: { name: true, fields: { select: { key: true, label: true, fieldType: true } } } },

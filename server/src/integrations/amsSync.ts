@@ -12,6 +12,10 @@ import { assignTag } from '@/services/tags';
  *
  * It only acts when a tray physically changes. It never re-asserts a choice, so a member who loads a slot
  * by hand is left alone until the spool in that tray is swapped.
+ *
+ * Spools "on the move" (tapped out at a location display's reader, Item.outSince) are looked for here: when a
+ * tray is loaded with something the printer cannot name by its tag, and exactly one spool on the move fits what
+ * the printer reports, that spool is what went in.
  */
 
 export interface SyncTarget {
@@ -132,7 +136,9 @@ export async function syncFeeders(target: SyncTarget, reading: PrinterReading, e
   let outcome: PendingOutcome | null = null;
   const waiting = pending && now < pending.expiresAt ? pending : null;
   /** Trays that were just loaded with a spool the printer cannot tie to stock by its own tag. */
-  const inserted: Array<{ slotId: string; place: string; tray: Feeder['trays'][number] }> = [];
+  const inserted: Array<{ slotId: string; place: string; tray: Feeder['trays'][number]; itemId: string | null }> = [];
+  /** Items taken out of a slot in this pass. */
+  const unloaded: string[] = [];
   /** Items a tag has just placed somewhere in this pass; any other slot's memory of holding them is stale. */
   const placed = new Set<string>();
 
@@ -183,7 +189,7 @@ export async function syncFeeders(target: SyncTarget, reading: PrinterReading, e
           if (previous?.signature === signature) {
             // Read empty for a moment and now the same again: a spool was taken out and one that looks the same
             // put in. Nothing to do by itself, but it is what a scanned spool is waiting for.
-            if (waiting && emptySince.has(settleKey) && tray.state === 'loaded' && !tray.tagId) inserted.push({ slotId: slot.id, place, tray });
+            if (waiting && emptySince.has(settleKey) && tray.state === 'loaded' && !tray.tagId) inserted.push({ slotId: slot.id, place, tray, itemId: slot.itemId });
             emptySince.delete(settleKey);
             // Same spool: only the amount left may have moved.
             if (previous.remainingPercent !== tray.remainingPercent || previous.spoolWeightGrams !== tray.spoolWeightGrams) {
@@ -211,6 +217,7 @@ export async function syncFeeders(target: SyncTarget, reading: PrinterReading, e
             emptySince.delete(settleKey);
             if (slot.itemId) {
               notes.push(`Unloaded ${slot.item?.name ?? 'a spool'} from ${place}`);
+              unloaded.push(slot.itemId);
               itemId = null;
               source = 'manual';
             }
@@ -221,7 +228,6 @@ export async function syncFeeders(target: SyncTarget, reading: PrinterReading, e
               ? await tx.item.findFirst({ where: { workspaceId: target.workspaceId, tagId: tray.tagId, archived: false }, select: { id: true, name: true } })
               : null;
             // Not the first look at this tray, so a spool was really put in; and not one a tag already settles.
-            if (!tagged && previous) inserted.push({ slotId: slot.id, place, tray });
             if (tagged) {
               // The tag says exactly which spool this is.
               if (slot.itemId !== tagged.id) {
@@ -230,6 +236,8 @@ export async function syncFeeders(target: SyncTarget, reading: PrinterReading, e
                 itemId = tagged.id;
               }
               placed.add(tagged.id);
+              // Wherever it was on its way to, it has arrived.
+              await tx.item.updateMany({ where: { id: tagged.id, outSince: { not: null } }, data: { outSince: null } });
               source = 'printer';
               boundSignature = signature;
             } else if (slot.item) {
@@ -238,11 +246,14 @@ export async function syncFeeders(target: SyncTarget, reading: PrinterReading, e
               if (keep) boundSignature = signature;
               else {
                 notes.push(`Unloaded ${slot.item.name} from ${place}: the printer now reports ${describeTray(detectedFrom(tray, null)) || 'a different spool'} there`);
+                unloaded.push(slot.item.id);
                 itemId = null;
                 source = 'manual';
                 boundSignature = null;
               }
             } else boundSignature = null;
+            // Not the first look at this tray, so a spool was really put in; and not one a tag already settles.
+            if (!tagged && previous) inserted.push({ slotId: slot.id, place, tray, itemId });
           }
 
           await tx.slot.update({
@@ -255,6 +266,7 @@ export async function syncFeeders(target: SyncTarget, reading: PrinterReading, e
 
       // A spool scanned to go in next: it is the one tray that was just loaded. Two at once could be either way
       // round, so nothing is linked; none yet means it is still on its way to the printer.
+      let linkedSlotId: string | null = null;
       if (waiting && inserted.length > 1) outcome = { result: 'dropped', reason: 'several' };
       else if (waiting && inserted.length === 1) {
         const [{ slotId, place, tray }] = inserted;
@@ -265,11 +277,44 @@ export async function syncFeeders(target: SyncTarget, reading: PrinterReading, e
           await tx.slot.updateMany({ where: { itemId: item.id, NOT: { id: slotId } }, data: { itemId: null, source: 'manual' } });
           // A member's choice, as if they had picked the slot by hand: it stands until the tray changes again.
           await tx.slot.update({ where: { id: slotId }, data: { itemId: item.id, source: 'manual', detected: detectedFrom(tray, signature) as unknown as Json } });
+          if (item.outSince) await tx.item.update({ where: { id: item.id }, data: { outSince: null } });
+          linkedSlotId = slotId;
           // A tag of its own that the printer reads and nothing in stock has yet: now it is this spool's.
           if (tray.tagId && !item.tagId) await assignTag(tx, target.workspaceId, item.id, tray.tagId);
           const mismatch = !compatible({ ...spoolFacts(item), tagId: null }, { material: tray.material, colour: tray.colour, tagId: null });
           notes.push(`Loaded ${item.name} into ${place}: it was scanned just before going in`);
           outcome = { result: 'linked', place, mismatch };
+          changed = true;
+        }
+      }
+
+      // Where a display has a tag reader, a spool that leaves a printer with no place to be is in someone's hands.
+      if (unloaded.length && (await tx.device.count({ where: { workspaceId: target.workspaceId, hasReader: true } })) > 0) {
+        await tx.item.updateMany({ where: { id: { in: unloaded }, locationId: null, outSince: null, slot: null }, data: { outSince: new Date(now) } });
+      }
+
+      // Spools on the move: a tray just loaded with something no tag names is one of them, if exactly one fits
+      // what the printer reports. Two that fit could be either, so neither is loaded.
+      const open = inserted.filter((entry) => entry.slotId !== linkedSlotId && !entry.itemId);
+      if (open.length) {
+        let moving = await tx.item.findMany({
+          where: { workspaceId: target.workspaceId, archived: false, outSince: { not: null }, slot: null },
+          include: { itemType: { include: { fields: true } } },
+          orderBy: { outSince: 'asc' },
+        });
+        for (const { slotId, place, tray } of open) {
+          const fits = moving.filter((item) => compatible(spoolFacts(item), tray));
+          if (fits.length > 1) {
+            notes.push(`${fits.length} spools on the move could be what went into ${place} (${fits.slice(0, 3).map((item) => item.name).join(', ')}): choose it there`);
+            continue;
+          }
+          const [item] = fits;
+          if (!item) continue;
+          moving = moving.filter((other) => other.id !== item.id);
+          await tx.slot.update({ where: { id: slotId }, data: { itemId: item.id, source: 'manual', detected: detectedFrom(tray, traySignature(tray)) as unknown as Json } });
+          if (tray.tagId && !item.tagId) await assignTag(tx, target.workspaceId, item.id, tray.tagId);
+          await tx.item.update({ where: { id: item.id }, data: { outSince: null } });
+          notes.push(`Loaded ${item.name} into ${place}: it was on the move and is what the printer reports there`);
           changed = true;
         }
       }

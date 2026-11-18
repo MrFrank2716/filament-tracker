@@ -64,6 +64,7 @@ model Workspace {
   bridges          Bridge[]
   printerLinks     PrinterLink[]
   devices          Device[]
+  unknownTags      UnknownTag[]
 }
 
 /// role: "owner" | "admin" | "operator" | "viewer"
@@ -199,6 +200,8 @@ model Item {
   parentId    String?
   /// The id read from the spool's own tag (RFID today, a printed label later). Lets a printer recognise the spool.
   tagId       String?
+  /// Set while the spool is "on the move": tapped out at a location display's reader and not yet put away or loaded in a machine.
+  outSince    DateTime?
   archived    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -218,6 +221,7 @@ model Item {
 
   @@index([workspaceId, itemTypeId])
   @@index([workspaceId, tagId])
+  @@index([workspaceId, outSince])
 }
 
 model MachineType {
@@ -604,10 +608,28 @@ model Device {
   createdAt        DateTime  @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  location  Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  machine   Machine?  @relation(fields: [machineId], references: [id], onDelete: SetNull)
+  location    Location?    @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  machine     Machine?     @relation(fields: [machineId], references: [id], onDelete: SetNull)
+  unknownTags UnknownTag[]
 
   @@index([workspaceId])
+}
+
+/// A Bambu Lab spool tapped on a display's reader that nothing in stock is tied to yet. It waits here until a
+/// member says which item it is, or adds it as a new one.
+model UnknownTag {
+  id          String   @id @default(cuid())
+  workspaceId String
+  deviceId    String?
+  tagId       String
+  /// What the tag says about the spool, in the shape a slot keeps for a printer's tray (see spoolMatch.ts).
+  detected    Json
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  device    Device?   @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, tagId])
 }
 
 /// One print a connected printer was seen making, from start to end. It ties the print to its job and keeps

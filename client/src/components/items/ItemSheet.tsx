@@ -82,7 +82,7 @@ export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut, focusAm
 
   const details: Array<[string, string]> = [
     ...(type?.fields ?? []).filter((f) => f.fieldType !== 'color').map((f): [string, string] => [f.label, formatFieldValue(f, item.fields[f.key])]),
-    ['Location', locationPath(item.locationId, catalog.locations)],
+    ['Location', item.outSince && !item.slot ? `On the move since ${formatDateTime(item.outSince)}` : locationPath(item.locationId, catalog.locations)],
     ['Loaded in', item.slot ? `${item.slot.subUnit.name}, slot ${item.slot.position}` : ''],
     ['Tag', item.tagId ? (isStickerTag(item.tagId) ? 'NFC sticker' : 'Its own tag, read by the printer') : ''],
     ['Supplier', supplier?.name ?? ''],
@@ -142,6 +142,7 @@ export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut, focusAm
             {worn && <Badge tone="danger">Worn</Badge>}
             {item.isRemnant && <Badge tone="info">Offcut</Badge>}
             {item.slot && <Badge tone="accent">{item.slot.subUnit.name}</Badge>}
+            {item.outSince && !item.slot && <Badge tone="info">On the move</Badge>}
           </div>
         </div>
       </div>

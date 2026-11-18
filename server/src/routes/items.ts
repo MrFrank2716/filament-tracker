@@ -162,6 +162,8 @@ export function registerItemRoutes(router: Router): void {
         where: { id },
         data: {
           ...data,
+          // Given a place by hand, it is no longer on the move.
+          ...(data.locationId ? { outSince: null } : {}),
           ...(normalized ? { fields: normalized as Json } : {}),
           ...(compatibleMachineIds ? { compatibleMachines: { set: compatibleMachineIds.map((machineId) => ({ id: machineId })) } } : {}),
         },
