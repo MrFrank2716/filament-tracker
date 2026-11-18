@@ -471,14 +471,6 @@
   align-items: start;
 }
 
-.grid-sm {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr));
-}
-
-.grid-md {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
-}
-
 .grid-lg {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
   gap: var(--space-5);

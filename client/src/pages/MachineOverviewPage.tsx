@@ -102,7 +102,7 @@ function MachineOverview({ machine }: { machine: Machine }) {
           <SectionTitle count={attached.length} action={<Link to="/machines">Load or change</Link>}>
             Attached hardware
           </SectionTitle>
-          <Grid min="lg">
+          <Grid>
             {attached.map((subUnit) => (
               <SubUnitPanel key={subUnit.id} subUnit={subUnit} catalog={catalog} itemById={itemById} canEdit={false} onEdit={noop} onSlot={noop} feeder={feederFor(subUnit, printer)} />
             ))}
@@ -110,7 +110,7 @@ function MachineOverview({ machine }: { machine: Machine }) {
         </Stack>
       )}
 
-      <Grid min="lg">
+      <Grid>
         {attention.length > 0 && (
           <Stack gap="sm">
             <SectionTitle count={attention.length}>Low or worn</SectionTitle>

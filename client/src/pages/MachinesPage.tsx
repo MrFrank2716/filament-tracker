@@ -121,7 +121,7 @@ export function MachinesPage() {
         </EmptyState>
       )}
 
-      <Grid min="lg">
+      <Grid>
         {machines.map((machine) => {
           const machineType = machine.machineTypeId ? catalog.machineTypeById.get(machine.machineTypeId) : undefined;
           const attached = subUnits.data!.filter((s) => s.machineId === machine.id);
@@ -200,7 +200,7 @@ export function MachinesPage() {
       {unattached.length > 0 && (
         <>
           <SectionTitle count={unattached.length}>Not attached to a machine</SectionTitle>
-          <Grid min="lg">{unattached.map(renderSubUnit)}</Grid>
+          <Grid>{unattached.map(renderSubUnit)}</Grid>
         </>
       )}
 

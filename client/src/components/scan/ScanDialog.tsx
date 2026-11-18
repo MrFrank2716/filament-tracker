@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CircleAlert, CircleCheck, Nfc } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/Form';
@@ -26,8 +26,6 @@ interface Props {
    * Return a line saying what happened. Without this, a scan opens the item or location and closes.
    */
   onScan?: (scan: Scan) => Promise<ScanNote> | ScanNote;
-  /** Extra controls shown under the camera. */
-  children?: ReactNode;
 }
 
 /** What a scan of a spool tag hands to the inventory page, which offers the spools it could be or a filled-in form. */
@@ -39,7 +37,7 @@ export interface SpoolTagState {
  * Point the camera at a label. Codes can also be typed or pasted, which is what is left when there is no camera
  * to use. A barcode scanner needs none of this (see ScannerProvider), but its reads land here while this is open.
  */
-export function ScanDialog({ title = 'Scan a label', hint, onClose, onScan, children }: Props) {
+export function ScanDialog({ title = 'Scan a label', hint, onClose, onScan }: Props) {
   const scanner = useScanner();
   const { items } = useItems();
   const { locations } = useCatalog();
@@ -158,7 +156,6 @@ export function ScanDialog({ title = 'Scan a label', hint, onClose, onScan, chil
             Read an NFC tag
           </Button>
         ))}
-      {children}
       {log.length > 0 && (
         <ul className={styles.log} aria-live="polite">
           {log.map((entry) => (

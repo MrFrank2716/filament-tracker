@@ -26,13 +26,12 @@ export function Button({ variant = 'secondary', size = 'md', icon: Icon, block, 
 interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   icon: LucideIcon;
   label: string;
-  variant?: Variant;
   size?: Size;
 }
 
 /** Icon-only button. `label` is required so it always has an accessible name. */
-export function IconButton({ icon: Icon, label, variant = 'ghost', size = 'md', className, type = 'button', ...rest }: IconButtonProps) {
-  const classes = [styles.button, styles.iconOnly, styles[variant], styles[size], className ?? ''].join(' ');
+export function IconButton({ icon: Icon, label, size = 'md', className, type = 'button', ...rest }: IconButtonProps) {
+  const classes = [styles.button, styles.iconOnly, styles.ghost, styles[size], className ?? ''].join(' ');
   return (
     <button type={type} className={classes} aria-label={label} title={label} {...rest}>
       <Icon size={size === 'sm' ? 16 : 19} aria-hidden />

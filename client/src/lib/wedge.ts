@@ -19,7 +19,6 @@ export interface Wedge {
   feed: (key: string, at: number, modified?: boolean) => string | null;
   /** How many characters of a possible scan have arrived so far. */
   pending: () => number;
-  reset: () => void;
 }
 
 export function createWedge({ maxGapMs = 100, minLength = 4 }: WedgeOptions = {}): Wedge {
@@ -50,6 +49,5 @@ export function createWedge({ maxGapMs = 100, minLength = 4 }: WedgeOptions = {}
       return null;
     },
     pending: () => buffer.length,
-    reset,
   };
 }

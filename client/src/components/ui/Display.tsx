@@ -113,8 +113,8 @@ export function Meter({ value, max, tone = 'accent', label, threshold, compact =
   );
 }
 
-export function Card({ children, padded = true, className = '' }: { children: ReactNode; padded?: boolean; className?: string }) {
-  return <section className={`${styles.card} ${padded ? styles.padded : ''} ${className}`}>{children}</section>;
+export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <section className={`${styles.card} ${styles.padded} ${className}`}>{children}</section>;
 }
 
 export function SectionTitle({ children, action, count }: { children: ReactNode; action?: ReactNode; count?: number }) {
@@ -227,8 +227,8 @@ export function Tabs<T extends string>({ tabs, active, onChange }: TabsProps<T>)
 }
 
 /** Auto-fitting grid of cards or tiles. */
-export function Grid({ children, min = 'md' }: { children: ReactNode; min?: 'sm' | 'md' | 'lg' }) {
-  return <div className={`${styles.gridLayout} ${styles[`grid-${min}`]}`}>{children}</div>;
+export function Grid({ children }: { children: ReactNode }) {
+  return <div className={`${styles.gridLayout} ${styles['grid-lg']}`}>{children}</div>;
 }
 
 /** Generic list row: leading visual, title/subtitle, trailing content. Becomes a button when onClick is given. */
