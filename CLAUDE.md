@@ -11,3 +11,12 @@ Name branches after the work they hold, never a random or auto-generated name
 - If a session starts on an auto-named branch, rename it to a descriptive name
   once the task is clear, before the first push (or ask first if it is already
   pushed or has an open PR).
+
+## Pull requests
+
+- After opening a PR, subscribe to its activity and wait for the Graphify
+  review to arrive before doing anything toward merging.
+- Read every Graphify comment. Fix the valid ones and push; reply on the PR
+  to explain any that you don't act on.
+- Merge only after Graphify has reviewed, its comments are handled, CI is green,
+  and the user has said to merge.
