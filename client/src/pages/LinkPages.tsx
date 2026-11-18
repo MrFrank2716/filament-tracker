@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { PackageX, SearchX, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { EmptyState, Loading } from '@/components/ui/Display';
@@ -17,6 +17,8 @@ export function LabelLinkPage({ kind }: { kind: Kind }) {
   const { id = '' } = useParams();
   const { select } = useWorkspace();
   const navigate = useNavigate();
+  // What the scanner handed over (see ScanState) goes on to the page this opens.
+  const { state } = useLocation();
   const [outcome, setOutcome] = useState<Outcome>({ state: 'looking' });
   const [attempt, setAttempt] = useState(0);
 
@@ -29,7 +31,7 @@ export function LabelLinkPage({ kind }: { kind: Kind }) {
         if (cancelled) return;
         if (found.archived) return setOutcome({ state: 'retired', name: found.name });
         select(found.workspaceId);
-        navigate(kind === 'item' ? `/inventory?item=${encodeURIComponent(id)}` : `/locations/${encodeURIComponent(id)}`, { replace: true });
+        navigate(kind === 'item' ? `/inventory?item=${encodeURIComponent(id)}` : `/locations/${encodeURIComponent(id)}`, { replace: true, state });
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
@@ -39,7 +41,7 @@ export function LabelLinkPage({ kind }: { kind: Kind }) {
     return () => {
       cancelled = true;
     };
-  }, [kind, id, select, navigate, attempt]);
+  }, [kind, id, select, navigate, attempt, state]);
 
   if (outcome.state === 'looking') return <Loading label="Opening" />;
   const home = (
