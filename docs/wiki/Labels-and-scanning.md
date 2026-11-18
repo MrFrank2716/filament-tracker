@@ -61,11 +61,45 @@ Point the phone's own camera at a label and tap the link it shows. Nothing needs
 The in-app scanner does a little more than the phone's camera:
 
 - It reads **your own codes** too. If a product's barcode is in an item's **SKU / barcode** field, scanning the product opens the item. A location's **Label code** works the same way. (Reading ordinary barcodes depends on the browser; QR codes are always read.)
-- **Or type a code**: type or paste a label code, SKU or barcode and press **Find**. A USB barcode reader works here as well, since it types the code for you.
+- **Or type a code**: type or paste a label code, SKU or barcode and press **Find**.
 - On a location, **Scan items here** keeps scanning and moves each item you scan to that location. See [Locations](Locations.md#put-things-away).
 - It reads NFC spool tags on phones that can. See [Spool tags](Spool-tags.md).
 
 The camera only works when Wrkbench is opened at a secure address (one starting `https://`). The first time, the browser asks whether Wrkbench may use the camera. If you said no, allow it in the browser's settings for the site; typing codes works in the meantime.
+
+## Use a barcode scanner
+
+A handheld barcode scanner, or a mobile computer with a scanner built in (Zebra and others), works on every screen. There is nothing to open first: pull the trigger.
+
+What a scan does:
+
+- **A Wrkbench label, or a code only one item has**: the item opens with the cursor in **Set the exact amount**, ready for what you used or what the scale says. Scan the next item and it opens in its place.
+- **A maker's barcode that several items share** (every spool of one product carries the same barcode): the inventory lists those items, and you pick the one in your hand. To go straight to one spool, print it a Wrkbench label.
+- **A location's label**: the location opens.
+- **A code nothing has**: Wrkbench says so and offers **Add item**, with the code filled in as the new item's **SKU / barcode**.
+- **While "Scan items here" is open** on a location: each scan moves that item there.
+- **While you are typing in a field**, such as **SKU / barcode** on an item: the code goes into the field, and the form is not saved.
+- **While another dialog is open**: nothing happens, and Wrkbench asks you to close it first.
+
+Wrkbench tells a scanner from a keyboard by its speed: the code arrives all at once and ends with Enter. So the scanner must send Enter after each code.
+
+### A handheld scanner (USB or Bluetooth)
+
+1. Set the scanner to act as a keyboard. For Zebra scanners this is "HID keyboard", and is how most arrive.
+2. Set it to send **Enter** after each code. The scanner's quick start guide has a barcode to scan for this.
+3. Set the scanner's keyboard country to match the computer's. If they differ, the `:` and `/` in a Wrkbench label arrive as other characters and the label is not recognised.
+
+### A Zebra mobile computer (TC56 and similar)
+
+There is no app to install from a file. Open Wrkbench in Chrome on the device, then choose **Add to Home screen** from Chrome's menu: it gets its own icon and opens full screen. This needs Wrkbench at a secure address (one starting `https://`); at any other address it still works as a page in Chrome.
+
+Then set up DataWedge, the scanning service already on the device:
+
+1. Open **DataWedge** and choose **Profile0 (default)**, which applies to every app without a profile of its own.
+2. Check that **Barcode input** and **Keystroke output** are both on.
+3. Under **Keystroke output**, open **Basic data formatting** and turn on **Send ENTER key**.
+
+Devices on Android 8 can no longer update Chrome. Wrkbench runs on the last version they got, but that browser gets no more security fixes: use such a device on a network you trust.
 
 ## After a backup is restored
 
@@ -75,4 +109,5 @@ Labels keep working after a workspace is exported and imported into an empty Wrk
 
 - A label stops working when its item or location is deleted. An item that was retired because past jobs used it says so when scanned.
 - If Wrkbench moves to a new address, labels printed before the move point at the old one. Keep the old address redirecting to the new one, or reprint.
+- Barcode scanners were checked by sending Wrkbench the keystrokes a scanner sends. They have not yet been checked on a physical Zebra scanner. If a mobile computer's scans do nothing, open **Scan**, tap **Or type a code** and scan again: that way always works. If scans are only read some of the time, set the scanner to send its characters with no delay between them.
 - Label printing was checked by producing the pages for sizes from 15 to 150 mm, measuring that no text is clipped, and reading every code back by program as a 203 and a 300 dpi printer would print it. It has not yet been checked on a physical label printer: if yours cuts off or shrinks the label, check the paper size, margins and scale in the print window first.

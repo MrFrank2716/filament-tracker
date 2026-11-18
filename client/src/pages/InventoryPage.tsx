@@ -6,6 +6,7 @@ import { ItemForm } from '@/components/items/ItemForm';
 import { ItemSheet } from '@/components/items/ItemSheet';
 import { LabelPrintDialog } from '@/components/labels/LabelPrintDialog';
 import { ScanDialog, type SpoolTagState } from '@/components/scan/ScanDialog';
+import type { ScanState } from '@/components/scan/ScannerProvider';
 import { TagImportDialog } from '@/components/tags/TagImportDialog';
 import { Button } from '@/components/ui/Button';
 import { StockMeter } from '@/components/items/StockMeter';
@@ -65,7 +66,6 @@ export function InventoryPage() {
   const items = useMemo(() => (machine ? allItems.filter(relates) : allItems), [allItems, machine, relates]);
   const [params, setParams] = useSearchParams();
 
-  const [query, setQuery] = useState('');
   const [typeId, setTypeId] = useState<string | null>(null);
   const [flags, setFlags] = useState<Set<Flag>>(new Set());
   const [supplierId, setSupplierId] = useState('');
@@ -82,7 +82,10 @@ export function InventoryPage() {
   // A spool tag just scanned that Wrkbench does not know (handed over by the scanner).
   const location = useLocation();
   const navigate = useNavigate();
-  const spoolTag = (location.state as Partial<SpoolTagState> | null)?.spoolTag ?? null;
+  const handed = location.state as Partial<SpoolTagState & ScanState> | null;
+  const spoolTag = handed?.spoolTag ?? null;
+  // A scanned code nothing has yet, to start a new item with.
+  const newItem = handed?.newItem ?? null;
   const dropSpoolTag = () => navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
 
   const selectedId = params.get('item');
@@ -102,6 +105,9 @@ export function InventoryPage() {
       return next;
     }, { replace: true });
   const open = (id: string | null) => setParam('item', id);
+  // The search lives in the address too, so a scanned barcode shared by several items can list them.
+  const query = params.get('q') ?? '';
+  const setQuery = (text: string) => setParam('q', text || null);
   // The location filter lives in the address, so a location's page can link to "everything stored here".
   const locationId = params.get('location') ?? '';
   const setLocationId = (id: string) => setParam('location', id || null);
@@ -378,6 +384,7 @@ export function InventoryPage() {
         <ItemSheet
           key={selected.id}
           item={selected}
+          focusAmount={Boolean(handed?.fromScan)}
           catalog={catalog}
           onClose={() => open(null)}
           onEdit={() => setForm({ item: selected })}
@@ -409,6 +416,7 @@ export function InventoryPage() {
         />
       )}
       {form && <ItemForm catalog={catalog} item={form.item} initial={form.initial} onClose={() => setForm(null)} />}
+      {newItem && !form && <ItemForm catalog={catalog} initial={{ ...preset(), sku: newItem.sku }} onClose={dropSpoolTag} />}
       {choosing && (
         <AddChooser
           title="Add an item"

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Minus, Nfc, Pencil, PlugZap, Plus, QrCode, Scissors, Trash2 } from 'lucide-react';
 import { StockMeter } from '@/components/items/StockMeter';
 import { LabelPrintDialog } from '@/components/labels/LabelPrintDialog';
+import { useScanHandler, useScanner } from '@/components/scan/ScannerProvider';
 import { LoadIntoDialog } from '@/components/tags/LoadIntoDialog';
 import { TagDialog } from '@/components/tags/TagDialog';
 import { Button } from '@/components/ui/Button';
@@ -25,6 +26,8 @@ interface Props {
   onClose: () => void;
   onEdit: () => void;
   onAddOffcut: () => void;
+  /** Opened by scanning the item: start in the exact-amount field, ready for what the scale says. */
+  focusAmount?: boolean;
 }
 
 /** Step sizes that suit the scale of the item: grams move in tens, screws in ones. */
@@ -36,7 +39,7 @@ function stepsFor(item: Item, unit: Unit | undefined): number[] {
   return [1, 5];
 }
 
-export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut }: Props) {
+export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut, focusAmount }: Props) {
   const { wsPath, canEdit, canOperate, money } = useWorkspace();
   const { run, busy } = useAction();
   const confirm = useConfirm();
@@ -46,6 +49,13 @@ export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut }: Props
   const [tagging, setTagging] = useState(false);
   const [loading, setLoading] = useState(false);
   const { items } = useItems();
+  // Scanning the next item while this one is open goes straight to it, unless a dialog of this sheet is in the way.
+  const scanner = useScanner();
+  useScanHandler(labelling || tagging || loading ? null : scanner.openRaw);
+  const exactForm = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (focusAmount) exactForm.current?.querySelector('input')?.focus();
+  }, [focusAmount]);
   // Tags and feeder slots are for filament: anything with a material.
   const isSpool = Boolean(spoolFacts(item, catalog).material);
 
@@ -166,6 +176,7 @@ export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut }: Props
               ))}
             </div>
             <form
+              ref={exactForm}
               className={styles.exact}
               onSubmit={(event) => {
                 event.preventDefault();
@@ -178,6 +189,7 @@ export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut }: Props
                 onChange={setExact}
                 suffix={unit?.symbol}
                 placeholder={String(item.quantity)}
+                data-scan="capture"
                 hint={canEdit ? undefined : 'Operators can only lower the amount. Ask an admin to add stock.'}
               />
               <Button type="submit" variant="primary" disabled={busy || parseNumber(exact) === null}>

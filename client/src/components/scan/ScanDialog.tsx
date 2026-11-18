@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { CircleAlert, CircleCheck, Nfc } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/Form';
 import { Modal } from '@/components/ui/Modal';
+import { useScanHandler, useScanner } from '@/components/scan/ScannerProvider';
 import { useCatalog, useItems } from '@/hooks/useCatalog';
 import { cameraAvailable, cameraProblem, startScanner } from '@/lib/camera';
 import { listenForTags, nfcAvailable, nfcProblem, type TagContents, type TagSession } from '@/lib/nfc';
@@ -36,11 +36,11 @@ export interface SpoolTagState {
 }
 
 /**
- * Point the camera at a label. Codes can also be typed or pasted, which is also how a USB barcode reader
- * works (it types the code and presses Enter), and what is left when there is no camera to use.
+ * Point the camera at a label. Codes can also be typed or pasted, which is what is left when there is no camera
+ * to use. A barcode scanner needs none of this (see ScannerProvider), but its reads land here while this is open.
  */
 export function ScanDialog({ title = 'Scan a label', hint, onClose, onScan, children }: Props) {
-  const navigate = useNavigate();
+  const scanner = useScanner();
   const { items } = useItems();
   const { locations } = useCatalog();
   const video = useRef<HTMLVideoElement>(null);
@@ -54,8 +54,9 @@ export function ScanDialog({ title = 'Scan a label', hint, onClose, onScan, chil
 
   const handle = async (raw: string) => {
     let scan = parseScan(raw);
-    // A plain code may be an item's SKU or barcode, or a location's own label code.
-    if (scan.kind === 'text') scan = findByCode(scan.text, items, locations) ?? scan;
+    // A plain code may be an item's SKU or barcode, or a location's own label code. Opening looks it up itself,
+    // since several items can share a maker's barcode.
+    if (onScan && scan.kind === 'text') scan = findByCode(scan.text, items, locations) ?? scan;
     await act(scan);
   };
 
@@ -69,21 +70,14 @@ export function ScanDialog({ title = 'Scan a label', hint, onClose, onScan, chil
       }
       return;
     }
-    if (scan.kind === 'item' || scan.kind === 'location') {
-      onClose();
-      // Through the link page, which finds the right workspace when the label belongs to another one.
-      navigate(`/${scan.kind === 'item' ? 's' : 'l'}/${scan.id}`);
-    } else if (scan.kind === 'openspool') {
-      onClose();
-      // A spool tag Wrkbench does not know: the inventory offers the spools it could be, or a filled-in form.
-      navigate('/inventory', { state: { spoolTag: { record: scan.record, tagId: scan.tagId ?? null } } satisfies SpoolTagState });
-    } else {
-      note({ text: `Nothing here has the code "${scan.text.slice(0, 60)}".`, tone: 'danger' });
-    }
+    if (scanner.open(scan) === 'opened') onClose();
+    else note({ text: `Nothing here has the code "${scan.kind === 'text' ? scan.text.slice(0, 60) : ''}".`, tone: 'danger' });
   };
   // The camera loop outlives renders; it always calls the latest handler.
   const latest = useRef(handle);
   latest.current = handle;
+  // A barcode scanner's reads come here while the dialog is open, whatever has the focus.
+  useScanHandler((raw) => void handle(raw));
 
   useEffect(() => {
     if (!hasCamera || !video.current) return;
@@ -149,7 +143,7 @@ export function ScanDialog({ title = 'Scan a label', hint, onClose, onScan, chil
         <p className={styles.note}>{problem || 'The camera only works when Wrkbench is opened at a secure (https) address. You can still type or paste a code below.'}</p>
       )}
       <div className={styles.typed}>
-        <TextField label="Or type a code" value={typed} onChange={setTyped} placeholder="Label code, SKU, barcode or pasted tag contents" autoComplete="off" autoCapitalize="off" enterKeyHint="go" />
+        <TextField label="Or type a code" value={typed} onChange={setTyped} placeholder="Label code, SKU, barcode or pasted tag contents" autoComplete="off" autoCapitalize="off" enterKeyHint="go" data-scan="capture" />
         <Button type="submit" disabled={!typed.trim()}>
           Find
         </Button>

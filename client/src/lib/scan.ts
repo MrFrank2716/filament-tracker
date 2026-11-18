@@ -44,11 +44,21 @@ export function parseScan(raw: string): Scan {
 
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
-/** What a plain code belongs to: an item by its SKU or barcode, or a location by its label code. */
-export function findByCode(text: string, items: Item[], locations: Location[]): Extract<Scan, { kind: 'item' | 'location' }> | null {
-  if (!text.trim()) return null;
-  const item = items.find((candidate) => candidate.sku && same(candidate.sku, text));
-  if (item) return { kind: 'item', id: item.id };
+type Found = Extract<Scan, { kind: 'item' | 'location' }>;
+
+/**
+ * Everything a plain code belongs to: the items with that SKU or barcode, or else the location with that label
+ * code. A maker's barcode is the same on every spool of one product, so several items can share it.
+ */
+export function findAllByCode(text: string, items: Item[], locations: Location[]): Found[] {
+  if (!text.trim()) return [];
+  const matching = items.filter((candidate) => candidate.sku && same(candidate.sku, text));
+  if (matching.length) return matching.map((item) => ({ kind: 'item', id: item.id }));
   const location = locations.find((candidate) => candidate.code && same(candidate.code, text));
-  return location ? { kind: 'location', id: location.id } : null;
+  return location ? [{ kind: 'location', id: location.id }] : [];
+}
+
+/** What a plain code belongs to: an item by its SKU or barcode, or a location by its label code. */
+export function findByCode(text: string, items: Item[], locations: Location[]): Found | null {
+  return findAllByCode(text, items, locations)[0] ?? null;
 }

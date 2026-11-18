@@ -1,7 +1,7 @@
 import jsQR from 'jsqr';
 import { describe, expect, it } from 'vitest';
 import { qrShape } from '@/lib/labels';
-import { findByCode, parseScan } from '@/lib/scan';
+import { findAllByCode, findByCode, parseScan } from '@/lib/scan';
 import type { Item, Location } from '@/lib/types';
 
 describe('working out what was scanned', () => {
@@ -36,6 +36,14 @@ describe('working out what was scanned', () => {
     expect(findByCode('loc-014', items, locations)).toEqual({ kind: 'location', id: 'l1' });
     expect(findByCode('unknown', items, locations)).toBeNull();
     expect(findByCode('', items, locations)).toBeNull();
+  });
+
+  it('finds every item sharing a maker\'s barcode', () => {
+    const items = [{ id: 'i1', sku: '5901234123457' }, { id: 'i2', sku: 'other' }, { id: 'i3', sku: '5901234123457' }] as Item[];
+    const locations = [{ id: 'l1', code: '5901234123457' }] as Location[];
+    expect(findAllByCode('5901234123457', items, locations)).toEqual([{ kind: 'item', id: 'i1' }, { kind: 'item', id: 'i3' }]);
+    expect(findAllByCode('5901234123457', [], locations)).toEqual([{ kind: 'location', id: 'l1' }]);
+    expect(findAllByCode('unknown', items, locations)).toEqual([]);
   });
 });
 
