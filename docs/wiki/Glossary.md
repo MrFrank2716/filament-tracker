@@ -22,6 +22,7 @@ Words used in Wrkbench and in this wiki, in alphabetical order.
 | **Low stock** | An item below its minimum stock level. It joins the reorder list |
 | **Machine focus** | Narrowing Wrkbench to one machine with the **Whole workshop** button. See [Getting started](Getting-started.md#whole-workshop-or-one-machine) |
 | **Machine type** | A group of similar machines. Maintenance set on a type covers every machine of that type |
+| **On the move** | A spool taken out at a location display and not yet put away or loaded into a machine. See [Location displays](Location-displays.md#on-the-move) |
 | **Offcut** | A usable leftover piece, such as half a sheet. Also called a remnant. See [Inventory](Inventory.md#offcuts) |
 | **Queue** | The order each machine will run its open jobs in. See [Jobs and the queue](Jobs-and-queue.md#the-queue) |
 | **Role** | What a member may change: owner, admin, operator or viewer. See [Members and roles](Members-and-roles.md) |

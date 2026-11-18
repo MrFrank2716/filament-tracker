@@ -54,6 +54,8 @@ lv_obj_t *subtitle = nullptr;
 lv_obj_t *card = nullptr;
 lv_timer_t *cardTimer = nullptr;
 wb::TagInfo *tag = nullptr;
+// What the tap that opened the card did ("Taken out: on the move"), "" when it changed nothing.
+char tagNote[96] = "";
 wb::ItemList *untagged = nullptr;
 char pendingLinkItem[wb::ID_LEN] = "";
 lv_obj_t *toastLabel = nullptr;
@@ -603,6 +605,7 @@ void closeCard() {
   }
   free(tag);
   tag = nullptr;
+  tagNote[0] = '\0';
   free(untagged);
   untagged = nullptr;
 }
@@ -646,10 +649,13 @@ void onInsert(lv_event_t *) { sendTagCommand(net::CommandType::Insert); }
 void showTagCard() {
   lv_obj_t *c = openCard();
   if (!tag->known) {
-    label(c, "This tag is not linked to anything", &lv_font_montserrat_20);
+    // A Bambu spool Wrkbench has not met comes with a note saying what it is and where to add it.
+    label(c, tagNote[0] ? "Not in stock yet" : "This tag is not linked to anything", &lv_font_montserrat_20);
     char uid[48];
     snprintf(uid, sizeof uid, "Tag %s", tag->uid);
-    lv_obj_t *u = label(c, uid, &lv_font_montserrat_14, MUTED);
+    lv_obj_t *u = label(c, tagNote[0] ? tagNote : uid, &lv_font_montserrat_14, MUTED);
+    lv_obj_set_width(u, W - 40);
+    lv_label_set_long_mode(u, LV_LABEL_LONG_WRAP);
     lv_obj_align(u, LV_ALIGN_TOP_LEFT, 0, 52);
     lv_obj_t *row = plainBox(c);
     lv_obj_set_size(row, lv_pct(100), 44);
@@ -695,10 +701,12 @@ void showTagCard() {
     lv_obj_align(bar, LV_ALIGN_TOP_LEFT, 0, 80);
   }
   char where[120];
-  if (tag->here) snprintf(where, sizeof where, "Kept here");
+  // A tap that tagged the spool in or out says so here, where the place it is kept would be.
+  if (tagNote[0]) snprintf(where, sizeof where, "%s", tagNote);
+  else if (tag->here) snprintf(where, sizeof where, "Kept here");
   else if (tag->where[0]) snprintf(where, sizeof where, "Kept at %s", tag->where);
   else snprintf(where, sizeof where, "Not put away anywhere");
-  lv_obj_t *w = label(c, where, &lv_font_montserrat_14, MUTED);
+  lv_obj_t *w = label(c, where, &lv_font_montserrat_14, tagNote[0] ? TEXT : MUTED);
   lv_obj_set_width(w, W - 40);
   oneLine(w);
   lv_obj_align(w, LV_ALIGN_TOP_LEFT, 0, 94);
@@ -788,6 +796,7 @@ void handle(net::Result &result) {
         closeCard();
         toast(result.message[0] ? result.message : "Could not look up that tag", DANGER);
       } else {
+        wb::copyText(tagNote, sizeof tagNote, result.message);
         showTagCard();
       }
       break;
@@ -844,16 +853,19 @@ void poll() {
   net::Result result;
   while (net::receive(result)) handle(result);
 
-  // A tapped tag: look it up, unless a card is already being dealt with.
+  // A tapped tag: the server tags the spool in or out and says what it is.
   char uid[24];
-  if (reader::take(uid, sizeof uid)) {
+  static char blocks[wb::BAMBU_JSON_LEN];
+  if (reader::take(uid, sizeof uid, blocks, sizeof blocks)) {
     if (!overview) {
       toast("Not set up yet", DANGER);
     } else {
       closeCard();
-      net::Command command{};
-      command.type = net::CommandType::Tag;
+      static net::Command command;
+      command = net::Command{};
+      command.type = net::CommandType::Tap;
       wb::copyText(command.arg, sizeof command.arg, uid);
+      wb::copyText(command.blocks, sizeof command.blocks, blocks);
       net::send(command);
       lv_obj_t *c = openCard();
       lv_obj_t *sp = lv_spinner_create(c);

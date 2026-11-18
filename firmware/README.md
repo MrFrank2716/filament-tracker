@@ -51,7 +51,8 @@ and a tap on the bottom strip toggles colour inversion.
 | `cyd/src/app/` | The display: `main` (start-up), `display` (screen, touch, LVGL), `portal` (set-up page for a phone), `net` (server, on its own task), `ui` (screens), `store` (saved settings), `reader_pn532` (optional tag reader) |
 | `cyd/src/bringup/` | Colour bars and touch test for a new board |
 | `cyd/lib/wb_core/` | Parsing and tidying with no Arduino code in it, so it is tested on a computer |
-| `cyd/test/test_core/` | Unity tests for `wb_core` |
+| `cyd/lib/wb_bambu/` | The keys that unlock a Bambu Lab spool tag (SHA-256, HMAC and HKDF with no Arduino code), also tested on a computer |
+| `cyd/test/test_core/`, `cyd/test/test_bambu/` | Unity tests for `wb_core` and `wb_bambu` |
 | `cyd/certs/make_certs.py` | Writes `src/app/certs.h`, the root certificates trusted for `https://` servers |
 | `cyd/include/lv_conf.h` | LVGL settings |
 
@@ -73,5 +74,11 @@ python -m ziglang c++ -std=gnu++17 -I lib/wb_core -I .pio/libdeps/test-board/Ard
 
 The display uses its own token (`wbd_…`), which it gets once by sending the set-up code to
 `POST /api/device/pair`. After that it polls `GET /api/device/overview` every 30 seconds (304 when nothing
-changed), and with a reader fitted calls `GET /api/device/tag/:uid` and the put-away, insert and link routes next
-to it. The server side is `server/src/routes/devices.ts`.
+changed). With a reader fitted, each tap is sent to `POST /api/device/tag/:uid/tap`, which tags the spool in or
+out and answers with what to show; the put-away, insert and link routes next to it serve the card's buttons.
+
+A Bambu Lab spool's own tag is a locked MIFARE Classic chip. The reader unlocks it with keys that follow from
+its serial (`lib/wb_bambu`, after the community's
+[Bambu Lab RFID Tag Guide](https://github.com/queengooborg/Bambu-Lab-RFID-Tag-Guide)) and sends six data blocks
+with the tap. The server reads the spool's id and details from them (`server/src/integrations/bambu/tag.ts`)
+and answers with a key, `T` and that id, which the display uses for the buttons. The server side is `server/src/routes/devices.ts`.

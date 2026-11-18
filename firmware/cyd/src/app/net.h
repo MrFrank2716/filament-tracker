@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "store.h"
+#include "wb_bambu.h"
 #include "wb_core.h"
 
 namespace net {
@@ -30,23 +31,25 @@ enum class CommandType : uint8_t {
   Pair,      // arg: a 12-character set-up code
   Browse,    // arg: a location id, or "" for the display's own location
   Refresh,   // poll now
-  Tag,       // arg: UID in hex
-  PutAway,   // arg: UID
-  Insert,    // arg: UID
-  Link,      // arg: UID, arg2: item id
+  Tap,       // arg: UID in hex, blocks: a Bambu spool's data. The server tags the spool in or out
+  Tag,       // arg: tag key (a UID, or what the server answered a tap with): look it up, change nothing
+  PutAway,   // arg: tag key
+  Insert,    // arg: tag key
+  Link,      // arg: tag key, arg2: item id
   Untagged,  // items here without a tag
   Forget,    // drop the token: the display asks for a new set-up code
 };
 
 struct Command {
   CommandType type;
-  char arg[32];
+  char arg[40];
   char arg2[32];
+  char blocks[wb::BAMBU_JSON_LEN];  // Tap only: the inside of a JSON object, or ""
 };
 
 enum class ResultType : uint8_t {
   Overview,      // data: wb::Overview*, which the receiver frees
-  Tag,           // data: wb::TagInfo*
+  Tag,           // data: wb::TagInfo*; message: what a tap did, "" for a plain look-up
   Untagged,      // data: wb::ItemList*
   Action,        // ok + message (put away, insert, link)
   Paired,        // message: the display's name

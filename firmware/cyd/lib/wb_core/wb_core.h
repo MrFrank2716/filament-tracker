@@ -86,7 +86,7 @@ struct Overview {
 /** What the server said about a tapped tag. */
 struct TagInfo {
   bool known;
-  char uid[24];
+  char uid[40];  // the key the server names the tag by: a chip UID, or "T" and a spool's own id
   Item item;
   char where[PATH_LEN];  // where the item is kept, "" when nowhere
   bool here;

@@ -229,19 +229,27 @@ void poll() {
   setStatus(Phase::Offline, describeFailure(status));
 }
 
-/** A tag call: GET for a lookup, POST for the changes. */
+/** A tag call: GET for a lookup, POST for a tap and for the changes. */
 void tagCall(const Command &command) {
   char path[96];
-  const char *suffix = command.type == CommandType::PutAway ? "/put-away" : command.type == CommandType::Insert ? "/insert" : command.type == CommandType::Link ? "/link" : "";
+  const bool tap = command.type == CommandType::Tap;
+  const char *suffix =
+      tap ? "/tap" : command.type == CommandType::PutAway ? "/put-away" : command.type == CommandType::Insert ? "/insert" : command.type == CommandType::Link ? "/link" : "";
   snprintf(path, sizeof path, "/api/device/tag/%s%s", command.arg, suffix);
-  char body[64];
+  static char body[wb::BAMBU_JSON_LEN + 16];  // only the network task runs this
   if (command.type == CommandType::Link) snprintf(body, sizeof body, "{\"itemId\":\"%s\"}", command.arg2);
-  const int status = command.type == CommandType::Tag ? request("GET", path) : request("POST", path, command.type == CommandType::Link ? body : "{}");
+  else if (tap && command.blocks[0]) snprintf(body, sizeof body, "{\"blocks\":{%s}}", command.blocks);
+  else snprintf(body, sizeof body, "{}");
+  const int status = command.type == CommandType::Tag ? request("GET", path) : request("POST", path, body);
   if (status == 401) return unauthorized();
-  if (command.type == CommandType::Tag) {
+  if (command.type == CommandType::Tag || tap) {
     auto *info = static_cast<wb::TagInfo *>(malloc(sizeof(wb::TagInfo)));
     if (status == 200 && info && wb::parseTag(response, responseLen, *info)) {
-      post(ResultType::Tag, true, "", info);
+      // A tap says what it did ("Taken out: on the move"); a look-up says nothing.
+      char done[96];
+      wb::parseMessage(response, responseLen, done, sizeof done);
+      post(ResultType::Tag, true, done, info);
+      if (tap) lastV[0] = '\0';  // what is stored here may have changed
       return;
     }
     free(info);

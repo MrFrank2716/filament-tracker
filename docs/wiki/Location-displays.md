@@ -62,18 +62,63 @@ In **Settings**, **Displays**, each display has:
 
 Wire the PN532 to the CYD's 4-pin connector marked **CN1**: 3.3V to VCC, GND to GND, **IO22 to SDA** and **IO27 to SCL**. The display finds the reader when it starts; without one it is a plain location display. Settings shows "tag reader connected" on its card.
 
-Tap a spool's sticker on the reader:
+Hold a spool to the reader, by its NFC [sticker](Spool-tags.md) or, for a Bambu Lab spool, by the spool's own tag (on the side of the spool, near the hub). Keep it still until the card appears.
 
-- **A spool Wrkbench knows**: its colour, name, amount left and where it is kept. **Put away here** moves it to this display's location. **Into X1C** marks it as the next spool going into the printer beside the display, the same as [scan, then insert](Spool-tags.md): put it in the printer within two minutes. The card closes by itself after 20 seconds.
-- **A tag that is not linked to anything**: **Link to an item** lists the untagged items in this location; choose one and confirm. The sticker is then that item's.
+### A tap tags the spool in or out
+
+What a tap does depends on where Wrkbench thinks the spool is:
+
+| The spool is | A tap | The card says |
+| --- | --- | --- |
+| Kept in this display's location, or in a location inside it | Takes it out. It is now **on the move** | **Taken out: on the move** |
+| Anywhere else, or on the move | Puts it away in this display's location | **Put away in** and the location |
+
+The card also shows the spool's colour, name and amount left, and closes by itself after 20 seconds. It offers:
+
+- **Put away here**, after taking a spool out: puts it straight back, if the tap was a mistake.
+- **Into X1C** (the printer chosen as beside the display): marks it as the next spool going into that printer, the same as [scan, then insert](Spool-tags.md#scan-then-insert). Put it in within two minutes. You rarely need this: see [Into a printer](#into-a-printer).
+
+With **Allow changes from this display** switched off, a tap only shows the spool.
 
 Changes made from a display appear in the [activity log](Dashboard-and-reports.md) under the display's name.
 
-Tags found are stickers written by Wrkbench, and tags whose id was typed in by hand. A Bambu Lab spool's own tag is **not** recognised by the reader: the printer reports a different id for the spool than the chip id a reader sees. A spool that carries the printer's own tag cannot be given a sticker from the display either, so the printer keeps recognising it.
+### On the move
+
+A spool taken out at a display has no location: it is **on the move**. It shows that way in the inventory and on the spool itself, and **Inventory** has an **On the move** filter while any spool is.
+
+It stops being on the move when:
+
+- it is tapped on a display, which puts it away there;
+- you put it away by hand (see [Locations](Locations.md#put-things-away));
+- it is loaded into a machine.
+
+### Into a printer
+
+When a connected printer reports a spool newly put into an AMS slot or onto the outside spool holder, Wrkbench looks at the spools on the move:
+
+- **A Bambu Lab spool** is known by its tag, and is loaded into that slot.
+- **Any other spool** is described by the material and colour set on the printer's screen. If exactly one spool on the move fits, it is loaded into that slot. If the printer reads a tag on it that Wrkbench has not seen, the spool gets that tag.
+- **If two or more spools on the move fit** (two black PLA spools out at once), Wrkbench loads neither and says so in the activity log. Choose the spool in the slot yourself: see [AMS and spools](AMS-and-spools.md#linking-a-spool-the-one-tap).
+
+A spool taken out of a printer that has no location is on the move again, until it is tapped in at a display. This only happens in workspaces where a display has a tag reader.
+
+### Tags Wrkbench does not know
+
+- **A sticker that is not linked to anything**: **Link to an item** lists the untagged items in this location; choose one and confirm. The sticker is then that item's.
+- **A Bambu Lab spool that is not in stock yet**: the card says **Not in stock yet** and what the tag says it is. **Link to an item** works here too, when the spool is already in stock without its tag. Otherwise sort it out in Wrkbench: **Inventory** shows a notice with **Sort it out**. There you choose the spool the tag is on, press **Add as a new spool** (the form is filled in from the tag: material, colour and size), or press **Not one of ours** to forget the read. The spool is put in the location of the display it was tapped on.
+
+Adding a spool needs an admin or owner. Operators can tie a tag to a spool in stock and forget a read.
+
+### Which tags are read
+
+- **NFC stickers** written by Wrkbench, and tags whose id was typed in by hand.
+- **Bambu Lab spools' own tags.** The display unlocks the tag and reads the spool's id from it, the same id the printer reports for that spool, so a spool the printer has already recognised is known at the display without doing anything. The tag says what the spool was when it was made, not how much is left: that comes from the printer or from you.
+
+A spool that carries the printer's own tag cannot be given a sticker from the display, so the printer keeps recognising it.
 
 ## What the display can do
 
-A display has its own key, separate from any member's sign-in. With it, it can read the items, locations and amounts of its workspace. While **Allow changes** is on, it can also move a tapped spool to its location, mark a spool for its printer and link stickers. It cannot change amounts, delete anything or reach any other part of Wrkbench. If a display is lost, **Remove** it in Settings and its key stops working at once.
+A display has its own key, separate from any member's sign-in. With it, it can read the items, locations and amounts of its workspace. While **Allow changes** is on, it can also take a tapped spool out of its location or put it away there, mark a spool for its printer and link tags. It cannot change amounts, delete anything or reach any other part of Wrkbench. If a display is lost, **Remove** it in Settings and its key stops working at once.
 
 ## Troubleshooting
 
@@ -90,5 +135,6 @@ A display has its own key, separate from any member's sign-in. With it, it can r
 ## Good to know
 
 - **Checked so far:** on a real 2.8" USB-C board (ST7789 panel), set-up from a phone, pairing with an `https://` server, showing a location's items, the printer status (with a simulated printer) and picking up again after the server restarted all work. Still to try on real hardware: the tag reader (the code has not met a real PN532 yet), a real printer's status, a Wi-Fi outage, and removing a display in Settings.
+- **Bambu Lab tags have not been read on real hardware yet.** Tapping in and out, spools on the move and matching them to a printer were checked by sending Wrkbench what a display sends, and the keys that unlock a tag were checked against an independent calculation. The first thing to try: tap a spool the printer has already recognised. If the card says **Not in stock yet**, the id on the tag is not the one the printer reports; link the tag to its spool once with **Link to an item** or **Sort it out** and it is known from then on.
 - The display asks for updates every 30 seconds; when nothing changed the answer is a few bytes.
 - On your own server, `DEVICES_ENABLED=false` switches displays off and `DEVICE_MAX_PER_WORKSPACE` changes the limit of five. See [Self-hosting](Self-hosting.md).

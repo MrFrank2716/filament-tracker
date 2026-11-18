@@ -21,7 +21,7 @@ It started as a 3D printing filament tracker, which is why this repository is ca
 - **Add real products in one step**: a built-in catalogue of printers, lasers, CNC machines, filaments, sheet stock, endmills and fasteners. → [Catalogue and settings](docs/wiki/Catalogue-and-settings.md)
 - **Connect Bambu Lab printers**: see each AMS and the spools in it live, and link them to your stock. Prints become jobs by themselves and take the filament they used from stock. Read-only: it never controls a printer. → [Connecting printers](docs/wiki/Connecting-printers.md)
 - **Tag spools**: write an [OpenSpool](https://github.com/spuder/OpenSpool) NFC sticker for a spool, tap it to open the spool, and scan a spool just before inserting it so the right item is tied to its tray, even for spools the printer cannot identify. → [Spool tags](docs/wiki/Spool-tags.md)
-- **Put a screen on the shelf**: a cheap 2.8" touch display (CYD) shows what a rack or dry box holds and how much is left, low stock first. Add a tag reader and tapping a spool puts it away there or marks it for the printer. → [Location displays](docs/wiki/Location-displays.md)
+- **Put a screen on the shelf**: a cheap 2.8" touch display (CYD) shows what a rack or dry box holds and how much is left, low stock first. Add a tag reader and tapping a spool takes it out or puts it back, Bambu Lab spools by their own tag; a spool taken out is linked to the printer slot it goes into by itself. → [Location displays](docs/wiki/Location-displays.md)
 - **Keep your data**: export a workspace as JSON, or your stock as a spreadsheet, and import from CSV. → [Backups, import and export](docs/wiki/Backups-and-data.md)
 
 It works on phones as well as computers, and can be installed as an app from the browser.
