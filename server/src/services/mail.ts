@@ -12,9 +12,6 @@ function transporter(): Transporter | null {
 
 export const appUrl = (path: string) => `${(env.APP_URL ?? env.CLIENT_ORIGIN).replace(/\/+$/, '')}${path}`;
 
-/** True when emails really leave the server, rather than being printed to the log. */
-export const mailConfigured = Boolean(env.RESEND_API_KEY || env.SMTP_URL);
-
 interface Mail {
   to: string;
   subject: string;
