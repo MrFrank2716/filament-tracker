@@ -77,13 +77,10 @@ const NOUNS: Record<string, string> = {
   jobs: 'job',
   'job-requests': 'request',
   members: 'member',
-  maintenance: 'maintenance',
   queue: 'queue',
   'request-link': 'request link',
   bridges: 'bridge',
   printers: 'printer connection',
-  import: 'import',
-  activity: 'activity',
   reference: 'catalogue',
 };
 
@@ -120,11 +117,9 @@ const ACTIONS: Record<string, string> = {
   start: 'Started',
   finish: 'Finished',
   cancel: 'Cancelled',
-  complete: 'Did maintenance',
   review: 'Reviewed',
   comments: 'Commented on',
   status: 'Changed status of',
-  undo: 'Undid',
 };
 
 function describe(method: string, segments: string[], name: string, body: Record<string, unknown> | undefined) {
