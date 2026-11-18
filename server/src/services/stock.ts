@@ -22,18 +22,17 @@ interface MoveInput {
  * and always leaves an audit row, so the level on screen can be traced back.
  * Must be called inside a transaction.
  */
-export async function moveStock(db: Db, { workspaceId, itemId, delta, reason, note = '', jobId = null, userId = null }: MoveInput) {
+export async function moveStock(db: Db, { workspaceId, itemId, delta, reason, note = '', jobId = null, userId = null }: MoveInput): Promise<void> {
   const item = await db.item.findFirst({ where: { id: itemId, workspaceId } });
   if (!item) throw new HttpError(404, 'Item not found');
   const balance = Math.max(0, round(item.quantity + delta));
   const applied = round(balance - item.quantity);
-  if (applied === 0) return item;
-  const updated = await db.item.update({ where: { id: itemId }, data: { quantity: balance } });
+  if (applied === 0) return;
+  await db.item.update({ where: { id: itemId }, data: { quantity: balance } });
   const movement = await db.stockMovement.create({
     data: { workspaceId, itemId, delta: applied, balanceAfter: balance, reason, note, jobId, userId },
   });
   noteMovement(movement.id);
-  return updated;
 }
 
 /** Ensure referenced rows belong to this workspace before linking to them. */

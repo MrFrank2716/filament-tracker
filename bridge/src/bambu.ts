@@ -21,7 +21,6 @@ const PORT = 8883;
 const PUSH_ALL = JSON.stringify({ pushing: { sequence_id: '0', command: 'pushall', version: 1, push_target: 1 } });
 const GET_VERSION = JSON.stringify({ info: { sequence_id: '0', command: 'get_version' } });
 /** Some models are slow to answer a full-status request; never ask more often than this. */
-const PUSH_ALL_GAP_MS = 5 * 60_000;
 
 export interface SessionEvents {
   onDoc(delta: Doc): void;
@@ -33,8 +32,6 @@ export interface SessionEvents {
 export interface PrinterSession {
   start(): void;
   stop(): void;
-  /** Ask for the full status again (rate-limited). */
-  refresh(): void;
   /** Named entries (text, and plate pictures) from the sliced file of the print the printer last announced. */
   readJobFile(entries: string[]): Promise<JobFileEntries>;
 }
@@ -98,7 +95,6 @@ export class BambuSession implements PrinterSession {
   private stopped = false;
   private retry: ReturnType<typeof setTimeout> | null = null;
   private attempts = 0;
-  private lastPushAll = 0;
   /** Where the printer said the current print's sliced file is. Stays on the bridge. */
   private jobUrl: string | null = null;
 
@@ -116,12 +112,6 @@ export class BambuSession implements PrinterSession {
     if (this.retry) clearTimeout(this.retry);
     this.client?.end(true);
     this.client = null;
-  }
-
-  refresh(): void {
-    if (!this.client?.connected || Date.now() - this.lastPushAll < PUSH_ALL_GAP_MS) return;
-    this.lastPushAll = Date.now();
-    this.client.publish(`device/${this.printer.serial}/request`, PUSH_ALL, { qos: 1 });
   }
 
   async readJobFile(entries: string[]): Promise<JobFileEntries> {
@@ -166,7 +156,6 @@ export class BambuSession implements PrinterSession {
       this.attempts = 0;
       client.subscribe(`device/${serial}/report`, { qos: 0 }, (error) => {
         if (error) return log.warn(`${serial}: could not listen for reports (${error.message})`);
-        this.lastPushAll = Date.now();
         client.publish(`device/${serial}/request`, PUSH_ALL, { qos: 1 });
         client.publish(`device/${serial}/request`, GET_VERSION, { qos: 1 });
       });

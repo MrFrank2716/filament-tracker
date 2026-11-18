@@ -184,7 +184,7 @@ async function jobFor(target: RunTarget, name: string, now: Date, notes = ''): P
   return created.id;
 }
 
-async function closeRun(target: RunTarget, run: { id: string; jobId: string | null; name: string; startedAt: Date; filaments: unknown; progress: number }, outcome: 'completed' | 'failed' | 'cancelled' | 'unseen', reading: PrinterReading | null, now: Date): Promise<void> {
+async function closeRun(target: RunTarget, run: { id: string; jobId: string | null; name: string; startedAt: Date; filaments: unknown; progress: number }, outcome: 'completed' | 'failed' | 'cancelled' | 'unseen', reading: PrinterReading, now: Date): Promise<void> {
   const claimed = await prisma.printerRun.updateMany({ where: { id: run.id, endedAt: null }, data: { endedAt: now, outcome } });
   if (claimed.count !== 1 || !run.jobId) return;
   const job = await prisma.job.findUnique({ where: { id: run.jobId }, select: { status: true, name: true, source: true, _count: { select: { usages: true } } } });
@@ -206,7 +206,7 @@ async function closeRun(target: RunTarget, run: { id: string; jobId: string | nu
   if (lines.length && (job.source === 'printer' || job._count.usages === 0)) await prisma.job.update({ where: { id: run.jobId }, data: { usages: { deleteMany: {}, create: lines } } });
 
   const hours = round(Math.max(0, now.getTime() - run.startedAt.getTime()) / 3_600_000, 2);
-  const reason = outcome === 'completed' ? undefined : outcome === 'cancelled' ? 'Cancelled at the printer' : (reading?.errors.find((error) => error.severity !== 'info')?.message ?? 'The printer reported that the print failed');
+  const reason = outcome === 'completed' ? undefined : outcome === 'cancelled' ? 'Cancelled at the printer' : (reading.errors.find((error) => error.severity !== 'info')?.message ?? 'The printer reported that the print failed');
   try {
     await finishJob(target.workspaceId, run.jobId, { outcome: outcome === 'completed' ? 'completed' : 'failed', userId: null, at: now, durationHours: hours, failureReason: reason });
   } catch (cause) {

@@ -50,7 +50,6 @@ export function JobsPage() {
   const requests = (allRequests ?? []).filter((request) => !machine || request.machine?.id === machine.id);
   const open = jobs.filter(isOpen);
   const history = jobs.filter((j) => !isOpen(j));
-  const shown = tab === 'open' ? open : history;
   const viewing = allJobs.find((j) => j.id === viewId);
 
   const act = (job: Job, action: 'start' | 'finish' | 'cancel', body: object, message: string, close = true) =>
@@ -116,27 +115,24 @@ export function JobsPage() {
             </EmptyState>
           }
         />
-      ) : shown.length === 0 ? (
+      ) : history.length === 0 ? (
         <EmptyState icon={ClipboardList} title="No finished jobs yet">
           Finished, failed and cancelled jobs appear here with their cost.
         </EmptyState>
       ) : (
         <List>
-          {shown.map((job) => {
-            // An open job that would use more than is on the shelf needs sorting before it runs.
-            const short = isOpen(job) ? job.usages.filter((usage) => usage.quantity > usage.item.quantity) : [];
+          {history.map((job) => {
             const context = [job.machine?.name, formatHours(job.durationHours), formatDate(job.completedAt ?? job.createdAt), job.request ? `for ${job.request.requesterName}` : ''].filter(Boolean).join(' · ');
             return (
               <Row
                 key={job.id}
                 onClick={() => setViewId(job.id)}
-                flagged={short.length > 0 ? 'warn' : false}
                 title={job.name}
-                subtitle={short.length > 0 ? `Short: ${short.map((usage) => usage.item.name).join(', ')}` : context}
+                subtitle={context}
                 trailing={
                   <>
                     <Figure>{money(job.totalCost)}</Figure>
-                    <Badge tone={short.length > 0 ? 'warn' : JOB_STATUS[job.status].tone}>{short.length > 0 ? 'Short of stock' : JOB_STATUS[job.status].label}</Badge>
+                    <Badge tone={JOB_STATUS[job.status].tone}>{JOB_STATUS[job.status].label}</Badge>
                   </>
                 }
               />

@@ -95,7 +95,6 @@ export const bridgeConfig = z.object({
 export type BridgeConfig = z.output<typeof bridgeConfig>;
 
 export const bridgeRate = z.object({ mode: z.enum(['live', 'idle']) });
-export const printerRefresh = z.object({ printerId: id });
 export const printerTest = z.object({ vendor: z.string().max(20), serial, host, accessCode });
 export type PrinterTest = z.output<typeof printerTest>;
 
@@ -175,7 +174,6 @@ export interface BridgeToServerEvents {
 export interface ServerToBridgeEvents {
   'bridge.config': (payload: BridgeConfig, ack: (reply: PlainAck) => void) => void;
   'bridge.rate': (payload: z.output<typeof bridgeRate>) => void;
-  'printer.refresh': (payload: z.output<typeof printerRefresh>, ack: (reply: PlainAck) => void) => void;
   'printer.test': (payload: PrinterTest, ack: (reply: PrinterTestAck) => void) => void;
   'discovery.list': (payload: Record<string, never>, ack: (reply: DiscoveryAck) => void) => void;
   /** Only sent to bridges that list the "job.files" capability. */

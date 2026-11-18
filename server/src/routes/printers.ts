@@ -38,8 +38,6 @@ const linkInput = z.object({
   /** Tie it to a machine that already exists, or leave out to add one named `machineName`. */
   machineId: z.string().min(1).optional(),
   machineName: z.string().trim().min(1).max(120).optional(),
-  /** What the printer called itself when it was found on the network. */
-  modelCode: z.string().trim().max(40).optional(),
 });
 
 const codeInput = z.object({ accessCode, host: host.optional() });
@@ -121,15 +119,6 @@ export function registerPrinterRoutes(router: Router): void {
     const pairing = await issuePairing(id);
     const bridge = await prisma.bridge.findUniqueOrThrow({ where: { id }, select: bridgeSelect });
     res.json({ ...presentBridge(bridge), pairing });
-  });
-
-  router.patch('/bridges/:id', async (req, res) => {
-    requireEnabled();
-    const { name } = parse(bridgeInput, req.body);
-    const id = param(req, 'id');
-    const updated = await prisma.bridge.updateMany({ where: { id, workspaceId: req.workspaceId }, data: { name } });
-    if (updated.count !== 1) throw notFound('Bridge');
-    res.json(presentBridge(await prisma.bridge.findUniqueOrThrow({ where: { id }, select: bridgeSelect })));
   });
 
   /** Removes the bridge and unlinks its printers. The machines, their hardware and what is loaded all stay. */
@@ -220,7 +209,7 @@ export function registerPrinterRoutes(router: Router): void {
 
     const tested = await testPrinter(bridge.id, { vendor: 'bambu', serial: input.serial, host: input.host, accessCode: input.accessCode });
     if (!tested.ok) throw new HttpError(400, testFailure(tested.code, tested.message));
-    const modelName = tested.modelName || bambuModelName(input.modelCode, input.serial);
+    const modelName = tested.modelName || bambuModelName(undefined, input.serial);
 
     const link = await prisma.$transaction(async (tx) => {
       const machineId =

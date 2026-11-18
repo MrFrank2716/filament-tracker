@@ -8,7 +8,7 @@ import styles from '@/components/layout/FocusPicker.module.css';
 
 /**
  * The main toggle: the whole workshop, or one machine and only what belongs to it.
- * A compact pill in each page header, except on Settings and Appearance, which configure the workspace as a whole.
+ * A compact pill in each page header, except on Settings, which configures the workspace as a whole.
  */
 export function FocusPicker() {
   const { machines, machineTypeById } = useCatalog();
@@ -46,7 +46,7 @@ export function FocusPicker() {
     return () => document.removeEventListener('pointerdown', onPointer);
   }, [open]);
 
-  if (machines.length === 0 || pathname.startsWith('/settings') || pathname.startsWith('/appearance')) return null;
+  if (machines.length === 0 || pathname.startsWith('/settings')) return null;
 
   const iconFor = (machineTypeId: string | null | undefined) =>
     (machineTypeId && machineTypeById.get(machineTypeId)?.icon) || 'Cog';

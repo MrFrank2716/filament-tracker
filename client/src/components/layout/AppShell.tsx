@@ -117,10 +117,10 @@ export function AppShell() {
   );
 
   // Not a screen of its own: the report opens over whatever is on screen, and by itself on the first visit of the day.
-  const reportButton = (className: string, onClick?: () => void) => (
+  const reportButton = (onClick?: () => void) => (
     <button
       type="button"
-      className={`${styles.navLink} ${styles.navButton} ${className}`}
+      className={`${styles.navLink} ${styles.navButton}`}
       title={collapsed ? 'Daily report' : undefined}
       onClick={() => {
         onClick?.();
@@ -167,7 +167,7 @@ export function AppShell() {
         <nav className={styles.nav} aria-label="Main">
           {items.map((item) => link(item, styles.navLink))}
           {scanButton(styles.navEnd)}
-          {reportButton('')}
+          {reportButton()}
         </nav>
         <div className={styles.account}>
           <div className={styles.accountText}>
@@ -220,7 +220,7 @@ export function AppShell() {
           {switcher}
           <div className={styles.moreLinks}>
             {items.filter((i) => !i.primary).map((item) => link(item, styles.navLink, () => setMoreOpen(false)))}
-            {reportButton('', () => setMoreOpen(false))}
+            {reportButton(() => setMoreOpen(false))}
           </div>
           <Button icon={Plus} onClick={() => switchWorkspace(NEW_WORKSPACE)}>
             New workspace

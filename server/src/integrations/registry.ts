@@ -115,13 +115,6 @@ function stateOf(entry: Entry): PrinterState {
 export const statesForWorkspace = (workspaceId: string): PrinterState[] =>
   [...entries.values()].filter((entry) => entry.workspaceId === workspaceId).map(stateOf);
 
-export const stateForLink = (linkId: string): PrinterState | null => {
-  const entry = entries.get(linkId);
-  return entry ? stateOf(entry) : null;
-};
-
-export const bridgeIsOnline = (bridgeId: string): boolean => onlineBridges.has(bridgeId);
-
 /** Tell browsers, at most once a second per printer; the last change in a burst always goes out. */
 function emitSoon(entry: Entry): void {
   if (entry.emitTimer) return;

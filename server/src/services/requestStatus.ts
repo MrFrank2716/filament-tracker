@@ -18,8 +18,7 @@ const FROM: Partial<Record<RequestStatus, RequestStatus[]>> = {
 
 export const canMoveTo = (from: string, to: RequestStatus) => (FROM[to] ?? []).includes(from as RequestStatus);
 
-const WORDING: Record<RequestStatus, { subject: string; line: string }> = {
-  pending: { subject: 'received', line: 'Your request has been received and is waiting to be checked.' },
+const WORDING: Record<Exclude<RequestStatus, 'pending'>, { subject: string; line: string }> = {
   changes_requested: { subject: 'needs changes', line: 'Your request needs some changes before it can go ahead.' },
   approved: { subject: 'approved', line: 'Good news: your request has been approved and is in the queue.' },
   in_progress: { subject: 'in progress', line: 'Your job has started.' },
@@ -36,7 +35,7 @@ interface Requested {
 }
 
 /** Tell the requester where their request stands. */
-export function emailStatus(request: Requested, status: RequestStatus, note = ''): void {
+export function emailStatus(request: Requested, status: Exclude<RequestStatus, 'pending'>, note = ''): void {
   const words = WORDING[status];
   sendMail({
     to: request.requesterEmail,
