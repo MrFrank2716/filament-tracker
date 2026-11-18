@@ -336,10 +336,6 @@ export function Stack({ children, gap = 'md' }: { children: ReactNode; gap?: 'sm
   return <div className={`${styles.stack} ${styles[`gap-${gap}`]}`}>{children}</div>;
 }
 
-export function Inline({ children, wrap = true }: { children: ReactNode; wrap?: boolean }) {
-  return <div className={`${styles.inline} ${wrap ? styles.wrap : ''}`}>{children}</div>;
-}
-
 export function Muted({ children }: { children: ReactNode }) {
   return <span className={styles.muted}>{children}</span>;
 }
