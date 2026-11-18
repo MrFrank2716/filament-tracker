@@ -11,7 +11,7 @@ It started as a 3D printing filament tracker, which is why this repository is ca
 ## What you can do
 
 - **Track stock**: filament, sheet stock, endmills, screws, anything, with the details that matter for each kind. See exactly what is low and what to reorder, grouped by supplier. → [Inventory](docs/wiki/Inventory.md)
-- **Label and scan**: print a QR label for any item or location and scan it with any phone to open it. Give each shelf and bin its own page, see what belongs there, and put things away by scanning. → [Labels and scanning](docs/wiki/Labels-and-scanning.md), [Locations](docs/wiki/Locations.md)
+- **Label and scan**: print a QR label for any item or location and scan it with any phone to open it. Give each shelf and bin its own page, see what belongs there, and put things away by scanning. A handheld barcode scanner, or a Zebra mobile computer, works on every screen: scan a label, or a maker's barcode kept in an item's SKU field, and the item opens. → [Labels and scanning](docs/wiki/Labels-and-scanning.md), [Locations](docs/wiki/Locations.md)
 - **Look after your machines**: see what is fitted to each machine and what is loaded in it, down to which spool is in which feeder slot. → [Machines](docs/wiki/Machines.md)
 - **Never miss servicing**: recurring maintenance by date, by hours of use, or both. → [Maintenance](docs/wiki/Maintenance.md)
 - **Run jobs**: queue work per machine by priority. Finishing a job takes its materials out of stock, wears down tooling, and records what it cost. → [Jobs and the queue](docs/wiki/Jobs-and-queue.md)
@@ -20,7 +20,7 @@ It started as a 3D printing filament tracker, which is why this repository is ca
 - **Work as a team**: owners, admins, operators and viewers, each allowed to do what their role needs. → [Members and roles](docs/wiki/Members-and-roles.md)
 - **Add real products in one step**: a built-in catalogue of printers, lasers, CNC machines, filaments, sheet stock, endmills and fasteners. → [Catalogue and settings](docs/wiki/Catalogue-and-settings.md)
 - **Connect Bambu Lab printers**: see each AMS and the spools in it live, and link them to your stock. Prints become jobs by themselves and take the filament they used from stock. Read-only: it never controls a printer. → [Connecting printers](docs/wiki/Connecting-printers.md)
-- **Tag spools**: write an [OpenSpool](https://github.com/spuder/OpenSpool) NFC sticker for a spool, tap it to open the spool, and scan a spool just before inserting it so the right item is tied to its tray, even for spools the printer cannot identify. → [Spool tags](docs/wiki/Spool-tags.md)
+- **Tag spools**: write an [OpenSpool](https://github.com/spuder/OpenSpool) NFC sticker for a spool, tap it to open the spool, and scan a spool just before inserting it so the right item is tied to its tray, even for spools the printer cannot identify. Spools taken out at a location display are tracked as on the move, and linked to the printer slot they go into. → [Spool tags](docs/wiki/Spool-tags.md)
 - **Put a screen on the shelf**: a cheap 2.8" touch display (CYD) shows what a rack or dry box holds and how much is left, low stock first. Add a tag reader and tapping a spool takes it out or puts it back, Bambu Lab spools by their own tag; a spool taken out is linked to the printer slot it goes into by itself. → [Location displays](docs/wiki/Location-displays.md)
 - **Keep your data**: export a workspace as JSON, or your stock as a spreadsheet, and import from CSV. → [Backups, import and export](docs/wiki/Backups-and-data.md)
 
@@ -94,10 +94,6 @@ The full documentation is in the [wiki](docs/wiki/Home.md), also available under
 ## Host it for your workshop
 
 Wrkbench is one Node.js program that keeps its data in a SQLite file, so it needs no separate database. The included `Dockerfile` builds the whole app into one image: run it on any host with a persistent disk, set a secret and your site's address, and put HTTPS in front of it. [Self-hosting](docs/wiki/Self-hosting.md) covers Docker and plain Node.js, every setting, email and backups.
-
-## Not built yet
-
-Sending jobs to printers, smart scales and sensors, an NFC reader at the printer, other makes of connected machine, and AI suggestions.
 
 ## Contributing and support
 

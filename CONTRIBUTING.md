@@ -36,6 +36,24 @@ Run these from the root of the repository.
 
 There is no linter or formatter set up yet, and no CI that runs the tests. Please run `npm test` and `npm run typecheck` before opening a pull request.
 
+## Where each branch runs
+
+The hosted Wrkbench has two copies, each built from this repository by the host whenever its branch changes:
+
+| Copy | Built from | When it changes |
+| --- | --- | --- |
+| **Production** | `main` | Every merge into `main` goes live |
+| **Staging** | One chosen branch, at the time of writing the location display branch | Every push to that branch |
+
+Each copy has its own database. A new migration is applied when the server starts (`npm run db:deploy`, the image's start command), so:
+
+- **Merging into `main` is a release.** Try the change on staging first.
+- **A migration cannot be taken back by reverting the merge.** The database keeps the new tables and columns. Check a migration on staging before it reaches production.
+- **Pushing to the staging branch changes staging's data too**, when the push carries a migration.
+- **To try a different piece of work on staging**, point staging at that branch in the host's settings.
+
+The display firmware in `firmware/cyd` is not part of any of this: it is flashed onto a display by hand, and a display keeps working with a newer server.
+
 ### Running two copies
 
 To run a second copy next to one already running (for example on another branch), give it other ports:

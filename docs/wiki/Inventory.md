@@ -38,6 +38,14 @@ Switch between views at the top of the screen. Wrkbench remembers your choice on
 
 Use the search box to find items by name, material, size or location, and **Filters** to narrow by category, status (low stock, worn, offcuts, loaded in a machine), location or supplier.
 
+While any spool is **on the move**, the status filters gain **On the move**. A spool is on the move after it was taken out at a [location display](Location-displays.md#on-the-move) and before it is put away or loaded into a machine.
+
+With a barcode scanner, scan an item's label or barcode on any screen to open it, ready for the amount you used. See [Use a barcode scanner](Labels-and-scanning.md#use-a-barcode-scanner).
+
+## Spools tapped on a display
+
+When a Bambu Lab spool that is not in stock is tapped on a location display, a notice appears at the top of **Inventory**. Press **Sort it out** to choose the spool the tag is on, add it as a new spool filled in from the tag, or forget the read. See [Tags Wrkbench does not know](Location-displays.md#tags-wrkbench-does-not-know).
+
 ## Change how much is in stock
 
 Open an item to see its details and history.

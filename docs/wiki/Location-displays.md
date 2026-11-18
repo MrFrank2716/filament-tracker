@@ -130,6 +130,8 @@ A display has its own key, separate from any member's sign-in. With it, it can r
 | "Cannot reach Wrkbench" | Check the address from a phone on the same Wi-Fi. On your own copy, check the computer's firewall lets port 4000 in. A wrong address: **Set up again**. |
 | "That set-up code is not valid or has run out" | Make a new code in Settings, Displays, and type it on the display's keyboard. |
 | "This display was removed or set up again" | It was removed in Settings, or set up again with a new code. Make a new code. |
+| A Bambu Lab spool the printer already knows shows **Not in stock yet** | The id on the tag is not the one Wrkbench has for the spool. Link the tag to its spool once, with **Link to an item** on the display or **Sort it out** in **Inventory**. |
+| A tap shows the spool but changes nothing | **Allow changes from this display** is off, or the display has no location. Check both in Settings, Displays. |
 | Accented letters look plain ("Cafe") | The display's fonts have plain letters only; names are shown without accents. |
 
 ## Good to know
