@@ -10,8 +10,6 @@ import { round } from '@/services/stock';
  * needs service is "paused": its jobs keep their order but get no finish time.
  */
 
-export const PRIORITIES = { low: -1, normal: 0, high: 1, urgent: 2 } as const;
-
 export interface QueuedJob {
   id: string;
   name: string;

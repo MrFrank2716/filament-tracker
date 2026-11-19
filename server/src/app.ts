@@ -15,6 +15,7 @@ import { deviceRouter, registerDeviceRoutes } from '@/routes/devices';
 import { registerMachineRoutes } from '@/routes/machines';
 import { registerMaintenanceRoutes } from '@/routes/maintenance';
 import { bridgeRouter, registerPrinterRoutes } from '@/routes/printers';
+import { registerProjectRoutes } from '@/routes/projects';
 import { registerQueueRoutes } from '@/routes/queue';
 import { registerReferenceAddRoute } from '@/routes/reference';
 import { registerReportRoutes } from '@/routes/reports';
@@ -52,6 +53,7 @@ export function createApp(): express.Express {
   registerMachineRoutes(workspaceScope);
   registerMaintenanceRoutes(workspaceScope);
   registerJobRoutes(workspaceScope);
+  registerProjectRoutes(workspaceScope);
   registerReportRoutes(workspaceScope);
   registerTransferRoutes(workspaceScope);
   registerRequestRoutes(workspaceScope);

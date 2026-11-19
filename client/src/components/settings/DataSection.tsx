@@ -60,7 +60,7 @@ export function DataSection({ catalog }: { catalog: Catalog }) {
           <div className={styles.dataCard}>
             <FileJson size={22} aria-hidden />
             <strong>Whole workspace (JSON)</strong>
-            <Muted>Categories, fields, units, locations, machines, inventory, maintenance and jobs. Import it into another workspace or keep it as a backup.</Muted>
+            <Muted>Categories, fields, units, locations, machines, inventory, maintenance, projects and jobs. Import it into another workspace or keep it as a backup.</Muted>
             <Button icon={Download} disabled={busy} onClick={() => run(() => api.download(wsPath('/export')!, `${base}.json`))}>
               Download JSON
             </Button>
@@ -86,7 +86,7 @@ export function DataSection({ catalog }: { catalog: Catalog }) {
               <div className={styles.dataCard}>
                 <FileJson size={22} aria-hidden />
                 <strong>Workspace file (JSON)</strong>
-                <Muted>Merges into this workspace. Categories, units, suppliers and machines that already exist by name are reused; items and jobs are added.</Muted>
+                <Muted>Merges into this workspace. Categories, units, suppliers and machines that already exist by name are reused; items, projects and jobs are added.</Muted>
                 <input ref={jsonInput} type="file" accept="application/json,.json" className={styles.fileInput} onChange={(e) => { void importJson(e.target.files?.[0]); e.target.value = ''; }} />
                 <Button icon={Upload} disabled={busy} onClick={() => jsonInput.current?.click()}>
                   Choose JSON file

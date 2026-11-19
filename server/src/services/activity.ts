@@ -75,16 +75,14 @@ const NOUNS: Record<string, string> = {
   machines: 'machine',
   'sub-units': 'attachment',
   jobs: 'job',
+  projects: 'project',
   'job-requests': 'request',
   members: 'member',
-  maintenance: 'maintenance',
   queue: 'queue',
   'request-link': 'request link',
   bridges: 'bridge',
   printers: 'printer connection',
   devices: 'display',
-  import: 'import',
-  activity: 'activity',
   reference: 'catalogue',
 };
 
@@ -102,6 +100,7 @@ async function nameBeforeDelete(workspaceId: string, collection: string, id: str
     case 'machines': return pick(await prisma.machine.findFirst({ where, select: { name: true } }));
     case 'sub-units': return pick(await prisma.subUnit.findFirst({ where, select: { name: true } }));
     case 'jobs': return pick(await prisma.job.findFirst({ where, select: { name: true } }));
+    case 'projects': return pick(await prisma.project.findFirst({ where, select: { name: true } }));
     case 'bridges': return pick(await prisma.bridge.findFirst({ where, select: { name: true } }));
     case 'devices': return pick(await prisma.device.findFirst({ where, select: { name: true } }));
     case 'printers': {
@@ -122,11 +121,9 @@ const ACTIONS: Record<string, string> = {
   start: 'Started',
   finish: 'Finished',
   cancel: 'Cancelled',
-  complete: 'Did maintenance',
   review: 'Reviewed',
   comments: 'Commented on',
   status: 'Changed status of',
-  undo: 'Undid',
 };
 
 function describe(method: string, segments: string[], name: string, body: Record<string, unknown> | undefined) {

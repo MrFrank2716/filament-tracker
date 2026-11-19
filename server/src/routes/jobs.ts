@@ -19,6 +19,7 @@ const jobInput = z.object({
   extraCost: z.number().min(0).optional(),
   /** -1 low, 0 normal, 1 high, 2 urgent. */
   priority: z.number().int().min(-1).max(2).optional(),
+  projectId: z.string().min(1).nullable().optional(),
   usages: z.array(usageInput).max(60).optional(),
 });
 
@@ -49,7 +50,7 @@ export function registerJobRoutes(router: Router): void {
   router.post('/jobs', async (req, res) => {
     const { usages = [], ...data } = parse(jobInput, req.body);
     const lines = mergeUsages(usages);
-    await assertInWorkspace(prisma, req.workspaceId, { machine: data.machineId, item: lines.map((l) => l.itemId) });
+    await assertInWorkspace(prisma, req.workspaceId, { machine: data.machineId, project: data.projectId, item: lines.map((l) => l.itemId) });
     const job = await prisma.job.create({
       data: {
         ...data,
@@ -72,7 +73,7 @@ export function registerJobRoutes(router: Router): void {
       throw new HttpError(409, 'Finished jobs are locked because stock and tool life were already updated from them');
     }
     const lines = usages ? mergeUsages(usages) : undefined;
-    await assertInWorkspace(prisma, req.workspaceId, { machine: data.machineId, item: lines?.map((l) => l.itemId) });
+    await assertInWorkspace(prisma, req.workspaceId, { machine: data.machineId, project: data.projectId, item: lines?.map((l) => l.itemId) });
     const job = await prisma.job.update({
       where: { id },
       data: {

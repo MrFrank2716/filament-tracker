@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Ban, Check, ClipboardList, Pencil, Play, Plus, Trash2, X } from 'lucide-react';
+import { Ban, Check, ClipboardList, FolderKanban, Pencil, Play, Plus, Trash2, X } from 'lucide-react';
 import { JobForm } from '@/components/jobs/JobForm';
 import { PrintQueue } from '@/components/jobs/PrintQueue';
+import { ProjectBoard } from '@/components/jobs/ProjectBoard';
+import { ProjectForm } from '@/components/jobs/ProjectForm';
 import { RequestFiles, RequestQueue } from '@/components/requests/RequestQueue';
 import { Button } from '@/components/ui/Button';
 import { Badge, EmptyState, ErrorNote, Figure, List, Loading, Muted, PageHeader, Row, SectionTitle, Tabs } from '@/components/ui/Display';
+import { FormGrid, SelectField } from '@/components/ui/Form';
 import { Modal, useConfirm } from '@/components/ui/Modal';
 import { useAction } from '@/components/ui/Toast';
 import { useMachineFocus } from '@/context/FocusContext';
@@ -14,10 +17,10 @@ import { useCatalog, useItems } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
 import { formatDate, formatHours, formatQuantity } from '@/lib/format';
 import { JOB_STATUS, PRIORITY } from '@/lib/status';
-import type { Job, JobRequest, MachineQueue, RequestLink } from '@/lib/types';
+import type { Job, JobRequest, MachineQueue, Project, ProjectStage, RequestLink } from '@/lib/types';
 import styles from '@/components/jobs/Jobs.module.css';
 
-type Tab = 'open' | 'requests' | 'history';
+type Tab = 'open' | 'requests' | 'history' | 'projects';
 const isOpen = (job: Job) => job.status === 'planned' || job.status === 'in_progress';
 
 export function JobsPage() {
@@ -28,18 +31,21 @@ export function JobsPage() {
   const { data: allRequests } = useWsQuery<JobRequest[]>('/job-requests');
   const { data: requestLink } = useWsQuery<RequestLink>('/request-link');
   const { data: queues } = useWsQuery<MachineQueue[]>('/queue');
+  const { data: projects } = useWsQuery<Project[]>('/projects');
   const { machine } = useMachineFocus();
   const { run, busy } = useAction();
   const confirm = useConfirm();
   const [tab, setTab] = useState<Tab>('open');
   const [viewId, setViewId] = useState<string | null>(null);
   const [form, setForm] = useState<{ job?: Job } | null>(null);
+  /** The project dialog: an id to open one (with the stage it was dragged to, if it needs a price first), or 'new'. */
+  const [projectView, setProjectView] = useState<{ id: string; stage?: ProjectStage } | 'new' | null>(null);
 
   // A link can ask for a tab (the daily report points at the request queue): /jobs?tab=requests
   const [params] = useSearchParams();
   const askedTab = params.get('tab');
   useEffect(() => {
-    if (askedTab === 'open' || askedTab === 'requests' || askedTab === 'history') setTab(askedTab);
+    if (askedTab === 'open' || askedTab === 'requests' || askedTab === 'history' || askedTab === 'projects') setTab(askedTab);
   }, [askedTab]);
 
   if (error || catalog.error) return <ErrorNote>{error ?? catalog.error}</ErrorNote>;
@@ -50,8 +56,11 @@ export function JobsPage() {
   const requests = (allRequests ?? []).filter((request) => !machine || request.machine?.id === machine.id);
   const open = jobs.filter(isOpen);
   const history = jobs.filter((j) => !isOpen(j));
-  const shown = tab === 'open' ? open : history;
   const viewing = allJobs.find((j) => j.id === viewId);
+  const viewingProject = projectView && projectView !== 'new' ? projects?.find((p) => p.id === projectView.id) : undefined;
+
+  const assign = (job: Job, projectId: string) =>
+    run(() => api.put(wsPath(`/jobs/${job.id}/project`)!, { projectId: projectId || null }), projectId ? `Added to ${projects?.find((p) => p.id === projectId)?.name ?? 'the project'}` : 'Taken out of its project');
 
   const act = (job: Job, action: 'start' | 'finish' | 'cancel', body: object, message: string, close = true) =>
     run(() => api.post(wsPath(`/jobs/${job.id}/${action}`)!, body), message).then((ok) => {
@@ -82,13 +91,18 @@ export function JobsPage() {
     <>
       <PageHeader
         title="Jobs"
-        subtitle={machine ? `The queue on ${machine.name}, and requests that asked for it.` : 'Open jobs queue per machine by priority, with estimated finish times. Finishing a job takes its material from stock.'}
+        subtitle={tab === 'projects' ? 'Jobs grouped into the work they belong to: what each project cost, and its profit or a price to ask.' : machine ? `The queue on ${machine.name}, and requests that asked for it.` : 'Open jobs queue per machine by priority, with estimated finish times. Finishing a job takes its material from stock.'}
         actions={
-          canOperate && (
+          canOperate &&
+          (tab === 'projects' ? (
+            <Button variant="primary" icon={Plus} onClick={() => setProjectView('new')}>
+              New project
+            </Button>
+          ) : (
             <Button variant="primary" icon={Plus} onClick={() => setForm({})}>
               New job
             </Button>
-          )
+          ))
         }
       />
 
@@ -97,6 +111,7 @@ export function JobsPage() {
           { id: 'open', label: 'Queue', count: open.length },
           { id: 'requests', label: 'Requests', count: requests.filter((request) => request.status === 'pending').length },
           { id: 'history', label: 'History', count: history.length },
+          { id: 'projects', label: 'Projects', count: projects?.length },
         ]}
         active={tab}
         onChange={setTab}
@@ -104,6 +119,20 @@ export function JobsPage() {
 
       {tab === 'requests' ? (
         <RequestQueue requests={requests} link={requestLink} catalog={catalog} machineName={machine?.name} />
+      ) : tab === 'projects' ? (
+        !projects ? (
+          <Loading />
+        ) : (
+          <ProjectBoard
+            projects={projects}
+            onOpen={(id, stage) => setProjectView({ id, stage })}
+            empty={
+              <EmptyState icon={FolderKanban} title="No projects yet" action={canOperate && <Button variant="primary" icon={Plus} onClick={() => setProjectView('new')}>New project</Button>}>
+                A project gathers the jobs done for one piece of work, adds up what they cost, and shows the profit or a price to ask.
+              </EmptyState>
+            }
+          />
+        )
       ) : tab === 'open' ? (
         <PrintQueue
           queues={queues}
@@ -116,27 +145,24 @@ export function JobsPage() {
             </EmptyState>
           }
         />
-      ) : shown.length === 0 ? (
+      ) : history.length === 0 ? (
         <EmptyState icon={ClipboardList} title="No finished jobs yet">
           Finished, failed and cancelled jobs appear here with their cost.
         </EmptyState>
       ) : (
         <List>
-          {shown.map((job) => {
-            // An open job that would use more than is on the shelf needs sorting before it runs.
-            const short = isOpen(job) ? job.usages.filter((usage) => usage.quantity > usage.item.quantity) : [];
-            const context = [job.machine?.name, formatHours(job.durationHours), formatDate(job.completedAt ?? job.createdAt), job.request ? `for ${job.request.requesterName}` : ''].filter(Boolean).join(' · ');
+          {history.map((job) => {
+            const context = [job.machine?.name, formatHours(job.durationHours), formatDate(job.completedAt ?? job.createdAt), job.request ? `for ${job.request.requesterName}` : '', job.project?.name].filter(Boolean).join(' · ');
             return (
               <Row
                 key={job.id}
                 onClick={() => setViewId(job.id)}
-                flagged={short.length > 0 ? 'warn' : false}
                 title={job.name}
-                subtitle={short.length > 0 ? `Short: ${short.map((usage) => usage.item.name).join(', ')}` : context}
+                subtitle={context}
                 trailing={
                   <>
                     <Figure>{money(job.totalCost)}</Figure>
-                    <Badge tone={short.length > 0 ? 'warn' : JOB_STATUS[job.status].tone}>{short.length > 0 ? 'Short of stock' : JOB_STATUS[job.status].label}</Badge>
+                    <Badge tone={JOB_STATUS[job.status].tone}>{JOB_STATUS[job.status].label}</Badge>
                   </>
                 }
               />
@@ -145,7 +171,7 @@ export function JobsPage() {
         </List>
       )}
 
-      {viewing && !form && (
+      {viewing && !form && !projectView && (
         <Modal
           title={viewing.name}
           size="lg"
@@ -238,6 +264,21 @@ export function JobsPage() {
             )}
           </div>
 
+          {canOperate && projects && projects.length > 0 ? (
+            <FormGrid>
+              <SelectField label="Project" value={viewing.project?.id ?? ''} onChange={(projectId) => assign(viewing, projectId)} disabled={busy} hint="Its cost is added to the project's total.">
+                <option value="">None</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </SelectField>
+            </FormGrid>
+          ) : (
+            viewing.project && <Muted>Part of the project {viewing.project.name}.</Muted>
+          )}
+
           <dl className={styles.costs}>
             <div><dt>Materials</dt><dd><Figure>{money(viewing.materialCost)}</Figure></dd></div>
             <div><dt>Tool wear</dt><dd><Figure>{money(viewing.toolingCost)}</Figure></dd></div>
@@ -248,7 +289,21 @@ export function JobsPage() {
         </Modal>
       )}
 
-      {form && <JobForm catalog={catalog} items={items} job={form.job} defaultMachineId={machine?.id} onClose={() => setForm(null)} />}
+      {projectView && (projectView === 'new' || viewingProject) && (
+        <ProjectForm
+          key={projectView === 'new' ? 'new' : projectView.id}
+          project={viewingProject}
+          jobs={allJobs}
+          wantStage={projectView === 'new' ? undefined : projectView.stage}
+          onOpenJob={(id) => {
+            setProjectView(null);
+            setViewId(id);
+          }}
+          onClose={() => setProjectView(null)}
+        />
+      )}
+
+      {form && <JobForm catalog={catalog} items={items} projects={projects ?? []} job={form.job} defaultMachineId={machine?.id} onClose={() => setForm(null)} />}
     </>
   );
 }

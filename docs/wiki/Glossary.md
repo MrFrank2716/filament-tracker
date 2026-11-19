@@ -24,11 +24,14 @@ Words used in Wrkbench and in this wiki, in alphabetical order.
 | **Machine type** | A group of similar machines. Maintenance set on a type covers every machine of that type |
 | **On the move** | A spool taken out at a location display and not yet put away or loaded into a machine. See [Location displays](Location-displays.md#on-the-move) |
 | **Offcut** | A usable leftover piece, such as half a sheet. Also called a remnant. See [Inventory](Inventory.md#offcuts) |
+| **Project** | A piece of work made up of several jobs, usually for one customer. It adds up their cost and shows the profit, or a recommended price. See [Jobs and the queue](Jobs-and-queue.md#projects) |
 | **Queue** | The order each machine will run its open jobs in. See [Jobs and the queue](Jobs-and-queue.md#the-queue) |
+| **Recommended price** | The price for a project that would leave your target margin as profit. Shown until you enter the price you invoiced |
 | **Role** | What a member may change: owner, admin, operator or viewer. See [Members and roles](Members-and-roles.md) |
 | **Slot** | A place in attached hardware that holds one item, such as one spool position in a feeder |
 | **Spool tag** | An NFC sticker on a spool, written in the open OpenSpool format, that opens the spool when tapped. See [Spool tags](Spool-tags.md) |
 | **Tagged spool** | A spool with an RFID tag the printer can read, such as Bambu Lab's own spools |
+| **Target margin** | The share of a project's price you want left as profit, as a percentage. Set for the workspace and, if needed, for one project |
 | **Template** | A starting set of categories, machine types and schedules for a new workspace |
 | **Tool life** | How many hours of use a tool is expected to last. Wrkbench flags it as worn when it gets there. See [Inventory](Inventory.md#tool-life) |
 | **Workspace** | One workshop: its stock, machines, jobs and members. You can belong to several |

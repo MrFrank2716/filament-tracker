@@ -119,7 +119,7 @@ export function DashboardPage() {
         )}
       </Stack>
 
-      <Grid min="lg">
+      <Grid>
         <Stack gap="sm">
           <SectionTitle count={data.machines.length || undefined}>Machines</SectionTitle>
           {data.machines.length ? (

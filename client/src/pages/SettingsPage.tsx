@@ -13,12 +13,13 @@ import { RequestLinkSection } from '@/components/settings/RequestLinkSection';
 import { TypeEditor } from '@/components/settings/TypeEditor';
 import { Button } from '@/components/ui/Button';
 import { EmptyState, ErrorNote, Figure, List, Loading, Muted, PageHeader, Row, SectionTitle, TypeIcon } from '@/components/ui/Display';
-import { FormGrid, SelectField, TextAreaField, TextField } from '@/components/ui/Form';
+import { FormGrid, NumberField, SelectField, TextAreaField, TextField } from '@/components/ui/Form';
 import { useConfirm } from '@/components/ui/Modal';
 import { useAction } from '@/components/ui/Toast';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useCatalog } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
+import { parseNumber } from '@/lib/format';
 import { LegalLinks } from '@/pages/LegalPages';
 import type { ItemType } from '@/lib/types';
 import styles from '@/components/settings/Settings.module.css';
@@ -223,11 +224,15 @@ function GeneralSection() {
   const [name, setName] = useState(workspace?.name ?? '');
   const [description, setDescription] = useState(workspace?.description ?? '');
   const [currency, setCurrency] = useState(workspace?.currency ?? 'GBP');
+  const [margin, setMargin] = useState(String(workspace?.targetMargin ?? 40));
 
   if (!workspace) return null;
 
+  const targetMargin = parseNumber(margin);
+  const marginOk = targetMargin !== null && targetMargin >= 0 && targetMargin <= 95;
+
   const save = () => run(async () => {
-    await api.patch(wsPath('')!, { name: name.trim(), description: description.trim(), currency: currency.trim().toUpperCase() });
+    await api.patch(wsPath('')!, { name: name.trim(), description: description.trim(), currency: currency.trim().toUpperCase(), targetMargin });
     await reload();
   }, 'Workspace saved');
 
@@ -259,11 +264,19 @@ function GeneralSection() {
         <FormGrid>
           <TextField label="Name" value={name} onChange={setName} disabled={!isOwner} />
           <TextField label="Currency" value={currency} onChange={setCurrency} maxLength={3} disabled={!isOwner} hint="3-letter code, e.g. GBP, EUR, USD." />
+          <NumberField
+            label="Target margin"
+            value={margin}
+            onChange={setMargin}
+            suffix="%"
+            disabled={!isOwner}
+            hint="The share of a project's price you want left as profit, from 0 to 95. Used to recommend a price for projects that have none."
+          />
           <TextAreaField label="Description" value={description} onChange={setDescription} rows={2} disabled={!isOwner} />
         </FormGrid>
         {isOwner ? (
           <div>
-            <Button type="submit" variant="primary" disabled={busy || !name.trim()}>
+            <Button type="submit" variant="primary" disabled={busy || !name.trim() || !marginOk}>
               Save
             </Button>
           </div>

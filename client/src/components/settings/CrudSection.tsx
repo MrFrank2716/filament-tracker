@@ -3,7 +3,7 @@ import { Plus, Trash2, type LucideIcon } from 'lucide-react';
 import { IconPicker } from '@/components/settings/IconPicker';
 import { Button } from '@/components/ui/Button';
 import { EmptyState, ErrorNote, List, Muted, Row, SectionTitle } from '@/components/ui/Display';
-import { FormGrid, NumberField, SelectField, TextAreaField, TextField } from '@/components/ui/Form';
+import { FormGrid, NumberField, TextAreaField, TextField } from '@/components/ui/Form';
 import { Modal, useConfirm } from '@/components/ui/Modal';
 import { useAction } from '@/components/ui/Toast';
 import { useWorkspace } from '@/context/WorkspaceContext';
@@ -13,8 +13,7 @@ import { parseNumber } from '@/lib/format';
 export interface CrudField {
   key: string;
   label: string;
-  kind?: 'text' | 'number' | 'select' | 'icon' | 'textarea';
-  options?: Array<{ value: string; label: string }>;
+  kind?: 'text' | 'number' | 'icon' | 'textarea';
   hint?: string;
   placeholder?: string;
   required?: boolean;
@@ -66,7 +65,6 @@ export function CrudSection<T extends { id: string }>({ title, description, noun
       const raw = editing.draft[field.key] ?? '';
       if (field.required && !raw.trim()) return setError(`${field.label} is required.`);
       if (field.kind === 'number') body[field.key] = parseNumber(raw) ?? 0;
-      else if (field.kind === 'select') body[field.key] = raw || null;
       else body[field.key] = raw.trim();
     }
     const { row } = editing;
@@ -134,19 +132,6 @@ export function CrudSection<T extends { id: string }>({ title, description, noun
               if (field.kind === 'number') return <NumberField key={field.key} {...common} />;
               if (field.kind === 'textarea') return <TextAreaField key={field.key} {...common} />;
               if (field.kind === 'icon') return <IconPicker key={field.key} label={field.label} value={value} onChange={(next) => set(field.key, next)} />;
-              if (field.kind === 'select') {
-                return (
-                  <SelectField key={field.key} {...common} wide={field.wide}>
-                    <option value="">None</option>
-                    {/* A row cannot be its own parent. */}
-                    {field.options?.filter((o) => o.value !== editing.row?.id).map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </SelectField>
-                );
-              }
               return <TextField key={field.key} {...common} wide={field.wide} placeholder={field.placeholder} autoFocus={index === 0 && !editing.row} />;
             })}
           </FormGrid>
