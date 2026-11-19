@@ -57,6 +57,24 @@ describe('signing in', () => {
     expect((await login(PASSWORD)).status).toBe(200);
   });
 
+  it('takes new passwords of up to 72 bytes, and still signs in with a longer one set before that limit', async () => {
+    const register = (address: string, password: string) => app.call('POST', '/auth/register', '', { email: address, password, name: 'New' });
+    expect((await register('ascii72@example.test', 'a'.repeat(72))).status).toBe(201);
+    const tooLong = await register('ascii73@example.test', 'a'.repeat(73));
+    expect(tooLong.status).toBe(400);
+    expect(tooLong.body?.error).toMatch(/at most 72 characters/);
+    // 19 emoji are 19 characters but 76 bytes.
+    expect((await register('emoji@example.test', '🔧'.repeat(19))).status).toBe(400);
+
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: 'ascii72@example.test' } });
+    const tooLongReset = await app.call('POST', '/auth/reset', '', { token: signResetToken(user), password: 'b'.repeat(73) });
+    expect(tooLongReset.status).toBe(400);
+
+    const old = 'an old password from before the limit '.repeat(3);
+    await prisma.user.create({ data: { email: 'longpass@example.test', name: 'Old', passwordHash: await bcrypt.hash(old, 4) } });
+    expect((await app.call('POST', '/auth/login', '', { email: 'longpass@example.test', password: old })).status).toBe(200);
+  });
+
   it('locks the account after 10 wrong passwords, even for the right one, until a password reset', async () => {
     for (let i = 0; i < 10; i++) expect((await login(`wrong password ${i}`)).status).toBe(401);
     const locked = await login(PASSWORD);

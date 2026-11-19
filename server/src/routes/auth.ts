@@ -12,9 +12,16 @@ import { appUrl, sendMail } from '@/services/mail';
 export const authRouter = Router();
 
 const emailField = z.string().trim().toLowerCase().pipe(z.email('Enter a valid email address'));
-const newPassword = z.string().min(8, 'Use at least 8 characters').max(200);
-const credentials = z.object({ email: emailField, password: newPassword });
-const registration = credentials.extend({ name: z.string().trim().min(1, 'Enter your name').max(80) });
+// bcrypt only reads the first 72 bytes, so anything after them would be ignored without a word.
+// Counted in bytes: accented letters take two and most emoji four.
+const PASSWORD_MAX_BYTES = 72;
+const newPassword = z
+  .string()
+  .min(8, 'Use at least 8 characters')
+  .refine((password) => Buffer.byteLength(password, 'utf8') <= PASSWORD_MAX_BYTES, 'Use at most 72 characters (fewer with accents or emoji)');
+// Signing in keeps the old, looser limits: passwords set before the cap still work.
+const credentials = z.object({ email: emailField, password: z.string().min(1).max(200) });
+const registration = z.object({ email: emailField, password: newPassword, name: z.string().trim().min(1, 'Enter your name').max(80) });
 
 interface UserRecord {
   id: string;
