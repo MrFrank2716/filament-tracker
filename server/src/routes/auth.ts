@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { prisma } from '@/db';
 import { bearerToken, requireAuth, signResetToken, signToken, userForReset, userForSession } from '@/auth';
 import { HttpError, parse } from '@/http';
-import { rateLimit } from '@/rateLimit';
+import { attemptCounter, rateLimit } from '@/rateLimit';
 import { removeUsers, workspacesOnlyOwnedBy } from '@/services/accounts';
 import { createGuest, GUEST_DAYS, isGuestEmail } from '@/services/guests';
 import { appUrl, sendMail } from '@/services/mail';
@@ -104,6 +104,9 @@ const passwordLimit = rateLimit(10, 15 * 60 * 1000);
 const forgotLimit = rateLimit(5, 60 * 60 * 1000);
 const resetLimit = rateLimit(10, 60 * 60 * 1000);
 const resetCheckLimit = rateLimit(30, 60 * 60 * 1000);
+// Per email, from any address: stops one account's password being guessed from many connections.
+// Kept generous because anyone can use it up for someone else's email, locking them out for a while.
+const accountAttempts = attemptCounter(10, 15 * 60 * 1000);
 
 authRouter.post('/register', registerLimit, async (req, res) => {
   const { email, password, name } = parse(registration, req.body);
@@ -123,10 +126,14 @@ authRouter.post('/register', registerLimit, async (req, res) => {
 
 authRouter.post('/login', loginLimit, async (req, res) => {
   const { email, password } = parse(credentials, req.body);
+  if (!accountAttempts.attempt(email)) {
+    throw new HttpError(429, 'Too many sign-in attempts for this email. Wait 15 minutes, or use Forgot password? to choose a new one.');
+  }
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
     throw new HttpError(401, 'Email or password is incorrect');
   }
+  accountAttempts.clear(email);
   res.json({ token: signToken(user), user: publicUser(user) });
 });
 
@@ -262,5 +269,7 @@ authRouter.post('/reset', resetLimit, async (req, res) => {
   if (!user || user.isGuest) throw new HttpError(400, RESET_LINK_DEAD);
   // Raising the version makes the link single-use and signs out every device that knew the old password.
   const updated = await revokeSessions(user.id, { passwordHash: await bcrypt.hash(password, 10) });
+  // They proved they own the email: a lock-out from earlier guesses should not stop them on another device.
+  accountAttempts.clear(user.email);
   res.json({ token: signToken(updated), user: publicUser(updated) });
 });
