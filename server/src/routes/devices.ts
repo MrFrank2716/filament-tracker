@@ -295,8 +295,13 @@ deviceRouter.post('/tag/:uid/tap', async (req, res) => {
       res.json(unknownTag(device, key));
       return;
     }
-    // A spool Wrkbench has not met: kept for a member to say what it is, in the app.
     const what = [facts.brand, facts.subType ?? facts.material].filter(Boolean).join(' ');
+    // With changes switched off the display only says what it read: nothing is kept for the app.
+    if (!device.canWrite) {
+      res.json({ ...unknownTag(device, key), message: forDisplay(`Not in stock yet: ${what}.`, 90) });
+      return;
+    }
+    // A spool Wrkbench has not met: kept for a member to say what it is, in the app.
     const waiting = await prisma.unknownTag.findUnique({ where: { workspaceId_tagId: { workspaceId, tagId: facts.tagId } }, select: { id: true } });
     await prisma.unknownTag.upsert({
       where: { workspaceId_tagId: { workspaceId, tagId: facts.tagId } },

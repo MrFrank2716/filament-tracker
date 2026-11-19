@@ -78,7 +78,7 @@ The card also shows the spool's colour, name and amount left, and closes by itse
 - **Put away here**, after taking a spool out: puts it straight back, if the tap was a mistake.
 - **Into X1C** (the printer chosen as beside the display): marks it as the next spool going into that printer, the same as [scan, then insert](Spool-tags.md#scan-then-insert). Put it in within two minutes. You rarely need this: see [Into a printer](#into-a-printer).
 
-With **Allow changes from this display** switched off, a tap only shows the spool.
+With **Allow changes from this display** switched off, a tap only shows the spool. A Bambu Lab spool that is not in stock is named on the card, but no notice is left in **Inventory**.
 
 Changes made from a display appear in the [activity log](Dashboard-and-reports.md) under the display's name.
 

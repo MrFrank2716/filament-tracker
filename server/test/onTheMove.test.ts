@@ -153,6 +153,11 @@ describe('tapping a spool on a display', () => {
     expect(shown.body).toMatchObject({ known: true, item: { here: true }, canPutAway: false });
     expect(shown.body).not.toHaveProperty('message');
     expect(await itemNow(white.id)).toMatchObject({ locationId: drawerA, outSince: null });
+    // A Bambu spool it has not met is named on the card, and not kept for the inventory to ask about.
+    const unknown = await tap('C0C0C0C0', bambuBlocks({ type: 'ABS', detail: 'ABS', rgba: '334455ff', grams: 1000, trayId: 'D'.repeat(32) }));
+    expect(unknown.body).toEqual({ known: false, uid: `T${'D'.repeat(32)}`, canLink: false, message: 'Not in stock yet: Bambu Lab ABS.' });
+    expect(await prisma.unknownTag.count({ where: { workspaceId } })).toBe(0);
+    expect(await prisma.activityLog.count({ where: { workspaceId, action: 'device.unknown' } })).toBe(0);
     await app.call('PATCH', ws(`/devices/${deviceId}`), admin, { canWrite: true });
   });
 
