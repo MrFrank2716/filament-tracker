@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LogOut, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -15,15 +15,22 @@ import styles from '@/components/settings/Settings.module.css';
 function DailyReportPreference() {
   const { user, updateUser } = useAuth();
   const toast = useToast();
+  // Quick clicks send overlapping saves. Only the newest one's answer may touch the screen,
+  // or an older reply would put back a choice that has since changed.
+  const latest = useRef(0);
   if (!user) return null;
 
   const change = (dailyReportAuto: boolean) => {
     const previous = user;
+    const request = ++latest.current;
     updateUser({ ...user, dailyReportAuto });
     api
       .patch<{ user: User }>('/auth/me/preferences', { dailyReportAuto })
-      .then(({ user: saved }) => updateUser(saved))
+      .then(({ user: saved }) => {
+        if (request === latest.current) updateUser(saved);
+      })
       .catch((error: unknown) => {
+        if (request !== latest.current) return;
         updateUser(previous);
         toast(error instanceof Error ? error.message : 'Could not save your choice', 'danger');
       });
