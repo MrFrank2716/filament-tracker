@@ -135,6 +135,26 @@
     padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
   }
 
+  /* The top bar is the handle: drag it down to close the sheet (useSheetSwipe.ts). The Close button still works. */
+  .header {
+    position: relative;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .header::before {
+    content: '';
+    position: absolute;
+    top: var(--space-1);
+    left: 50%;
+    width: 2.25rem;
+    height: 0.25rem;
+    margin-left: -1.125rem;
+    border-radius: var(--radius-pill);
+    background: var(--color-border-strong);
+  }
+
   .footer > * {
     flex: 1 1 auto;
   }

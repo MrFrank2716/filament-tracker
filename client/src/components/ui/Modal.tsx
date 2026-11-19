@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { Button, IconButton } from '@/components/ui/Button';
+import { useSheetSwipe } from '@/components/ui/useSheetSwipe';
 import styles from '@/components/ui/Modal.module.css';
 
 interface ModalProps {
@@ -55,7 +56,7 @@ function leaveBehind(dialog: HTMLDialogElement) {
   });
 }
 
-/** Native <dialog>: focus trapping and Escape for free. Slides up as a sheet on phones. */
+/** Native <dialog>: focus trapping and Escape for free. On phones it is a sheet that slides up, and can be swiped down by its top bar. */
 export function Modal({ title, onClose, children, footer, onSubmit, size = 'md' }: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -80,10 +81,13 @@ export function Modal({ title, onClose, children, footer, onSubmit, size = 'md' 
         tellWatchers();
       }
       if (!dialog?.open) return;
-      if (!prefersReducedMotion()) leaveBehind(dialog);
+      // Swiped away: it has already slid off the screen, so there is nothing left to fade.
+      if (!prefersReducedMotion() && !dialog.dataset.swiped) leaveBehind(dialog);
       dialog.close();
     };
   }, []);
+
+  const swipe = useSheetSwipe(ref, onClose);
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -92,7 +96,7 @@ export function Modal({ title, onClose, children, footer, onSubmit, size = 'md' 
 
   const content = (
     <>
-      <header className={styles.header}>
+      <header className={styles.header} {...swipe}>
         <h2 className={styles.title}>{title}</h2>
         <IconButton icon={X} label="Close" onClick={onClose} />
       </header>

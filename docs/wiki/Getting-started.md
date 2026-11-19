@@ -56,6 +56,8 @@ The sidebar has one entry per screen. On a phone, four of them sit in a bar at t
 
 A red number on a sidebar entry counts things waiting there: overdue maintenance, items to reorder, requests to check.
 
+On a phone, anything that opens over the screen (an item, a form, **More**) slides up from the bottom. To close it, drag the bar at its top downwards and let go, flick it down, or press the **X**.
+
 ### Search
 
 **Search**, at the top of the sidebar (the magnifying glass at the top of the screen on a phone), finds any page, any section of Settings, any item in your inventory and a few everyday actions such as **Scan a label** or **Sign out**. Type a few letters, move through the results with the up and down arrow keys, and press **Enter** to open the one that is highlighted.
