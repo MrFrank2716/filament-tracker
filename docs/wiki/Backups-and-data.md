@@ -13,6 +13,14 @@ Everything is under **Settings**, **Import / export**. Exporting is open to ever
 
 The workspace export does **not** include members, the activity log, job requests and their uploaded files, connected printers, location displays, or items that were deleted but kept for the jobs that used them. A spool that was on the move comes back with no location.
 
+### Export only some parts
+
+To leave things out of the workspace file, press **Choose what to export** on the **Whole workspace (JSON)** card, tick the parts you want, and press **Download JSON**. The parts are **Categories and fields**, **Units**, **Suppliers**, **Locations**, **Machines**, **Inventory**, **Maintenance** and **Jobs and projects**.
+
+A part brings along what it points at, so the file still imports whole. Ticking **Inventory** also ticks its categories, units, suppliers and locations; **Maintenance** needs **Machines**; **Jobs and projects** needs **Machines** and **Inventory**. Unticking a part unticks whatever needs it. The file is saved with `-selection` at the end of its name and imports the same way as a whole workspace file.
+
+Inventory and machines are linked only loosely, so neither brings the other. Export inventory without machines and the items no longer say which machines they fit; export machines without inventory and their material slots come back empty. The dialog warns you when your choice does this.
+
 Both exports carry each spool's tag (the one a printer reads, or the serial of its NFC sticker; the CSV column is `tag_id`), so a restore does not untie them.
 
 ## Import a workspace file

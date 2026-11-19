@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma, type Json } from '@/db';
 import { HttpError, parse } from '@/http';
 import { parseCsv, toCsv } from '@/services/csv';
-import { exportSnapshot, importSnapshot, snapshotSchema } from '@/services/snapshot';
+import { EXPORT_PARTS, exportSnapshot, importSnapshot, snapshotSchema } from '@/services/snapshot';
 import { normalizeFields } from '@/routes/items';
 import { TAG_PATTERN, tagIsFree } from '@/services/tags';
 
@@ -16,10 +16,22 @@ const toNumber = (value: string | undefined): number | undefined => {
   return Number.isFinite(number) ? number : undefined;
 };
 
+const exportQuery = z.object({
+  include: z
+    .string()
+    .transform((list) => list.split(',').map((part) => part.trim()).filter(Boolean))
+    .pipe(z.array(z.enum(EXPORT_PARTS, 'Unknown part to export')).min(1, 'Choose at least one part to export'))
+    .optional(),
+});
+
 export function registerTransferRoutes(router: Router): void {
-  /** Whole workspace as one JSON document: move it to another environment or keep it as a backup. */
+  /**
+   * The workspace as one JSON document: move it to another environment or keep it as a backup.
+   * `?include=inventory,jobs` narrows it to those parts, plus whatever they need to import cleanly.
+   */
   router.get('/export', async (req, res) => {
-    const snapshot = await exportSnapshot(prisma, req.workspaceId);
+    const { include } = parse(exportQuery, req.query);
+    const snapshot = await exportSnapshot(prisma, req.workspaceId, include);
     res.setHeader('Content-Disposition', 'attachment; filename="workspace.json"');
     res.json(snapshot);
   });

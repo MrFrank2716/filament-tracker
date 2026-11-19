@@ -25,11 +25,20 @@ interface UserRecord {
   themePreset: string;
   themeAccent: string | null;
   navLayout: string | null;
+  dailyReportAuto: boolean;
 }
 
 // Keep in step with NAV_IDS in client/src/lib/navigation.ts.
 const NAV_IDS = ['overview', 'inventory', 'locations', 'jobs', 'maintenance', 'machines', 'reorder', 'activity', 'settings'] as const;
 const MAX_TAB_BAR = 4;
+
+const uniquePages = (ids: readonly string[]) => new Set(ids).size === ids.length;
+/** Pages taken out of one device's navigation. Settings stays, or there would be no way back. */
+const hiddenPages = z
+  .array(z.enum(NAV_IDS))
+  .refine(uniquePages, 'A page can only be hidden once')
+  .refine((ids) => !ids.includes('settings'), 'Settings cannot be hidden')
+  .default([]);
 
 const navigationInput = z.object({
   /** Null puts the standard layout back. */
@@ -37,15 +46,20 @@ const navigationInput = z.object({
     .object({
       order: z
         .array(z.enum(NAV_IDS))
-        .refine((ids) => ids.length === NAV_IDS.length && new Set(ids).size === NAV_IDS.length, 'List every page exactly once'),
+        .refine((ids) => ids.length === NAV_IDS.length && uniquePages(ids), 'List every page exactly once'),
       tabBar: z
         .array(z.enum(NAV_IDS))
         .min(1, 'Keep at least one page in the tab bar')
         .max(MAX_TAB_BAR, `The tab bar holds up to ${MAX_TAB_BAR} pages`)
-        .refine((ids) => new Set(ids).size === ids.length, 'A page can only be in the tab bar once'),
+        .refine(uniquePages, 'A page can only be in the tab bar once'),
+      hiddenDesktop: hiddenPages,
+      hiddenPhone: hiddenPages,
     })
+    .refine((layout) => !layout.tabBar.some((id) => layout.hiddenPhone.includes(id)), 'A page hidden on a phone cannot be in the tab bar')
     .nullable(),
 });
+
+const preferencesInput = z.object({ dailyReportAuto: z.boolean() });
 
 /** Stored as text. Anything unreadable counts as "no custom layout"; the client fills gaps from the standard one. */
 function readNavLayout(stored: string | null): unknown {
@@ -64,6 +78,7 @@ const publicUser = (user: UserRecord) => ({
   isGuest: user.isGuest,
   appearance: { mode: user.themeMode, preset: user.themePreset, accent: user.themeAccent },
   navigation: readNavLayout(user.navLayout),
+  dailyReportAuto: user.dailyReportAuto,
 });
 
 // Keep in step with PRESETS in client/src/lib/themes.ts.
@@ -137,13 +152,20 @@ authRouter.patch('/me/appearance', requireAuth, async (req, res) => {
   res.json({ user: publicUser(user) });
 });
 
-/** Also personal: the order of the main navigation, and what sits in the phone tab bar. */
+/** Also personal: the order of the main navigation, what sits in the phone tab bar, and pages hidden per device. */
 authRouter.patch('/me/navigation', requireAuth, async (req, res) => {
   const { layout } = parse(navigationInput, req.body);
   const user = await prisma.user.update({
     where: { id: req.userId },
     data: { navLayout: layout ? JSON.stringify(layout) : null },
   });
+  res.json({ user: publicUser(user) });
+});
+
+/** Also personal: whether the daily report opens by itself on the first visit of the day. */
+authRouter.patch('/me/preferences', requireAuth, async (req, res) => {
+  const { dailyReportAuto } = parse(preferencesInput, req.body);
+  const user = await prisma.user.update({ where: { id: req.userId }, data: { dailyReportAuto } });
   res.json({ user: publicUser(user) });
 });
 

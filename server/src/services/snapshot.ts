@@ -508,20 +508,59 @@ export async function importSnapshot(db: Db, workspaceId: string, snapshot: Snap
   return summary;
 }
 
-export async function exportSnapshot(db: Db, workspaceId: string): Promise<Snapshot> {
+/** The parts of a workspace that can be picked for an export. Keep in step with client/src/lib/exportParts.ts. */
+export const EXPORT_PARTS = ['categories', 'units', 'suppliers', 'locations', 'machines', 'inventory', 'maintenance', 'jobs'] as const;
+export type ExportPart = (typeof EXPORT_PARTS)[number];
+
+/** What each part points at. Without these the import would drop the rows, or their links. */
+const PART_NEEDS: Record<ExportPart, ExportPart[]> = {
+  units: [],
+  suppliers: [],
+  locations: [],
+  categories: ['units'],
+  machines: ['locations'],
+  inventory: ['categories', 'units', 'suppliers', 'locations'],
+  maintenance: ['machines'],
+  jobs: ['machines', 'inventory'],
+};
+
+/** The chosen parts plus everything they need, so a partial file still imports whole. */
+export function withRequiredParts(parts: Iterable<ExportPart>): Set<ExportPart> {
+  const all = new Set<ExportPart>();
+  const add = (part: ExportPart) => {
+    if (all.has(part)) return;
+    all.add(part);
+    PART_NEEDS[part].forEach(add);
+  };
+  for (const part of parts) add(part);
+  return all;
+}
+
+/**
+ * Everything, or only the given parts (and what they need). Parts left out come back as empty sections.
+ * Inventory and machines link to each other only loosely (which machines an item fits, what sits in a slot);
+ * with one of them left out those links are cleared rather than pulling the other in.
+ */
+export async function exportSnapshot(db: Db, workspaceId: string, parts?: Iterable<ExportPart>): Promise<Snapshot> {
   const workspace = await db.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
+  const want = withRequiredParts(parts ?? EXPORT_PARTS);
   const [units, suppliers, locations, itemTypes, machineTypes, machines, items, subUnits, tasks, projects, jobs] = await Promise.all([
-    db.unit.findMany({ where: { workspaceId }, orderBy: { name: 'asc' } }),
-    db.supplier.findMany({ where: { workspaceId }, orderBy: { name: 'asc' } }),
-    db.location.findMany({ where: { workspaceId }, orderBy: { name: 'asc' } }),
-    db.itemType.findMany({ where: { workspaceId }, orderBy: { sortOrder: 'asc' }, include: { fields: { orderBy: { sortOrder: 'asc' } } } }),
-    db.machineType.findMany({ where: { workspaceId }, orderBy: { name: 'asc' } }),
-    db.machine.findMany({ where: { workspaceId }, orderBy: { createdAt: 'asc' } }),
-    db.item.findMany({ where: { workspaceId, archived: false }, orderBy: { createdAt: 'asc' }, include: { compatibleMachines: { select: { id: true } } } }),
-    db.subUnit.findMany({ where: { workspaceId }, include: { slots: { orderBy: { position: 'asc' } } } }),
-    db.maintenanceTask.findMany({ where: { workspaceId }, include: { logs: { orderBy: { performedAt: 'asc' } } } }),
-    db.project.findMany({ where: { workspaceId }, orderBy: { createdAt: 'asc' } }),
-    db.job.findMany({ where: { workspaceId }, orderBy: { createdAt: 'asc' }, include: { usages: true } }),
+    want.has('units') ? db.unit.findMany({ where: { workspaceId }, orderBy: { name: 'asc' } }) : [],
+    want.has('suppliers') ? db.supplier.findMany({ where: { workspaceId }, orderBy: { name: 'asc' } }) : [],
+    want.has('locations') ? db.location.findMany({ where: { workspaceId }, orderBy: { name: 'asc' } }) : [],
+    want.has('categories')
+      ? db.itemType.findMany({ where: { workspaceId }, orderBy: { sortOrder: 'asc' }, include: { fields: { orderBy: { sortOrder: 'asc' } } } })
+      : [],
+    want.has('machines') ? db.machineType.findMany({ where: { workspaceId }, orderBy: { name: 'asc' } }) : [],
+    want.has('machines') ? db.machine.findMany({ where: { workspaceId }, orderBy: { createdAt: 'asc' } }) : [],
+    want.has('inventory')
+      ? db.item.findMany({ where: { workspaceId, archived: false }, orderBy: { createdAt: 'asc' }, include: { compatibleMachines: { select: { id: true } } } })
+      : [],
+    want.has('machines') ? db.subUnit.findMany({ where: { workspaceId }, include: { slots: { orderBy: { position: 'asc' } } } }) : [],
+    want.has('maintenance') ? db.maintenanceTask.findMany({ where: { workspaceId }, include: { logs: { orderBy: { performedAt: 'asc' } } } }) : [],
+    // Projects only group jobs, so they travel with them.
+    want.has('jobs') ? db.project.findMany({ where: { workspaceId }, orderBy: { createdAt: 'asc' } }) : [],
+    want.has('jobs') ? db.job.findMany({ where: { workspaceId }, orderBy: { createdAt: 'asc' }, include: { usages: true } }) : [],
   ]);
 
   return snapshotSchema.parse({
@@ -552,11 +591,13 @@ export async function exportSnapshot(db: Db, workspaceId: string): Promise<Snaps
       ref: i.id, type: i.itemTypeId, name: i.name, sku: i.sku, quantity: i.quantity, capacity: i.capacity,
       minQuantity: i.minQuantity, unitCost: i.unitCost, unit: i.unitId, supplier: i.supplierId, location: i.locationId,
       notes: i.notes, fields: i.fields, usageHours: i.usageHours, lifeHours: i.lifeHours, wearFlag: i.wearFlag,
-      isRemnant: i.isRemnant, parent: i.parentId, tagId: i.tagId, compatibleMachines: i.compatibleMachines.map((m) => m.id),
+      isRemnant: i.isRemnant, parent: i.parentId, tagId: i.tagId,
+      // Links into a part that was left out could not be restored, so the file does not claim them.
+      compatibleMachines: want.has('machines') ? i.compatibleMachines.map((m) => m.id) : [],
     })),
     subUnits: subUnits.map((s) => ({
       ref: s.id, name: s.name, kind: s.kind, machine: s.machineId, readings: s.readings, statusNote: s.statusNote,
-      slots: s.slots.map((slot) => ({ position: slot.position, label: slot.label, item: slot.itemId })),
+      slots: s.slots.map((slot) => ({ position: slot.position, label: slot.label, item: want.has('inventory') ? slot.itemId : null })),
     })),
     maintenanceTasks: tasks.map((t) => ({
       ref: t.id, name: t.name, description: t.description, machine: t.machineId, machineType: t.machineTypeId,

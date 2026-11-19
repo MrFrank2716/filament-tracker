@@ -40,7 +40,7 @@ A template only fills things in for you. Everything stays editable afterwards.
 
 ## Find your way around
 
-The sidebar has one entry per screen. On a phone, four of them sit in a bar at the bottom and the rest are under **More**. You can change the order, and which four go in the phone bar, under [Settings, Navigation](Catalogue-and-settings.md#navigation).
+The sidebar has one entry per screen. On a phone, four of them sit in a bar at the bottom and the rest are under **More**. You can change the order, hide pages you do not use, and choose which four go in the phone bar, under [Settings, Navigation](Catalogue-and-settings.md#navigation).
 
 | Screen | What it is for | Guide |
 | --- | --- | --- |
