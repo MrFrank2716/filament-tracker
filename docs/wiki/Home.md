@@ -28,6 +28,7 @@ New here? Start with **[Getting started](Getting-started.md)**.
 | [Connecting printers](Connecting-printers.md) | Step by step: add a bridge, connect a Bambu Lab printer, check it works |
 | [AMS and spools](AMS-and-spools.md) | What appears once a printer is connected, and how spools get linked to stock |
 | [Spool tags (OpenSpool)](Spool-tags.md) | NFC stickers that open a spool when tapped, and "scan, then insert" for spools the printer cannot identify |
+| [Location displays](Location-displays.md) | A small touch screen on a shelf or dry box that shows what is stored there, with an optional tag reader |
 | [Prints and filament use](Prints-and-filament-use.md) | How prints become jobs and how the filament they use is taken from stock |
 | [Bridge reference](Bridge-reference.md) | Running, updating and moving the bridge; commands; what to do when something is wrong |
 

@@ -25,7 +25,7 @@ let userId: string;
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), 'wrkbench-reference-'));
   const url = `file:${join(dir, 'test.db')}`;
-  execFileSync('npx', ['prisma', 'migrate', 'deploy'], { cwd: serverDir, env: { ...process.env, DATABASE_URL: url }, stdio: 'pipe' });
+  execFileSync('npx', ['prisma', 'migrate', 'deploy'], { cwd: serverDir, env: { ...process.env, DATABASE_URL: url }, stdio: 'pipe', shell: process.platform === 'win32' });
   db = new PrismaClient({ datasourceUrl: url });
 }, 60_000);
 

@@ -48,3 +48,7 @@ An admin can also set one item's location on its **Edit** form.
 **Print label** on a location prints a QR label for it; **Print all … labels here** prints one for it and for every location inside it, and **Print all … labels** on the main page prints the lot. Scanning a location's label opens its page, ready to see what belongs there or to put things away.
 
 How labels are printed, and what scanning does, is on [Labels and scanning](Labels-and-scanning.md).
+
+## A screen on the shelf
+
+A [location display](Location-displays.md) is a small touch screen fixed to a location that shows what is stored there and how much is left, and updates by itself.

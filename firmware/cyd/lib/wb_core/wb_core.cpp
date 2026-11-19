@@ -1,0 +1,232 @@
+#include "wb_core.h"
+
+#include <ArduinoJson.h>
+#include <ctype.h>
+#include <stdio.h>
+#include <string.h>
+#include <strings.h>
+
+namespace wb {
+
+void copyText(char *out, size_t outLen, const char *in) {
+  if (!out || outLen == 0) return;
+  if (!in) in = "";
+  size_t n = strlen(in);
+  if (n >= outLen) n = outLen - 1;
+  memcpy(out, in, n);
+  out[n] = '\0';
+}
+
+bool parseColor(const char *text, uint32_t &out) {
+  if (!text || strlen(text) != 7 || text[0] != '#') return false;
+  uint32_t value = 0;
+  for (int i = 1; i < 7; i++) {
+    const char c = static_cast<char>(tolower(static_cast<unsigned char>(text[i])));
+    value <<= 4;
+    if (c >= '0' && c <= '9') value |= static_cast<uint32_t>(c - '0');
+    else if (c >= 'a' && c <= 'f') value |= static_cast<uint32_t>(c - 'a' + 10);
+    else return false;
+  }
+  out = value;
+  return true;
+}
+
+static void readItem(JsonObjectConst row, Item &item) {
+  copyText(item.id, sizeof item.id, row["id"] | "");
+  copyText(item.name, sizeof item.name, row["name"] | "");
+  copyText(item.sub, sizeof item.sub, row["sub"] | "");
+  copyText(item.qty, sizeof item.qty, row["qty"] | "");
+  copyText(item.at, sizeof item.at, row["at"] | "");
+  item.hasColor = parseColor(row["color"] | "", item.color);
+  if (!item.hasColor) item.color = 0;
+  item.fill = row["fill"].is<float>() ? row["fill"].as<float>() : -1.0f;
+  if (item.fill > 1.0f) item.fill = 1.0f;
+  item.low = row["low"] | false;
+  item.tagged = row["tagged"] | false;
+}
+
+static Tone readTone(const char *text) {
+  if (strcmp(text, "ok") == 0) return Tone::Ok;
+  if (strcmp(text, "busy") == 0) return Tone::Busy;
+  if (strcmp(text, "warn") == 0) return Tone::Warn;
+  if (strcmp(text, "error") == 0) return Tone::Error;
+  return Tone::Off;
+}
+
+static void readPrinter(JsonObjectConst p, PrinterInfo &out) {
+  copyText(out.name, sizeof out.name, p["name"] | "");
+  copyText(out.state, sizeof out.state, p["state"] | "");
+  out.tone = readTone(p["tone"] | "off");
+  out.progress = p["progress"].is<float>() ? p["progress"].as<float>() : -1.0f;
+  if (out.progress > 1.0f) out.progress = 1.0f;
+  copyText(out.left, sizeof out.left, p["left"] | "");
+  copyText(out.job, sizeof out.job, p["job"] | "");
+  copyText(out.layer, sizeof out.layer, p["layer"] | "");
+  copyText(out.temps, sizeof out.temps, p["temps"] | "");
+  copyText(out.error, sizeof out.error, p["error"] | "");
+  out.trayCount = 0;
+  for (JsonObjectConst t : p["trays"].as<JsonArrayConst>()) {
+    if (out.trayCount >= MAX_TRAYS) break;
+    TrayInfo &tray = out.trays[out.trayCount++];
+    copyText(tray.label, sizeof tray.label, t["label"] | "");
+    copyText(tray.material, sizeof tray.material, t["material"] | "");
+    tray.hasColor = parseColor(t["color"] | "", tray.color);
+    if (!tray.hasColor) tray.color = 0;
+    tray.active = t["active"] | false;
+    tray.empty = t["empty"] | false;
+  }
+}
+
+bool parseOverview(const char *json, size_t len, Overview &out) {
+  JsonDocument doc;
+  if (deserializeJson(doc, json, len) != DeserializationError::Ok || !doc.is<JsonObject>()) return false;
+  if (!doc["v"].is<const char *>()) return false;
+  memset(&out, 0, sizeof out);
+  copyText(out.v, sizeof out.v, doc["v"]);
+  out.poll = doc["poll"] | 30;
+  if (out.poll < 10) out.poll = 10;
+  if (out.poll > 600) out.poll = 600;
+  copyText(out.workspace, sizeof out.workspace, doc["workspace"] | "");
+  copyText(out.device, sizeof out.device, doc["device"] | "");
+  out.canWrite = doc["canWrite"] | false;
+  JsonObjectConst location = doc["location"];
+  out.hasLocation = !location.isNull();
+  if (out.hasLocation) {
+    copyText(out.location.id, sizeof out.location.id, location["id"] | "");
+    copyText(out.location.name, sizeof out.location.name, location["name"] | "");
+    copyText(out.path, sizeof out.path, location["path"] | "");
+  }
+  out.total = doc["total"] | 0;
+  out.lowCount = doc["lowCount"] | 0;
+  for (JsonObjectConst row : doc["items"].as<JsonArrayConst>()) {
+    if (out.itemCount >= MAX_ITEMS) break;
+    readItem(row, out.items[out.itemCount++]);
+  }
+  for (JsonObjectConst row : doc["locations"].as<JsonArrayConst>()) {
+    if (out.placeCount >= MAX_LOCATIONS) break;
+    Place &place = out.places[out.placeCount++];
+    copyText(place.id, sizeof place.id, row["id"] | "");
+    copyText(place.name, sizeof place.name, row["name"] | "");
+  }
+  if (out.total < static_cast<int>(out.itemCount)) out.total = static_cast<int>(out.itemCount);
+  JsonObjectConst printer = doc["printer"];
+  out.hasPrinter = !printer.isNull();
+  if (out.hasPrinter) readPrinter(printer, out.printer);
+  return true;
+}
+
+bool parseTag(const char *json, size_t len, TagInfo &out) {
+  JsonDocument doc;
+  if (deserializeJson(doc, json, len) != DeserializationError::Ok || !doc["known"].is<bool>()) return false;
+  memset(&out, 0, sizeof out);
+  out.known = doc["known"];
+  copyText(out.uid, sizeof out.uid, doc["uid"] | "");
+  out.canLink = doc["canLink"] | false;
+  if (!out.known) return true;
+  JsonObjectConst item = doc["item"];
+  readItem(item, out.item);
+  copyText(out.where, sizeof out.where, item["location"] | "");
+  out.here = item["here"] | false;
+  out.canPutAway = doc["canPutAway"] | false;
+  JsonObjectConst insert = doc["insertInto"];
+  out.canInsert = !insert.isNull();
+  if (out.canInsert) copyText(out.printer, sizeof out.printer, insert["name"] | "");
+  return true;
+}
+
+bool parsePair(const char *json, size_t len, PairResult &out) {
+  JsonDocument doc;
+  if (deserializeJson(doc, json, len) != DeserializationError::Ok) return false;
+  const char *token = doc["token"] | "";
+  if (strncmp(token, "wbd_", 4) != 0 || strlen(token) >= sizeof out.token) return false;
+  memset(&out, 0, sizeof out);
+  copyText(out.token, sizeof out.token, token);
+  copyText(out.deviceName, sizeof out.deviceName, doc["deviceName"] | "");
+  copyText(out.workspaceName, sizeof out.workspaceName, doc["workspaceName"] | "");
+  return true;
+}
+
+bool parseItemList(const char *json, size_t len, ItemList &out) {
+  JsonDocument doc;
+  if (deserializeJson(doc, json, len) != DeserializationError::Ok || !doc["items"].is<JsonArray>()) return false;
+  out.count = 0;
+  for (JsonObjectConst row : doc["items"].as<JsonArrayConst>()) {
+    if (out.count >= MAX_ITEMS) break;
+    readItem(row, out.items[out.count++]);
+  }
+  return true;
+}
+
+void parseMessage(const char *json, size_t len, char *out, size_t outLen) {
+  copyText(out, outLen, "");
+  JsonDocument doc;
+  if (deserializeJson(doc, json, len) != DeserializationError::Ok) return;
+  const char *text = doc["error"] | (doc["message"] | "");
+  copyText(out, outLen, text);
+}
+
+bool normalizeCode(const char *in, char *out, size_t outLen) {
+  size_t n = 0;
+  for (const char *p = in ? in : ""; *p && n + 1 < outLen; p++) {
+    const char c = static_cast<char>(toupper(static_cast<unsigned char>(*p)));
+    if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) out[n++] = c;
+  }
+  if (outLen) out[n] = '\0';
+  return n == 12;
+}
+
+bool normalizeServer(const char *in, char *out, size_t outLen) {
+  if (!in || !out || outLen < 12) return false;
+  while (*in && isspace(static_cast<unsigned char>(*in))) in++;
+  size_t len = strlen(in);
+  while (len && (isspace(static_cast<unsigned char>(in[len - 1])) || in[len - 1] == '/')) len--;
+  if (len == 0) return false;
+  const char *scheme = strstr(in, "://");
+  char buffer[160];
+  if (scheme && static_cast<size_t>(scheme - in) < len) {
+    const size_t schemeLen = static_cast<size_t>(scheme - in);
+    // Phones like to capitalise the first letter: "Https://" is still https.
+    if (!((schemeLen == 4 && strncasecmp(in, "http", 4) == 0) || (schemeLen == 5 && strncasecmp(in, "https", 5) == 0))) return false;
+    if (len - schemeLen <= 3) return false;
+    if (len >= sizeof buffer) return false;
+    memcpy(buffer, in, len);
+    buffer[len] = '\0';
+  } else {
+    if (len + 7 >= sizeof buffer) return false;
+    memcpy(buffer, "http://", 7);
+    memcpy(buffer + 7, in, len);
+    buffer[len + 7] = '\0';
+  }
+  // A scheme typed in capitals still works.
+  for (char *p = buffer; *p && *p != ':'; p++) *p = static_cast<char>(tolower(static_cast<unsigned char>(*p)));
+  if (strlen(buffer) >= outLen) return false;
+  copyText(out, outLen, buffer);
+  return true;
+}
+
+bool isHttps(const char *url) { return url && strncmp(url, "https://", 8) == 0; }
+
+void uidToHex(const uint8_t *uid, size_t len, char *out, size_t outLen) {
+  static const char HEX_DIGITS[] = "0123456789ABCDEF";
+  size_t n = 0;
+  for (size_t i = 0; i < len && n + 2 < outLen; i++) {
+    out[n++] = HEX_DIGITS[uid[i] >> 4];
+    out[n++] = HEX_DIGITS[uid[i] & 0x0F];
+  }
+  if (outLen) out[n] = '\0';
+}
+
+uint32_t backoffMs(unsigned failures) {
+  if (failures == 0) return 0;
+  uint32_t delay = 5000;
+  for (unsigned i = 1; i < failures && delay < 300000; i++) delay *= 2;
+  return delay > 300000 ? 300000 : delay;
+}
+
+void formatAgo(uint32_t seconds, char *out, size_t outLen) {
+  if (seconds < 60) snprintf(out, outLen, "just now");
+  else if (seconds < 3600) snprintf(out, outLen, "%u min ago", static_cast<unsigned>(seconds / 60));
+  else snprintf(out, outLen, "%u h ago", static_cast<unsigned>(seconds / 3600));
+}
+
+}  // namespace wb

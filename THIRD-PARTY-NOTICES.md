@@ -20,6 +20,11 @@ The bridge (`bridge/`) adds `mqtt` (MQTT.js, MIT) and `socket.io-client` (MIT).
 Labels and scanning use `qrcode-generator` (MIT, Kazuhiko Arase) to draw QR codes and `jsqr` (Apache-2.0) to read
 them where the browser has no reader of its own. "QR Code" is a registered trademark of DENSO WAVE INCORPORATED.
 
+The location display firmware (`firmware/cyd/`) is built on the Arduino core for the ESP32 (LGPL-2.1, Espressif) and
+uses LVGL (MIT), TFT_eSPI (FreeBSD and MIT, Bodmer), XPT2046_Touchscreen (MIT, Paul Stoffregen), ArduinoJson (MIT,
+Benoit Blanchon), WiFiManager (MIT, tzapu) and the Adafruit PN532 library (BSD). Its tests use Unity (MIT,
+ThrowTheSwitch). The root certificates in `firmware/cyd/src/app/certs.h` come from the Mozilla CA bundle (MPL-2.0).
+
 Spool tags are written in the OpenSpool format (https://github.com/spuder/OpenSpool). The format was followed from
 its public description; no OpenSpool code is included.
 

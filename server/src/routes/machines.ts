@@ -172,6 +172,8 @@ export function registerMachineRoutes(router: Router): void {
 
     const updated = await prisma.$transaction(async (tx) => {
       if (itemId) await tx.slot.updateMany({ where: { itemId, NOT: { id: slot.id } }, data: { itemId: null, source: 'manual' } });
+      // Loaded by hand: wherever it was on its way to, it has arrived.
+      if (itemId) await tx.item.updateMany({ where: { id: itemId, outSince: { not: null } }, data: { outSince: null } });
       // On a printer-read slot, remember what the tray held when a member chose: their choice then stands until
       // the spool in the tray is physically swapped.
       const detected = slot.detected as Detected | null;

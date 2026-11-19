@@ -15,16 +15,19 @@ import { FormGrid, NumberField, SelectField } from '@/components/ui/Form';
 import { AddChooser } from '@/components/reference/AddChooser';
 import { ReferencePicker } from '@/components/reference/ReferencePicker';
 import { useMachineFocus } from '@/context/FocusContext';
-import { useWorkspace } from '@/context/WorkspaceContext';
+import { useAction } from '@/components/ui/Toast';
+import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import { useCatalog, useItems } from '@/hooks/useCatalog';
 import { fits, flattenLocations, formatQuantity, isLow, isWorn, locationPath, locationScope as scopeOf, parseNumber, summarizeFields } from '@/lib/format';
+import { api } from '@/lib/api';
 import { itemLabel } from '@/lib/labels';
+import { fromOpenSpool } from '@/lib/openspool';
 import { ITEM_KINDS } from '@/lib/reference';
-import type { Item } from '@/lib/types';
+import type { Item, UnknownTag } from '@/lib/types';
 import itemStyles from '@/components/items/Items.module.css';
 import styles from '@/pages/InventoryPage.module.css';
 
-type Flag = 'low' | 'worn' | 'offcut' | 'loaded';
+type Flag = 'low' | 'worn' | 'offcut' | 'loaded' | 'out';
 type Sort = 'name' | 'quantity' | 'recent';
 type View = 'list' | BoardGrouping;
 
@@ -55,11 +58,17 @@ const FLAGS: Array<{ id: Flag; label: string; test: (item: Item) => boolean }> =
   { id: 'worn', label: 'Worn', test: isWorn },
   { id: 'offcut', label: 'Offcuts', test: (item) => item.isRemnant },
   { id: 'loaded', label: 'Loaded in a machine', test: (item) => item.slot !== null },
+  // Taken out at a location display and not yet put away or loaded.
+  { id: 'out', label: 'On the move', test: (item) => Boolean(item.outSince) && item.slot === null },
 ];
 
 export function InventoryPage() {
-  const { canEdit } = useWorkspace();
+  const { canEdit, canOperate, wsPath } = useWorkspace();
+  const { run } = useAction();
   const catalog = useCatalog();
+  // Bambu Lab spools tapped on a location display that nothing in stock is tied to yet.
+  const { data: unknownTags } = useWsQuery<UnknownTag[]>('/unknown-tags');
+  const [settling, setSettling] = useState<UnknownTag | null>(null);
   const { items: allItems, loading, error } = useItems();
   const { machine, relates } = useMachineFocus();
   // With one machine in focus, the inventory is what is loaded in it and what fits it.
@@ -236,7 +245,7 @@ export function InventoryPage() {
         </ChipRow>
 
         <ChipRow label="Status">
-          {FLAGS.map((flag) => (
+          {FLAGS.filter((flag) => flag.id !== 'out' || flags.has('out') || items.some(flag.test)).map((flag) => (
             <Chip key={flag.id} active={flags.has(flag.id)} onClick={() => toggleFlag(flag.id)} count={items.filter(flag.test).length}>
               {flag.label}
             </Chip>
@@ -299,6 +308,18 @@ export function InventoryPage() {
         )}
       </div>
 
+      {canOperate && unknownTags && unknownTags.length > 0 && (
+        <div className={styles.notice}>
+          <span>
+            <strong>{unknownTags.length === 1 ? 'A spool tapped on a display is not in stock yet.' : `${unknownTags.length} spools tapped on a display are not in stock yet.`}</strong>{' '}
+            Say which spool each one is, or add it.
+          </span>
+          <Button variant="primary" onClick={() => setSettling(unknownTags[0])}>
+            {unknownTags.length === 1 ? 'Sort it out' : 'Sort them out'}
+          </Button>
+        </div>
+      )}
+
       {items.length > 0 && <Tabs tabs={VIEWS} active={view} onChange={changeView} />}
 
       {items.length === 0 ? (
@@ -338,7 +359,7 @@ export function InventoryPage() {
             const colourValue = colour ? item.fields[colour.key] : null;
             const low = isLow(item);
             const worn = isWorn(item);
-            const place = item.slot ? `${item.slot.subUnit.name} · slot ${item.slot.position}` : (catalog.locationById.get(item.locationId ?? '')?.name ?? '');
+            const place = item.slot ? `${item.slot.subUnit.name} · slot ${item.slot.position}` : item.outSince ? 'On the move' : (catalog.locationById.get(item.locationId ?? '')?.name ?? '');
             const summary = [itemType ? summarizeFields(itemType.fields, item.fields) : '', place].filter(Boolean).join(' · ');
             return (
               <Row
@@ -403,7 +424,7 @@ export function InventoryPage() {
       {readingTag && <ScanDialog title="Read a spool tag" hint="Hold an OpenSpool sticker to the phone, scan a label, or paste the tag's contents below." onClose={() => setReadingTag(false)} />}
       {spoolTag && !form && (
         <TagImportDialog
-          record={spoolTag.record}
+          detected={fromOpenSpool(spoolTag.record)}
           tagId={spoolTag.tagId}
           items={allItems}
           catalog={catalog}
@@ -412,6 +433,27 @@ export function InventoryPage() {
           onAdd={(initial) => {
             dropSpoolTag();
             setForm({ initial });
+          }}
+        />
+      )}
+      {settling && !form && (
+        <TagImportDialog
+          detected={settling.detected}
+          tagId={settling.tagId}
+          locationId={settling.device?.locationId}
+          items={allItems}
+          catalog={catalog}
+          onClose={() => setSettling(null)}
+          onOpen={(item) => {
+            setSettling(null);
+            open(item.id);
+          }}
+          onAdd={(initial) => {
+            setSettling(null);
+            setForm({ initial });
+          }}
+          onDismiss={async () => {
+            if (await run(() => api.delete(wsPath(`/unknown-tags/${settling.id}`)!), 'Forgotten')) setSettling(null);
           }}
         />
       )}

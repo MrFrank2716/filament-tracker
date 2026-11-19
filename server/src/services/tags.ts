@@ -13,6 +13,8 @@ export const TAG_PATTERN = /^[A-Z0-9]{4,64}$/;
 export async function assignTag(db: Db, workspaceId: string, itemId: string, tagId: string | null): Promise<void> {
   if (tagId) await db.item.updateMany({ where: { workspaceId, tagId, NOT: { id: itemId } }, data: { tagId: null } });
   await db.item.update({ where: { id: itemId }, data: { tagId } });
+  // A spool read at a display's reader and waiting to be told what it is: now it has been.
+  if (tagId) await db.unknownTag.deleteMany({ where: { workspaceId, tagId } });
 }
 
 /** Whether a tag is free to give to a new item without taking it from one in stock. */

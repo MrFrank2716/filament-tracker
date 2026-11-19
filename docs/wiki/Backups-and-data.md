@@ -11,7 +11,7 @@ Everything is under **Settings**, **Import / export**. Exporting is open to ever
 | **Whole workspace (JSON)** | Categories and their fields, units, suppliers, locations, machine types, machines and their attached hardware, inventory, maintenance tasks and their service history, projects, and jobs | A backup you keep yourself, or copying a workspace into another one |
 | **Inventory (CSV)** | One row per item, with a column for every custom field | Opening your stock in a spreadsheet |
 
-The workspace export does **not** include members, the activity log, job requests and their uploaded files, or connected printers.
+The workspace export does **not** include members, the activity log, job requests and their uploaded files, or connected printers. A spool that was on the move comes back with no location.
 
 Both exports carry each spool's tag (the one a printer reads, or the serial of its NFC sticker; the CSV column is `tag_id`), so a restore does not untie them.
 

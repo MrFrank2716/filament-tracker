@@ -35,6 +35,26 @@ export async function moveStock(db: Db, { workspaceId, itemId, delta, reason, no
   noteMovement(movement.id);
 }
 
+/**
+ * Put items away somewhere else (null: nowhere). Items already there are left alone. Given a place, an item is
+ * no longer "on the move". Returns what moved and a
+ * sentence for the activity log; the caller writes the entry, since a member and a location display log differently.
+ */
+export async function moveItems(db: Db, workspaceId: string, itemIds: string[], locationId: string | null) {
+  const ids = [...new Set(itemIds)];
+  await assertInWorkspace(db, workspaceId, { item: ids, location: locationId });
+  const [location, items] = await Promise.all([
+    locationId ? db.location.findUnique({ where: { id: locationId }, select: { name: true } }) : null,
+    db.item.findMany({ where: { id: { in: ids }, workspaceId }, select: { id: true, name: true, locationId: true }, orderBy: { name: 'asc' } }),
+  ]);
+  const moving = items.filter((item) => item.locationId !== locationId);
+  if (moving.length) await db.item.updateMany({ where: { id: { in: moving.map((item) => item.id) }, workspaceId }, data: { locationId, ...(locationId ? { outSince: null } : {}) } });
+  const what = moving.length === 1 ? moving[0].name : `${moving.length} items`;
+  const summary =
+    moving.length === 0 ? 'Moved nothing: already there' : location ? `Moved ${what} to ${location.name}` : `Took ${what} out of ${moving.length === 1 ? 'its' : 'their'} location`;
+  return { moved: moving, summary, entityId: moving.length === 1 ? moving[0].id : null };
+}
+
 /** Ensure referenced rows belong to this workspace before linking to them. */
 export async function assertInWorkspace(
   db: Db,

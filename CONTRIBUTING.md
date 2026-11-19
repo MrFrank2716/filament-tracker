@@ -31,8 +31,28 @@ Run these from the root of the repository.
 | `npm run db:seed` | Add the demo account and example maker space |
 | `npm run db:reset` | Wipe the development database and seed it again |
 | `npm run bridge -- ...` | Run the printer bridge from source. See the [Bridge reference](docs/wiki/Bridge-reference.md) |
+| `pio run -d firmware/cyd` | Build the location display firmware (needs [PlatformIO](https://platformio.org/)). See [firmware/README.md](firmware/README.md) |
+| `pio run -d firmware/cyd -e cyd-st7789 -t upload` | Build and flash a display plugged in by USB |
 
 There is no linter or formatter set up yet, and no CI that runs the tests. Please run `npm test` and `npm run typecheck` before opening a pull request.
+
+## Where each branch runs
+
+The hosted Wrkbench has two copies, each built from this repository by the host whenever its branch changes:
+
+| Copy | Built from | When it changes |
+| --- | --- | --- |
+| **Production** | `main` | Every merge into `main` goes live |
+| **Staging** | One chosen branch, at the time of writing the location display branch | Every push to that branch |
+
+Each copy has its own database. A new migration is applied when the server starts (`npm run db:deploy`, the image's start command), so:
+
+- **Merging into `main` is a release.** Try the change on staging first.
+- **A migration cannot be taken back by reverting the merge.** The database keeps the new tables and columns. Check a migration on staging before it reaches production.
+- **Pushing to the staging branch changes staging's data too**, when the push carries a migration.
+- **To try a different piece of work on staging**, point staging at that branch in the host's settings.
+
+The display firmware in `firmware/cyd` is not part of any of this: it is flashed onto a display by hand, and a display keeps working with a newer server.
 
 ### Running two copies
 
@@ -58,6 +78,7 @@ This is an npm workspaces monorepo, all TypeScript, with four packages:
 | `client/` | The web app: React, Vite, CSS Modules. Installable as a PWA |
 | `bridge/` | A separate command-line program that reads Bambu Lab printers on a workshop's network and reports to the server |
 | `protocol/` | The messages the server and the bridge exchange, shared by both |
+| `firmware/` | Firmware for Wrkbench's own hardware: the CYD location display. Built with PlatformIO, not an npm workspace |
 
 Where to find things:
 

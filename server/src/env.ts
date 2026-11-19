@@ -26,6 +26,9 @@ const schema = z.object({
   PRINTER_MAX_PER_BRIDGE: z.coerce.number().int().min(1).max(64).default(20),
   // The container image named in the set-up command shown to admins.
   BRIDGE_IMAGE: z.string().default('ghcr.io/hussxin5046/wrkbench-bridge:latest'),
+  // Location displays: small screens on shelves that show what is stored there. DEVICES_ENABLED=false refuses them.
+  DEVICES_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
+  DEVICE_MAX_PER_WORKSPACE: z.coerce.number().int().min(0).max(100).default(5),
   UPLOAD_EXTENSIONS: z.string().default('3mf,stl,step,stp,obj,amf,gcode,nc,svg,dxf,pdf,png,jpg,jpeg,txt'),
 });
 

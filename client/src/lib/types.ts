@@ -106,6 +106,8 @@ export interface Item {
   parentId: string | null;
   /** The id on the spool's own tag, as a connected printer read it. */
   tagId: string | null;
+  /** When it was taken out at a location display's reader; set while the spool is "on the move". */
+  outSince: string | null;
   compatibleMachineIds: string[];
   slot: { position: number; label: string; subUnit: { id: string; name: string; machineId: string | null } } | null;
   updatedAt: string;
@@ -545,6 +547,46 @@ export interface Bridge {
   printerCount: number;
   /** Only in the answer to creating a bridge or asking for a new code. */
   pairing?: Pairing;
+}
+
+export interface DevicePairing {
+  code: string;
+  expiresAt: string;
+  /** The address the display is told to reach this server at. */
+  server: string;
+}
+
+/** A location display: a small screen on a shelf that shows what is stored there. */
+export interface Device {
+  id: string;
+  name: string;
+  kind: string;
+  locationId: string | null;
+  locationName: string | null;
+  /** The printer it sits beside, for "this spool goes in next" from a tapped tag. */
+  machineId: string | null;
+  machineName: string | null;
+  /** Whether tapping a tag on it may move items, mark a spool for the printer or link a tag. */
+  canWrite: boolean;
+  model: string;
+  version: string;
+  hasReader: boolean;
+  lastSeenAt: string | null;
+  createdAt: string;
+  online: boolean;
+  paired: boolean;
+  pairingExpiresAt: string | null;
+  /** Only in the answer to adding a display or asking for a new code. */
+  pairing?: DevicePairing;
+}
+
+/** A Bambu Lab spool tapped on a location display that nothing in stock is tied to yet. */
+export interface UnknownTag {
+  id: string;
+  tagId: string;
+  detected: Detected;
+  createdAt: string;
+  device: { name: string; locationId: string | null } | null;
 }
 
 export interface PrinterLink {

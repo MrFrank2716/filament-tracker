@@ -76,3 +76,16 @@
     display: contents;
   }
 }
+
+/* Something waiting for a decision: spools read at a location display that are not in stock yet. */
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}

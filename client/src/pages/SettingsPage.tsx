@@ -6,6 +6,7 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Building2, LogOut, Plus, Ruler, Shapes, Trash2, Truck } from 'lucide-react';
 import { CrudSection } from '@/components/settings/CrudSection';
 import { DataSection } from '@/components/settings/DataSection';
+import { DevicesSection } from '@/components/settings/DevicesSection';
 import { MembersSection } from '@/components/settings/MembersSection';
 import { PrintersSection } from '@/components/settings/PrintersSection';
 import { RequestLinkSection } from '@/components/settings/RequestLinkSection';
@@ -23,7 +24,7 @@ import { LegalLinks } from '@/pages/LegalPages';
 import type { ItemType } from '@/lib/types';
 import styles from '@/components/settings/Settings.module.css';
 
-type Tab = 'general' | 'categories' | 'units' | 'machineTypes' | 'suppliers' | 'members' | 'printers' | 'requests' | 'data' | 'appearance' | 'navigation' | 'account';
+type Tab = 'general' | 'categories' | 'units' | 'machineTypes' | 'suppliers' | 'members' | 'printers' | 'devices' | 'requests' | 'data' | 'appearance' | 'navigation' | 'account';
 
 /** Workspace sections are shared by every member; the personal ones belong to whoever is signed in. */
 const TABS: Array<{ id: Tab; label: string; personal?: boolean }> = [
@@ -34,6 +35,7 @@ const TABS: Array<{ id: Tab; label: string; personal?: boolean }> = [
   { id: 'suppliers', label: 'Suppliers' },
   { id: 'members', label: 'Members' },
   { id: 'printers', label: 'Printers' },
+  { id: 'devices', label: 'Displays' },
   { id: 'requests', label: 'Job requests' },
   { id: 'data', label: 'Import / export' },
   { id: 'appearance', label: 'Appearance', personal: true },
@@ -195,6 +197,7 @@ export function SettingsPage() {
 
         {tab === 'members' && <MembersSection />}
         {tab === 'printers' && <PrintersSection catalog={catalog} />}
+        {tab === 'devices' && <DevicesSection catalog={catalog} />}
         {tab === 'requests' && <RequestLinkSection />}
         {tab === 'data' && <DataSection catalog={catalog} />}
         {tab === 'appearance' && (
