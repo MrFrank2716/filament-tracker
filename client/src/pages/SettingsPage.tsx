@@ -12,7 +12,7 @@ import { PrintersSection } from '@/components/settings/PrintersSection';
 import { RequestLinkSection } from '@/components/settings/RequestLinkSection';
 import { TypeEditor } from '@/components/settings/TypeEditor';
 import { Button } from '@/components/ui/Button';
-import { EmptyState, ErrorNote, Figure, List, Loading, Muted, PageHeader, Row, SectionTitle, TypeIcon } from '@/components/ui/Display';
+import { EmptyState, ErrorNote, Figure, List, Muted, PageHeader, PageSkeleton, Row, SectionTitle, TypeIcon } from '@/components/ui/Display';
 import { FormGrid, NumberField, SelectField, TextAreaField, TextField } from '@/components/ui/Form';
 import { useConfirm } from '@/components/ui/Modal';
 import { useAction } from '@/components/ui/Toast';
@@ -59,7 +59,7 @@ export function SettingsPage() {
   // Locations used to be a section here; they have a page of their own now, and old links still land there.
   if (params.get('tab') === 'locations') return <Navigate to="/locations" replace />;
   if (catalog.error) return <ErrorNote>{catalog.error}</ErrorNote>;
-  if (catalog.loading) return <Loading />;
+  if (catalog.loading) return <PageSkeleton title="Settings" subtitle="Categories, units, suppliers and people for this workspace, and your own preferences." filters />;
 
   return (
     <>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { History, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Badge, Chip, ChipRow, EmptyState, ErrorNote, List, Loading, Muted, PageHeader, Row } from '@/components/ui/Display';
+import { Badge, Chip, ChipRow, EmptyState, ErrorNote, List, Muted, PageHeader, PageSkeleton, Row } from '@/components/ui/Display';
 import { useConfirm } from '@/components/ui/Modal';
 import { useAction } from '@/components/ui/Toast';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
@@ -28,7 +28,7 @@ export function ActivityPage() {
   const [filter, setFilter] = useState<Filter>('all');
 
   if (error) return <ErrorNote>{error}</ErrorNote>;
-  if (!entries) return <Loading />;
+  if (!entries) return <PageSkeleton title="Activity" filters count={8} />;
 
   const match = FILTERS.find((f) => f.id === filter)!.match;
   const shown = entries.filter(match);

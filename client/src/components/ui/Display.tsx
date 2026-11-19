@@ -129,7 +129,7 @@ export function SectionTitle({ children, action, count }: { children: ReactNode;
   );
 }
 
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
+export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
     <header className={styles.pageHeader}>
       <div className={styles.pageHeading}>
@@ -170,6 +170,73 @@ export function Loading({ label = 'Loading' }: { label?: string }) {
       <LoaderCircle size={20} className={styles.spin} aria-hidden />
       <span>{label}</span>
     </div>
+  );
+}
+
+/** A grey block standing in for a line of text while it loads. */
+function Bone({ size }: { size: 'sm' | 'md' | 'lg' | 'title' | 'chip' }) {
+  return <span className={`${styles.bone} ${styles[`bone-${size}`]}`} />;
+}
+
+const BONE_WIDTHS = ['lg', 'md', 'lg', 'sm', 'md'] as const;
+
+interface PageSkeletonProps {
+  /** The page's real title: it is known before the data is, so it never moves. */
+  title: string;
+  /** The real subtitle when it does not depend on the data; otherwise a grey line holds its place. */
+  subtitle?: string;
+  /** What the page's content is shaped like once loaded. */
+  layout?: 'list' | 'cards';
+  /** A row of filter chips or tabs sits above the content. */
+  filters?: boolean;
+  count?: number;
+}
+
+/**
+ * A page while its data loads: grey blocks laid out by the same header, list, row and card components the
+ * loaded page uses, so nothing jumps when the content arrives. Like Loading, it waits 300 ms before showing.
+ */
+export function PageSkeleton({ title, subtitle, layout = 'list', filters = false, count = 6 }: PageSkeletonProps) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSlow(true), 300);
+    return () => window.clearTimeout(timer);
+  }, []);
+  const places = Array.from({ length: count }, (_, i) => i);
+  return (
+    <>
+      <PageHeader title={title} subtitle={subtitle ?? (slow ? <Bone size="lg" /> : undefined)} />
+      {slow && (
+        <div className={styles.skeleton} role="status" aria-label={`Loading ${title.toLowerCase()}`}>
+          {filters && (
+            <div className={styles.chipRow} aria-hidden>
+              <Bone size="chip" />
+              <Bone size="chip" />
+              <Bone size="chip" />
+            </div>
+          )}
+          {layout === 'list' ? (
+            <List>
+              {places.map((i) => (
+                <Row key={i} title={<Bone size={BONE_WIDTHS[i % BONE_WIDTHS.length]} />} subtitle={<Bone size="sm" />} />
+              ))}
+            </List>
+          ) : (
+            <Grid>
+              {places.map((i) => (
+                <Card key={i}>
+                  <Stack gap="sm">
+                    <Bone size="title" />
+                    <Bone size={BONE_WIDTHS[i % BONE_WIDTHS.length]} />
+                    <Bone size="sm" />
+                  </Stack>
+                </Card>
+              ))}
+            </Grid>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 

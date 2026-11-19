@@ -7,7 +7,7 @@ import { ProjectBoard } from '@/components/jobs/ProjectBoard';
 import { ProjectForm } from '@/components/jobs/ProjectForm';
 import { RequestFiles, RequestQueue } from '@/components/requests/RequestQueue';
 import { Button } from '@/components/ui/Button';
-import { Badge, EmptyState, ErrorNote, Figure, List, Loading, Muted, PageHeader, Row, SectionTitle, Tabs } from '@/components/ui/Display';
+import { Badge, EmptyState, ErrorNote, Figure, List, Loading, Muted, PageHeader, PageSkeleton, Row, SectionTitle, Tabs } from '@/components/ui/Display';
 import { FormGrid, SelectField } from '@/components/ui/Form';
 import { Modal, useConfirm } from '@/components/ui/Modal';
 import { useAction } from '@/components/ui/Toast';
@@ -49,7 +49,7 @@ export function JobsPage() {
   }, [askedTab]);
 
   if (error || catalog.error) return <ErrorNote>{error ?? catalog.error}</ErrorNote>;
-  if (!allJobs || catalog.loading) return <Loading />;
+  if (!allJobs || catalog.loading) return <PageSkeleton title="Jobs" filters />;
 
   // With one machine in focus: its jobs, and the requests that asked for it.
   const jobs = machine ? allJobs.filter((job) => job.machineId === machine.id) : allJobs;

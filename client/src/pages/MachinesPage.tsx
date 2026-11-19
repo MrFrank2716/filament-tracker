@@ -9,7 +9,7 @@ import { ReadingBadges, SlotSummary, SubUnitPanel } from '@/components/machines/
 import { AddChooser } from '@/components/reference/AddChooser';
 import { ReferencePicker, type SpoolPreset } from '@/components/reference/ReferencePicker';
 import { Button, IconButton } from '@/components/ui/Button';
-import { Badge, Card, EmptyState, ErrorNote, Figure, Grid, Loading, Muted, PageHeader, SectionTitle, Swatch, TypeIcon } from '@/components/ui/Display';
+import { Badge, Card, EmptyState, ErrorNote, Figure, Grid, Muted, PageHeader, PageSkeleton, SectionTitle, Swatch, TypeIcon } from '@/components/ui/Display';
 import { Modal } from '@/components/ui/Modal';
 import { useAction } from '@/components/ui/Toast';
 import { useMachineFocus } from '@/context/FocusContext';
@@ -58,7 +58,7 @@ export function MachinesPage() {
   }, [justAdded, catalog.machineById, catalog.machineTypeById]);
 
   if (catalog.error || subUnits.error) return <ErrorNote>{catalog.error ?? subUnits.error}</ErrorNote>;
-  if (catalog.loading || !subUnits.data) return <Loading />;
+  if (catalog.loading || !subUnits.data) return <PageSkeleton title="Machines" subtitle="Equipment, attached hardware and what is loaded where." layout="cards" count={4} />;
 
   const itemById = new Map(items.map((i) => [i.id, i]));
   const machines = focus ? [focus] : catalog.machines;

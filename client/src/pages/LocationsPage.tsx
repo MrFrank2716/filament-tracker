@@ -5,7 +5,7 @@ import { ItemPicker } from '@/components/items/ItemPicker';
 import { LabelPrintDialog } from '@/components/labels/LabelPrintDialog';
 import { ScanDialog, type ScanNote } from '@/components/scan/ScanDialog';
 import { Button } from '@/components/ui/Button';
-import { EmptyState, ErrorNote, Figure, List, Loading, Muted, PageHeader, Row, SectionTitle, Swatch, TypeIcon } from '@/components/ui/Display';
+import { EmptyState, ErrorNote, Figure, List, Muted, PageHeader, PageSkeleton, Row, SectionTitle, Swatch, TypeIcon } from '@/components/ui/Display';
 import { FormGrid, SelectField, TextField } from '@/components/ui/Form';
 import { Modal, useConfirm } from '@/components/ui/Modal';
 import { useAction } from '@/components/ui/Toast';
@@ -121,7 +121,7 @@ export function LocationsPage() {
   }, [items, locations]);
 
   if (error || catalog.error) return <ErrorNote>{error ?? catalog.error}</ErrorNote>;
-  if (loading || catalog.loading) return <Loading />;
+  if (loading || catalog.loading) return <PageSkeleton title="Locations" />;
 
   const origin = window.location.origin;
   const labelFor = (location: Location) => locationLabel(location, locations, origin);

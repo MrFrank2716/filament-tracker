@@ -3,7 +3,7 @@ import { ClipboardList, Wrench } from 'lucide-react';
 import { StockMeter } from '@/components/items/StockMeter';
 import { PrinterPanel } from '@/components/machines/PrinterPanel';
 import { ReadingBadges, SubUnitPanel } from '@/components/machines/SubUnitPanel';
-import { Badge, EmptyState, ErrorNote, Figure, Grid, HeaderStat, Ledger, List, Loading, Meter, PageHeader, Readout, Row, RowDetail, SectionTitle, Stack, TypeIcon } from '@/components/ui/Display';
+import { Badge, EmptyState, ErrorNote, Figure, Grid, HeaderStat, Ledger, List, Meter, PageHeader, PageSkeleton, Readout, Row, RowDetail, SectionTitle, Stack, TypeIcon } from '@/components/ui/Display';
 import { useMachineFocus } from '@/context/FocusContext';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import { useCatalog, useItems } from '@/hooks/useCatalog';
@@ -38,7 +38,7 @@ function MachineOverview({ machine }: { machine: Machine }) {
 
   const error = catalog.error ?? subUnits.error ?? maintenance.error ?? jobs.error;
   if (error) return <ErrorNote>{error}</ErrorNote>;
-  if (catalog.loading || !subUnits.data || !maintenance.data || !jobs.data) return <Loading />;
+  if (catalog.loading || !subUnits.data || !maintenance.data || !jobs.data) return <PageSkeleton title={machine.name} layout="cards" count={4} />;
 
   const machineType = machine.machineTypeId ? catalog.machineTypeById.get(machine.machineTypeId) : undefined;
   const makeModel = [machine.manufacturer, machine.model].filter(Boolean).join(' ');
