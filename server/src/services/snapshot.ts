@@ -465,13 +465,20 @@ export async function importSnapshot(db: Db, workspaceId: string, snapshot: Snap
     }
   }
 
-  // Projects are always added, like the jobs that belong to them.
+  // Projects are always added, like the jobs that belong to them. One that relied on its old workspace's target
+  // margin takes that margin as its own when this workspace's differs, so it recommends the same price as before.
+  // This workspace's own setting is left alone: an import merges, and its existing projects depend on it.
+  const sourceMargin = snapshot.workspace?.targetMargin;
+  const inheritedMargin =
+    sourceMargin !== undefined && snapshot.projects.length > 0 && sourceMargin !== (await db.workspace.findUniqueOrThrow({ where: { id: workspaceId }, select: { targetMargin: true } })).targetMargin
+      ? sourceMargin
+      : null;
   for (const project of snapshot.projects) {
     const { ref: projectRef, createdAt, price, marginPercent, ...data } = project;
     // A project past "open" always has a price; one that lost it comes back as open.
     const stage = price == null ? 'open' : data.stage;
     const created = await db.project.create({
-      data: { workspaceId, ...data, stage, price: price ?? null, marginPercent: marginPercent ?? null, createdAt: toDate(createdAt) },
+      data: { workspaceId, ...data, stage, price: price ?? null, marginPercent: marginPercent ?? inheritedMargin, createdAt: toDate(createdAt) },
     });
     ids.project.set(projectRef, created.id);
     summary.projects++;

@@ -130,6 +130,13 @@ describe('projects over the API', () => {
     const copy = await prisma.project.findFirstOrThrow({ where: { workspaceId: otherWorkspaceId, name: 'Printer enclosure' }, include: { jobs: true } });
     expect(copy).toMatchObject({ customer: 'Riverside Makers', stage: 'paid', price: 30, marginPercent: 50 });
     expect(copy.jobs.map((job) => job.name).sort()).toEqual(['Lid', 'Panels']);
+    // This workspace's margin is 20% and next door's is 40%: a project that relied on 20% keeps it, and next door's setting is untouched.
+    expect(await prisma.project.findFirstOrThrow({ where: { workspaceId: otherWorkspaceId, name: 'Spare parts' } })).toMatchObject({ marginPercent: 20 });
+    expect(await prisma.workspace.findUniqueOrThrow({ where: { id: otherWorkspaceId } })).toMatchObject({ targetMargin: 40 });
+    // Into a workspace with the same margin, nothing is pinned.
+    const same = await prisma.workspace.create({ data: { name: 'Same margin', targetMargin: 20 } });
+    await importSnapshot(prisma, same.id, snapshot, null);
+    expect(await prisma.project.findFirstOrThrow({ where: { workspaceId: same.id, name: 'Spare parts' } })).toMatchObject({ marginPercent: null });
   });
 
   it('takes a job out, and deleting a project leaves its jobs', async () => {

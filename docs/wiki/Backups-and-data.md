@@ -17,7 +17,7 @@ Both exports carry each spool's tag (the one a printer reads, or the serial of i
 
 ## Import a workspace file
 
-**Workspace file (JSON)** merges a file exported from Wrkbench into the current workspace. Categories, units, suppliers and machines that already exist with the same name are reused; items, projects and jobs are added as new.
+**Workspace file (JSON)** merges a file exported from Wrkbench into the current workspace. Categories, units, suppliers and machines that already exist with the same name are reused; items, projects and jobs are added as new. An imported project keeps the target margin it was using, even if this workspace's is different.
 
 To start fresh from a backup, create a new blank workspace and import the file into it.
 
