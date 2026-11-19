@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useLayoutEffect, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeftRight, Boxes, Eye, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, ScanLine, Search, Settings, Sunrise,
 } from 'lucide-react';
@@ -19,6 +19,7 @@ import { useItems } from '@/hooks/useCatalog';
 import type { Command } from '@/lib/commands';
 import { applyLayout, normalizeLayout, type NavId } from '@/lib/navigation';
 import { isApple, isShortcut, SEARCH_SHORTCUT, shortcutLabel } from '@/lib/shortcuts';
+import { navigateWithTransition, pageArrived } from '@/lib/viewTransition';
 import type { Dashboard, JobRequest, MaintenanceData, ReorderData } from '@/lib/types';
 import { SETTINGS_TABS } from '@/pages/SettingsPage';
 import styles from '@/components/layout/AppShell.module.css';
@@ -70,6 +71,9 @@ export function AppShell() {
   const [collapsed, toggleSidebar] = useSidebarCollapsed();
   const report = useDailyReport();
   const navigate = useNavigate();
+  // A page reached from the navigation cross-fades in; this tells the fade the new page has been drawn.
+  const navigationKey = useLocation().key;
+  useLayoutEffect(pageArrived, [navigationKey]);
 
   // The badges follow the focus: with one machine picked they count only what concerns it.
   const related = new Set(stock.filter(relates).map((item) => item.id));
@@ -156,7 +160,13 @@ export function AppShell() {
       key={item.to}
       to={item.to}
       end={item.to === '/'}
-      onClick={onClick}
+      onClick={(event) => {
+        onClick?.();
+        // An ordinary click cross-fades to the page. Anything else (a new tab, a new window) is left to the browser.
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        navigateWithTransition(() => navigate(item.to));
+      }}
       title={collapsed ? item.label : undefined}
       className={({ isActive }) => `${className} ${isActive ? styles.active : ''}`}
     >

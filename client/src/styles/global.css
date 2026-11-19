@@ -95,6 +95,30 @@ svg {
   background: var(--color-accent-soft);
 }
 
+/*
+ * Changing page or tab cross-fades the content (lib/viewTransition.ts). Only the parts that are named take
+ * part: the page content, and the bars it scrolls under, so those stay on top of it and in place.
+ * Everything else, the sidebar included, never leaves the screen.
+ */
+:root {
+  view-transition-name: none;
+}
+
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: var(--duration-enter);
+  animation-timing-function: var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -153,6 +153,8 @@
   padding-top: max(var(--space-2), env(safe-area-inset-top));
   background: var(--color-bg);
   border-bottom: var(--border);
+  /* Kept above the page content while that cross-fades (styles/global.css). */
+  view-transition-name: topbar;
 }
 
 .topbarTitle {
@@ -169,6 +171,8 @@
 }
 
 .content {
+  /* What cross-fades when the page changes. */
+  view-transition-name: page;
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
@@ -193,6 +197,7 @@
   padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   background: var(--color-surface);
   border-top: var(--border);
+  view-transition-name: tabbar;
 }
 
 .tab {

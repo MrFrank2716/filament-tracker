@@ -21,6 +21,7 @@ import { useCatalog } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
 import { parseNumber } from '@/lib/format';
 import { LegalLinks } from '@/pages/LegalPages';
+import { withViewTransition } from '@/lib/viewTransition';
 import type { ItemType } from '@/lib/types';
 import styles from '@/components/settings/Settings.module.css';
 
@@ -81,7 +82,7 @@ export function SettingsPage() {
           <div key={group.label} className={styles.railGroup} role="group" aria-label={group.label}>
             <span className={styles.railHeading}>{group.label}</span>
             {group.tabs.map((t) => (
-              <button key={t.id} type="button" className={`${styles.railLink} ${t.id === tab ? styles.railActive : ''}`} aria-current={t.id === tab ? 'true' : undefined} onClick={() => setTab(t.id)}>
+              <button key={t.id} type="button" className={`${styles.railLink} ${t.id === tab ? styles.railActive : ''}`} aria-current={t.id === tab ? 'true' : undefined} onClick={() => withViewTransition(() => setTab(t.id))}>
                 {t.label}
               </button>
             ))}

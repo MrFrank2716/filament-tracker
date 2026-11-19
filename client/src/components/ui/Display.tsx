@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { CircleAlert, LoaderCircle, type LucideIcon } from 'lucide-react';
 import { FocusPicker } from '@/components/layout/FocusPicker';
 import { iconFor, toneFor } from '@/lib/icons';
+import { withViewTransition } from '@/lib/viewTransition';
 import styles from '@/components/ui/Display.module.css';
 
 export type StatusTone = 'neutral' | 'ok' | 'warn' | 'danger' | 'info' | 'accent';
@@ -283,7 +284,7 @@ export function Tabs<T extends string>({ tabs, active, onChange }: TabsProps<T>)
           role="tab"
           aria-selected={tab.id === active}
           className={`${styles.tab} ${tab.id === active ? styles.tabActive : ''}`}
-          onClick={() => onChange(tab.id)}
+          onClick={() => withViewTransition(() => onChange(tab.id))}
         >
           {tab.label}
           {tab.count !== undefined && tab.count > 0 && <span className={styles.count}>{tab.count}</span>}
