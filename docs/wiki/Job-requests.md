@@ -23,7 +23,7 @@ Treat the link like an invitation: anyone who has it can send you files. If it e
 3. Attaches **at least one file**: up to 5 files, 50 MB each by default. Accepted types include 3MF, STL, STEP, OBJ, G-code, SVG, DXF, PDF and images. Any file can be chosen; one of a type that is not accepted is marked in the list, and has to be removed before the request can be sent.
 4. Presses **Send for checking**.
 
-They then get a link to follow their request. **That link is the only way back to it**, so they should keep it.
+They then get a link to follow their request. They should keep it: it is their only way back to the request. If they lose it, an admin can send it again with **Copy progress link** on the request.
 
 ![The requester's progress page](images/request-tracking.png)
 

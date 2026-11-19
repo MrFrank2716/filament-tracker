@@ -6,7 +6,7 @@ The **Machines** screen lists your equipment: printers, lasers, CNC routers, saw
 
 ## Add a machine
 
-Press **Add a machine**, then choose:
+Press **Add machine**, then choose:
 
 - **From the catalogue**: pick the make and model. It arrives with its specs, its feeders or tool changers, its machine type and that type's maintenance schedules. See [Catalogue and settings](Catalogue-and-settings.md#the-built-in-catalogue).
 - **By hand**: for anything not in the catalogue.

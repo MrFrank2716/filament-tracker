@@ -13,6 +13,7 @@ A category (filament, endmill, sheet stock and so on) decides which details you 
 Press **Add item**, then choose:
 
 - **From the catalogue**: pick a real product (a filament line, an endmill size, a sheet thickness) from the built-in catalogue. Its details are filled in for you. See [Catalogue and settings](Catalogue-and-settings.md#the-built-in-catalogue).
+- **From a spool tag**: scan an OpenSpool NFC sticker, or paste what it holds, to add the spool it describes. See [Spool tags](Spool-tags.md#add-a-spool-from-someone-elses-tag).
 - **From scratch**: type everything in yourself.
 
 The fields that matter most:
@@ -36,7 +37,7 @@ Switch between views at the top of the screen. Wrkbench remembers your choice on
 - **By location**: one column per storage place. Locations also have their own page: see [Locations](Locations.md).
 - **List**: everything in one table.
 
-Use the search box to find items by name, material, size or location, and **Filters** to narrow by category, status (low stock, worn, offcuts, loaded in a machine), location or supplier.
+Use the search box to find items by name, material, size or location. The **Category** and **Status** chips (low stock, worn, offcuts, loaded in a machine) narrow the list, and **Filters** adds **Location**, **Supplier** and **Sort by**: by name, lowest quantity first, or most recently changed.
 
 While any spool is **on the move**, the status filters gain **On the move**. A spool is on the move after it was taken out at a [location display](Location-displays.md#on-the-move) and before it is put away or loaded into a machine.
 
@@ -54,7 +55,8 @@ Open an item to see its details and history.
 
 - The **plus and minus** buttons add or take away common amounts.
 - **Counted or weighed? Set the exact amount** replaces the figure with what you measured.
-- **History** lists every change: when, by whom, and why.
+- **History** lists the latest changes: when, by whom, and why.
+- **Delete** (admins) removes the item from inventory. Past jobs keep their record of it.
 
 **Print label** prints a QR label for the item; scanning it opens this sheet on any phone. See [Labels and scanning](Labels-and-scanning.md). For filament, **Spool tag** writes an NFC sticker and **Load into…** puts the spool in a machine's slot: see [Spool tags](Spool-tags.md).
 
