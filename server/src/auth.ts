@@ -55,18 +55,21 @@ interface TokenUser {
 }
 
 /** The token carries the user's tokenVersion, so raising that number revokes every token issued before. */
+// Signing and checking both name the one algorithm, so a token can never choose how it is checked.
+const ALGORITHM = 'HS256';
+
 export function signToken(user: TokenUser, expiresIn: `${number}d` = '30d'): string {
-  return jwt.sign({ sub: user.id, v: user.tokenVersion }, env.JWT_SECRET, { expiresIn });
+  return jwt.sign({ sub: user.id, v: user.tokenVersion }, env.JWT_SECRET, { algorithm: ALGORITHM, expiresIn });
 }
 
 /** A one-hour, single-purpose token for the emailed "set a new password" link. Never accepted as a sign-in. */
 export function signResetToken(user: TokenUser): string {
-  return jwt.sign({ sub: user.id, v: user.tokenVersion, purpose: 'reset' }, env.JWT_SECRET, { expiresIn: '1h' });
+  return jwt.sign({ sub: user.id, v: user.tokenVersion, purpose: 'reset' }, env.JWT_SECRET, { algorithm: ALGORITHM, expiresIn: '1h' });
 }
 
 function readToken(token: string, purpose: 'session' | 'reset'): { userId: string; version: number } | null {
   try {
-    const payload = jwt.verify(token, env.JWT_SECRET);
+    const payload = jwt.verify(token, env.JWT_SECRET, { algorithms: [ALGORITHM] });
     if (typeof payload !== 'object' || typeof payload.sub !== 'string') return null;
     if ((payload.purpose ?? 'session') !== purpose) return null;
     // Tokens from before versions existed carry none: they count as version 0.

@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { signResetToken } from '@/auth';
+import { signResetToken, signToken } from '@/auth';
 import { prisma } from '@/db';
 import { attemptCounter } from '@/rateLimit';
 import { startApp } from './http';
@@ -73,6 +74,15 @@ describe('signing in', () => {
     const old = 'an old password from before the limit '.repeat(3);
     await prisma.user.create({ data: { email: 'longpass@example.test', name: 'Old', passwordHash: await bcrypt.hash(old, 4) } });
     expect((await app.call('POST', '/auth/login', '', { email: 'longpass@example.test', password: old })).status).toBe(200);
+  });
+
+  it('accepts only sign-in tokens made with the one algorithm the server uses', async () => {
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const claims = { sub: user.id, v: user.tokenVersion };
+    const secret = process.env.JWT_SECRET!;
+    expect((await app.call('GET', '/auth/me', signToken(user))).status).toBe(200);
+    expect((await app.call('GET', '/auth/me', jwt.sign(claims, secret, { algorithm: 'HS512' }))).status).toBe(401);
+    expect((await app.call('GET', '/auth/me', jwt.sign(claims, null, { algorithm: 'none' }))).status).toBe(401);
   });
 
   it('locks the account after 10 wrong passwords, even for the right one, until a password reset', async () => {
