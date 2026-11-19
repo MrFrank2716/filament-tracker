@@ -48,6 +48,8 @@ async function send(method: string, path: string, body?: unknown): Promise<Respo
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: form ? body : body !== undefined ? JSON.stringify(body) : undefined,
+      // A delete held back for its Undo toast may be sent as the page closes; this lets it finish.
+      keepalive: method === 'DELETE',
     });
   } catch {
     throw new ApiError(0, 'Cannot reach the server. Check your connection and try again.');
@@ -78,6 +80,11 @@ export const api = {
   patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
   put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
   delete: (path: string) => request<void>('DELETE', path),
+  /** A stock change. `undoId` names the activity entry it became when the signed-in member may undo it. */
+  postUndoable: async <T>(path: string, body: unknown): Promise<{ data: T; undoId: string | null }> => {
+    const response = await send('POST', path, body);
+    return { data: (await response.json()) as T, undoId: response.headers.get('X-Undo-Activity') };
+  },
   /** Send fields and files together. */
   upload: <T>(path: string, form: FormData) => request<T>('POST', path, form),
   /** Fetch a file with the auth header and hand it to the browser as a download. */

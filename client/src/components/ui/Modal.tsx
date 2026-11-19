@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { Button, IconButton } from '@/components/ui/Button';
 import styles from '@/components/ui/Modal.module.css';
@@ -13,6 +13,23 @@ interface ModalProps {
   onSubmit?: () => void;
   size?: 'md' | 'lg';
 }
+
+/**
+ * The dialogs open right now, newest last. A modal dialog makes everything outside it unclickable, so anything
+ * that must stay usable over one (a toast's Undo button) has to be drawn inside the top dialog.
+ */
+const openDialogs: HTMLDialogElement[] = [];
+const dialogWatchers = new Set<() => void>();
+const tellWatchers = () => dialogWatchers.forEach((notify) => notify());
+const watchDialogs = (notify: () => void) => {
+  dialogWatchers.add(notify);
+  return () => {
+    dialogWatchers.delete(notify);
+  };
+};
+
+/** The dialog on top, or null when none is open. */
+export const useTopDialog = () => useSyncExternalStore(watchDialogs, () => openDialogs.at(-1) ?? null);
 
 const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -44,7 +61,12 @@ export function Modal({ title, onClose, children, footer, onSubmit, size = 'md' 
 
   useEffect(() => {
     const dialog = ref.current;
-    if (dialog && !dialog.open) dialog.showModal();
+    if (!dialog) return;
+    if (!dialog.open) dialog.showModal();
+    if (!openDialogs.includes(dialog)) {
+      openDialogs.push(dialog);
+      tellWatchers();
+    }
   }, []);
 
   // Closing unmounts the dialog, so CSS never gets to animate it out. A layout cleanup runs before React removes
@@ -52,6 +74,11 @@ export function Modal({ title, onClose, children, footer, onSubmit, size = 'md' 
   useLayoutEffect(() => {
     const dialog = ref.current;
     return () => {
+      const at = dialog ? openDialogs.indexOf(dialog) : -1;
+      if (at >= 0) {
+        openDialogs.splice(at, 1);
+        tellWatchers();
+      }
       if (!dialog?.open) return;
       if (!prefersReducedMotion()) leaveBehind(dialog);
       dialog.close();

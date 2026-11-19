@@ -3,11 +3,12 @@ import { CircleCheck, Copy, Download, ExternalLink, PackagePlus } from 'lucide-r
 import { StockMeter } from '@/components/items/StockMeter';
 import { Button } from '@/components/ui/Button';
 import { Badge, EmptyState, ErrorNote, Figure, HeaderStat, Muted, PageHeader, PageSkeleton } from '@/components/ui/Display';
-import { useAction, useToast } from '@/components/ui/Toast';
+import { useToast } from '@/components/ui/Toast';
 import { useMachineFocus } from '@/context/FocusContext';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import { useItems } from '@/hooks/useCatalog';
-import { api, saveBlob } from '@/lib/api';
+import { useStockChange } from '@/hooks/useUndo';
+import { saveBlob } from '@/lib/api';
 import { formatNumber } from '@/lib/format';
 import type { ReorderData, ReorderLine } from '@/lib/types';
 import styles from '@/pages/ReorderPage.module.css';
@@ -34,11 +35,12 @@ function scopeTo(data: ReorderData, itemIds: Set<string>): ReorderData {
 }
 
 export function ReorderPage() {
-  const { canEdit, wsPath, money, workspace } = useWorkspace();
+  const { canEdit, money, workspace } = useWorkspace();
   const { data: all, error } = useWsQuery<ReorderData>('/reorder');
   const { items } = useItems();
   const { machine, relates } = useMachineFocus();
-  const { run, busy } = useAction();
+  const stock = useStockChange();
+  const busy = stock.busy;
   const toast = useToast();
 
   if (error) return <ErrorNote>{error}</ErrorNote>;
@@ -74,7 +76,7 @@ export function ReorderPage() {
   };
 
   const receive = (line: ReorderLine) =>
-    run(() => api.post(wsPath(`/items/${line.itemId}/adjust`)!, { mode: 'delta', value: line.suggested, reason: 'restock', note: 'Received from reorder list' }), `${line.name} restocked`);
+    stock.change(line.itemId, { mode: 'delta', value: line.suggested, reason: 'restock', note: 'Received from reorder list' }, `${line.name} restocked`);
 
   return (
     <>

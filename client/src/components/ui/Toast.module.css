@@ -37,6 +37,42 @@
     transform var(--duration-exit) var(--ease);
 }
 
+.text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The one thing on a toast that can be pressed; the rest lets clicks through to the page. */
+.action {
+  position: relative;
+  align-self: center;
+  flex-shrink: 0;
+  min-height: 2rem;
+  margin: calc(var(--space-2) * -1) calc(var(--space-2) * -1) calc(var(--space-2) * -1) var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1px solid color-mix(in srgb, currentColor 45%, transparent);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  pointer-events: auto;
+  transition: background-color var(--duration) var(--ease);
+}
+
+.action:hover {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+/* 32 px tall to look at; on touch screens an invisible margin makes the target 44 px. */
+@media (pointer: coarse) {
+  .action::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+  }
+}
+
 .leaving {
   opacity: 0;
   transform: translateY(0.25rem);

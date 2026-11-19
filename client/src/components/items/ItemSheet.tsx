@@ -8,10 +8,11 @@ import { TagDialog } from '@/components/tags/TagDialog';
 import { Button } from '@/components/ui/Button';
 import { Badge, Figure, Loading, Meter, Muted, SectionTitle, Swatch, TypeIcon } from '@/components/ui/Display';
 import { NumberField } from '@/components/ui/Form';
-import { Modal, useConfirm } from '@/components/ui/Modal';
-import { useAction, useOptimisticAction } from '@/components/ui/Toast';
+import { Modal } from '@/components/ui/Modal';
+import { useOptimisticAction } from '@/components/ui/Toast';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import { useItems, type Catalog } from '@/hooks/useCatalog';
+import { useItemDelete, useStockChange } from '@/hooks/useUndo';
 import { api } from '@/lib/api';
 import { itemLabel } from '@/lib/labels';
 import { formatDateTime, formatFieldValue, formatHours, formatNumber, formatQuantity, isLow, isWorn, locationPath, parseNumber } from '@/lib/format';
@@ -42,9 +43,10 @@ function stepsFor(item: Item, unit: Unit | undefined): number[] {
 
 export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut, focusAmount }: Props) {
   const { wsPath, canEdit, canOperate, money } = useWorkspace();
-  const { run, busy } = useAction();
   const runNow = useOptimisticAction();
-  const confirm = useConfirm();
+  const stock = useStockChange();
+  const deleteItem = useItemDelete();
+  const busy = stock.busy;
   const { data: movements } = useWsQuery<Movement[]>(`/items/${item.id}/movements`);
   const [exact, setExact] = useState('');
   const [labelling, setLabelling] = useState(false);
@@ -70,15 +72,16 @@ export function ItemSheet({ item, catalog, onClose, onEdit, onAddOffcut, focusAm
   const worn = isWorn(item);
   const hasSize = type?.fields.some((f) => f.isSizeDimension) ?? false;
 
-  const adjust = (delta: number) => run(() => api.post(wsPath(`/items/${item.id}/adjust`)!, { mode: 'delta', value: delta }));
+  const adjust = (delta: number) => stock.change(item.id, { mode: 'delta', value: delta }, `${delta < 0 ? 'Used' : 'Added'} ${formatQuantity(Math.abs(delta), unit)}`);
   const setTo = async () => {
     const value = parseNumber(exact);
     if (value === null || value < 0) return;
-    if (await run(() => api.post(wsPath(`/items/${item.id}/adjust`)!, { mode: 'set', value, note: 'Counted / weighed' }), 'Stock level set')) setExact('');
+    if (await stock.change(item.id, { mode: 'set', value, note: 'Counted / weighed' }, 'Stock level set')) setExact('');
   };
-  const remove = async () => {
-    const ok = await confirm({ title: 'Delete item?', message: `"${item.name}" will be removed from inventory. Past jobs keep their record of it.`, confirmLabel: 'Delete', danger: true });
-    if (ok && (await run(() => api.delete(wsPath(`/items/${item.id}`)!), 'Item deleted'))) onClose();
+  // No "are you sure": the item goes at once and the toast offers Undo.
+  const remove = () => {
+    onClose();
+    deleteItem(item);
   };
   // A flag, not a stock level: it shows at once and goes back if the save fails.
   const toggleWear = () => {

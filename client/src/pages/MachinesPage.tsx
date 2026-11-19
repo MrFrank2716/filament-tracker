@@ -11,13 +11,12 @@ import { ReferencePicker, type SpoolPreset } from '@/components/reference/Refere
 import { Button, IconButton } from '@/components/ui/Button';
 import { Badge, Card, EmptyState, ErrorNote, Figure, Grid, Muted, PageHeader, PageSkeleton, SectionTitle, Swatch, TypeIcon } from '@/components/ui/Display';
 import { Modal } from '@/components/ui/Modal';
-import { useAction } from '@/components/ui/Toast';
 import { useMachineFocus } from '@/context/FocusContext';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import { useCatalog, useItems } from '@/hooks/useCatalog';
 import { useSlotActions } from '@/hooks/useSlotActions';
 import { feederFor, usePrinterStates } from '@/hooks/usePrinters';
-import { api } from '@/lib/api';
+import { useStockChange } from '@/hooks/useUndo';
 import { formatHours, formatQuantity, isLow } from '@/lib/format';
 import { describeDetected, detectedGrams, newSpoolFrom, rankForTray } from '@/lib/spoolMatch';
 import type { AddResult } from '@/lib/reference';
@@ -35,14 +34,14 @@ type Dialog =
   | { kind: 'spoolCatalogue'; subUnit: SubUnit; slot: Slot; preset: SpoolPreset };
 
 export function MachinesPage() {
-  const { canEdit, canOperate, wsPath, money } = useWorkspace();
+  const { canEdit, canOperate, money } = useWorkspace();
   const catalog = useCatalog();
   const { items } = useItems();
   const subUnits = useWsQuery<SubUnit[]>('/sub-units');
   const maintenance = useWsQuery<MaintenanceData>('/maintenance');
-  const { run, busy: acting } = useAction();
+  const stock = useStockChange();
   const slots = useSlotActions();
-  const busy = acting || slots.busy;
+  const busy = stock.busy || slots.busy;
   const { machine: focus } = useMachineFocus();
   const printers = usePrinterStates();
   const [dialog, setDialog] = useState<Dialog | null>(null);
@@ -75,7 +74,7 @@ export function MachinesPage() {
 
   /** Bring the item's stock in line with what the printer reads off the spool's tag. Audited like any adjustment. */
   const applyPrinterFigure = (item: Item, grams: number) =>
-    run(() => api.post(wsPath(`/items/${item.id}/adjust`)!, { mode: 'set', value: grams, note: 'Read from the printer' }), `${item.name} set to ${grams} g`);
+    stock.change(item.id, { mode: 'set', value: grams, note: 'Read from the printer' }, `${item.name} set to ${grams} g`);
 
   // One machine added: open it so the user can give it a name, serial number and location.
   const added = (result: AddResult) => {

@@ -56,11 +56,11 @@ Open an item to see its details and history.
 - The **plus and minus** buttons add or take away common amounts.
 - **Counted or weighed? Set the exact amount** replaces the figure with what you measured.
 - **History** lists the latest changes: when, by whom, and why.
-- **Delete** (admins) removes the item from inventory. Past jobs keep their record of it.
+- **Delete** (admins) removes the item from inventory straight away, without asking first. A message with **Undo** stays on screen for a few seconds; press it and the item is back as if nothing happened. Past jobs keep their record of a deleted item.
 
 **Print label** prints a QR label for the item; scanning it opens this sheet on any phone. See [Labels and scanning](Labels-and-scanning.md). For filament, **Spool tag** writes an NFC sticker and **Load into…** puts the spool in a machine's slot: see [Spool tags](Spool-tags.md).
 
-Every change is recorded, and an admin can undo a mistaken one from [Activity](Dashboard-and-reports.md#activity). Operators can take stock away but not add it. See [Members and roles](Members-and-roles.md).
+Every change is recorded. After an admin changes a stock level, the message that confirms it carries an **Undo** button for a few seconds. Later on, an admin can still undo a mistaken change from [Activity](Dashboard-and-reports.md#activity). Operators can take stock away but not add it. See [Members and roles](Members-and-roles.md).
 
 Finishing a job also takes its materials out of stock. See [Jobs and the queue](Jobs-and-queue.md#finish-a-job).
 

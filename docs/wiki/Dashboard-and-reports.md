@@ -36,6 +36,6 @@ To stop it opening by itself, go to **Settings**, **Your account** and untick **
 
 ### Undo a stock mistake
 
-Admins can press **Undo** on a stock change. Wrkbench does not rewrite history: it adds a new change that reverses the old one. Later changes to the same item are kept.
+Admins can press **Undo** on a stock change. The same **Undo** is offered for a few seconds on the message that appears right after an admin changes a stock level, wherever that was done. Wrkbench does not rewrite history: it adds a new change that reverses the old one. Later changes to the same item are kept.
 
 Changes made by a connected printer (such as a spool loaded into a slot by itself) are recorded under the printer's name.

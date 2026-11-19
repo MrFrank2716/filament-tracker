@@ -11,16 +11,19 @@ export async function startApp() {
   const server = createApp().listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`;
-  const call = async (method: string, path: string, token: string, body?: unknown) => {
-    const response = await fetch(`${base}${path}`, {
+  /** The whole response, for tests that look at more than the status and body. `headers` adds to the usual ones. */
+  const raw = (method: string, path: string, token: string, body?: unknown, headers: Record<string, string> = {}) =>
+    fetch(`${base}${path}`, {
       method,
-      headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+      headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...headers },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
+  const call = async (method: string, path: string, token: string, body?: unknown) => {
+    const response = await raw(method, path, token, body);
     const text = await response.text();
     return { status: response.status, body: (text ? JSON.parse(text) : null) as Record<string, unknown> | null };
   };
-  return { call, close: () => new Promise<void>((resolve) => server.close(() => resolve())) };
+  return { call, raw, close: () => new Promise<void>((resolve) => server.close(() => resolve())) };
 }
 
 /** A user who is a member of the workspace with this role (or of none), and a sign-in token for them. */
