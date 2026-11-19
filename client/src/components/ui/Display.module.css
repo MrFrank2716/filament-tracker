@@ -228,6 +228,7 @@
   background: var(--color-surface);
   border: var(--border);
   border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
   box-shadow: var(--shadow-sm);
   min-width: 0;
 }

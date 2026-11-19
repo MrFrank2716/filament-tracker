@@ -33,7 +33,7 @@
 /* Thumb-reach "add" button for phones; the header button covers desktop. */
 .fab {
   position: fixed;
-  right: var(--space-4);
+  right: calc(var(--space-4) + env(safe-area-inset-right));
   bottom: calc(var(--tabbar-height) + var(--space-4) + env(safe-area-inset-bottom));
   z-index: 15;
   display: grid;
@@ -42,6 +42,7 @@
   height: 3.5rem;
   border: 0;
   border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
   background: var(--color-accent);
   color: var(--color-on-accent);
   box-shadow: var(--shadow-md);
