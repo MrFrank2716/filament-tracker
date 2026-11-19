@@ -6,6 +6,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { env } from '@/env';
 import { errorHandler, HttpError } from '@/http';
+import { REPLAYED_HEADER } from '@/idempotency';
 import { authRouter } from '@/routes/auth';
 import { registerActivityRoutes } from '@/routes/activity';
 import { registerCatalogRoutes } from '@/routes/catalog';
@@ -41,7 +42,7 @@ export function createApp(): express.Express {
       },
     }),
   );
-  app.use(cors({ origin: env.CLIENT_ORIGIN, exposedHeaders: [UNDO_HEADER] }));
+  app.use(cors({ origin: env.CLIENT_ORIGIN, exposedHeaders: [UNDO_HEADER, REPLAYED_HEADER] }));
   app.use(express.json({ limit: '5mb' }));
 
   app.get('/api/health', (_req, res) => {
