@@ -19,6 +19,8 @@ To leave things out of the workspace file, press **Choose what to export** on th
 
 A part brings along what it points at, so the file still imports whole. Ticking **Inventory** also ticks its categories, units, suppliers and locations; **Maintenance** needs **Machines**; **Jobs** needs **Machines** and **Inventory**. Unticking a part unticks whatever needs it. The file is saved with `-selection` at the end of its name and imports the same way as a whole workspace file.
 
+Inventory and machines are linked only loosely, so neither brings the other. Export inventory without machines and the items no longer say which machines they fit; export machines without inventory and their material slots come back empty. The dialog warns you when your choice does this.
+
 Both exports carry each spool's tag (the one a printer reads, or the serial of its NFC sticker; the CSV column is `tag_id`), so a restore does not untie them.
 
 ## Import a workspace file

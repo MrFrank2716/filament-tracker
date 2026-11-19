@@ -41,3 +41,12 @@ export function toggleExportPart(chosen: ReadonlySet<ExportPart>, part: ExportPa
 export function neededBy(chosen: ReadonlySet<ExportPart>, part: ExportPart): ExportPart[] {
   return EXPORT_PARTS.filter((other) => other !== part && chosen.has(other) && withNeeds(other).has(part));
 }
+
+/** Links between inventory and machines that a choice leaves out, since neither part needs the other. */
+export function droppedLinks(chosen: ReadonlySet<ExportPart>): string[] {
+  const inventory = chosen.has('inventory');
+  const machines = chosen.has('machines');
+  if (inventory && !machines) return ['Items will not say which machines they fit, because machines are left out.'];
+  if (machines && !inventory) return ['Material slots will be empty, because inventory is left out.'];
+  return [];
+}

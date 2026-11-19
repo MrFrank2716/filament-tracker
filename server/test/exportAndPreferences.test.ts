@@ -64,6 +64,26 @@ describe('choosing what to export', () => {
     expect((await app.call('GET', ws('/export?include=inventory'), stranger)).status).toBe(404);
   });
 
+  it('clears links into a part that was left out', async () => {
+    const item = await prisma.item.findFirstOrThrow({ where: { workspaceId } });
+    const machine = await prisma.machine.findFirstOrThrow({ where: { workspaceId } });
+    await prisma.item.update({ where: { id: item.id }, data: { compatibleMachines: { connect: { id: machine.id } } } });
+    const tray = await prisma.subUnit.create({ data: { workspaceId, name: 'Tray', machineId: machine.id, readings: [], slots: { create: { position: 1, itemId: item.id } } } });
+    type Body = { items: Array<{ compatibleMachines: string[] }>; subUnits: Array<{ slots: Array<{ item: string | null }> }> };
+    const read = async (query: string) => (await app.call('GET', ws(`/export${query}`), viewer)).body as unknown as Body;
+    try {
+      const full = await app.call('GET', ws('/export'), viewer);
+      expect(full.status, JSON.stringify(full.body)).toBe(200);
+      expect((await read('')).items[0].compatibleMachines).toEqual([machine.id]);
+      expect((await read('')).subUnits[0].slots[0].item).toBe(item.id);
+      expect((await read('?include=inventory')).items[0].compatibleMachines).toEqual([]);
+      expect((await read('?include=machines')).subUnits[0].slots[0].item).toBeNull();
+    } finally {
+      await prisma.subUnit.delete({ where: { id: tray.id } });
+      await prisma.item.update({ where: { id: item.id }, data: { compatibleMachines: { set: [] } } });
+    }
+  });
+
   it('gives a file that imports whole into another workspace', async () => {
     const copyId = (await prisma.workspace.create({ data: { name: 'Copy' } })).id;
     const owner = await member('copy@example.test', copyId, 'admin');

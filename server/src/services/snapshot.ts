@@ -498,7 +498,11 @@ export function withRequiredParts(parts: Iterable<ExportPart>): Set<ExportPart> 
   return all;
 }
 
-/** Everything, or only the given parts (and what they need). Parts left out come back as empty sections. */
+/**
+ * Everything, or only the given parts (and what they need). Parts left out come back as empty sections.
+ * Inventory and machines link to each other only loosely (which machines an item fits, what sits in a slot);
+ * with one of them left out those links are cleared rather than pulling the other in.
+ */
 export async function exportSnapshot(db: Db, workspaceId: string, parts?: Iterable<ExportPart>): Promise<Snapshot> {
   const workspace = await db.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
   const want = withRequiredParts(parts ?? EXPORT_PARTS);
@@ -547,11 +551,13 @@ export async function exportSnapshot(db: Db, workspaceId: string, parts?: Iterab
       ref: i.id, type: i.itemTypeId, name: i.name, sku: i.sku, quantity: i.quantity, capacity: i.capacity,
       minQuantity: i.minQuantity, unitCost: i.unitCost, unit: i.unitId, supplier: i.supplierId, location: i.locationId,
       notes: i.notes, fields: i.fields, usageHours: i.usageHours, lifeHours: i.lifeHours, wearFlag: i.wearFlag,
-      isRemnant: i.isRemnant, parent: i.parentId, tagId: i.tagId, compatibleMachines: i.compatibleMachines.map((m) => m.id),
+      isRemnant: i.isRemnant, parent: i.parentId, tagId: i.tagId,
+      // Links into a part that was left out could not be restored, so the file does not claim them.
+      compatibleMachines: want.has('machines') ? i.compatibleMachines.map((m) => m.id) : [],
     })),
     subUnits: subUnits.map((s) => ({
       ref: s.id, name: s.name, kind: s.kind, machine: s.machineId, readings: s.readings, statusNote: s.statusNote,
-      slots: s.slots.map((slot) => ({ position: slot.position, label: slot.label, item: slot.itemId })),
+      slots: s.slots.map((slot) => ({ position: slot.position, label: slot.label, item: want.has('inventory') ? slot.itemId : null })),
     })),
     maintenanceTasks: tasks.map((t) => ({
       ref: t.id, name: t.name, description: t.description, machine: t.machineId, machineType: t.machineTypeId,

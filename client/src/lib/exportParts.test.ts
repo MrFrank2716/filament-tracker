@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EXPORT_PARTS, neededBy, toggleExportPart, type ExportPart } from '@/lib/exportParts';
+import { EXPORT_PARTS, droppedLinks, neededBy, toggleExportPart, type ExportPart } from '@/lib/exportParts';
 
 const set = (...parts: ExportPart[]) => new Set<ExportPart>(parts);
 
@@ -18,5 +18,12 @@ describe('choosing what to export', () => {
   it('says which ticked parts need another', () => {
     expect(neededBy(set('maintenance', 'machines', 'locations'), 'locations')).toEqual(['machines', 'maintenance']);
     expect(neededBy(set('locations', 'units'), 'locations')).toEqual([]);
+  });
+
+  it('warns when inventory and machines are split, since their links cannot come along', () => {
+    expect(droppedLinks(set('inventory'))).toHaveLength(1);
+    expect(droppedLinks(set('machines'))).toHaveLength(1);
+    expect(droppedLinks(set('inventory', 'machines'))).toEqual([]);
+    expect(droppedLinks(set('units'))).toEqual([]);
   });
 });

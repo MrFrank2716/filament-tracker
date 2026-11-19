@@ -8,7 +8,7 @@ import { useAction, useToast } from '@/components/ui/Toast';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import type { Catalog } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
-import { EXPORT_PARTS, EXPORT_PART_INFO, neededBy, toggleExportPart, type ExportPart } from '@/lib/exportParts';
+import { EXPORT_PARTS, EXPORT_PART_INFO, droppedLinks, neededBy, toggleExportPart, type ExportPart } from '@/lib/exportParts';
 import styles from '@/components/settings/Settings.module.css';
 
 interface CsvResult {
@@ -191,6 +191,9 @@ export function DataSection({ catalog }: { catalog: Catalog }) {
               );
             })}
           </div>
+          {droppedLinks(picking).map((note) => (
+            <Muted key={note}>{note}</Muted>
+          ))}
           <div className={styles.exportAll}>
             <Button size="sm" variant="ghost" onClick={() => setPicking(new Set(EXPORT_PARTS))} disabled={picking.size === EXPORT_PARTS.length}>
               Select all
