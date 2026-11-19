@@ -15,6 +15,7 @@ It started as a 3D printing filament tracker, which is why this repository is ca
 - **Look after your machines**: see what is fitted to each machine and what is loaded in it, down to which spool is in which feeder slot. → [Machines](docs/wiki/Machines.md)
 - **Never miss servicing**: recurring maintenance by date, by hours of use, or both. → [Maintenance](docs/wiki/Maintenance.md)
 - **Run jobs**: queue work per machine by priority. Finishing a job takes its materials out of stock, wears down tooling, and records what it cost. → [Jobs and the queue](docs/wiki/Jobs-and-queue.md)
+- **Price your work**: group jobs into projects to see what each cost, the profit once it is invoiced, or a recommended price until then. → [Projects](docs/wiki/Jobs-and-queue.md#projects)
 - **Take requests from outside**: share a link so students or customers can send files for a job, then follow its progress without an account. → [Job requests](docs/wiki/Job-requests.md)
 - **Start each day with a plan**: a daily report of what is overdue, short or running low, and an activity log where stock mistakes can be undone. → [Dashboard and reports](docs/wiki/Dashboard-and-reports.md)
 - **Work as a team**: owners, admins, operators and viewers, each allowed to do what their role needs. → [Members and roles](docs/wiki/Members-and-roles.md)

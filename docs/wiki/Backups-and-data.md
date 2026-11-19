@@ -8,7 +8,7 @@ Everything is under **Settings**, **Import / export**. Exporting is open to ever
 
 | Export | What you get | Use it for |
 | --- | --- | --- |
-| **Whole workspace (JSON)** | Categories and their fields, units, suppliers, locations, machine types, machines and their attached hardware, inventory, maintenance tasks and their service history, and jobs | A backup you keep yourself, or copying a workspace into another one |
+| **Whole workspace (JSON)** | Categories and their fields, units, suppliers, locations, machine types, machines and their attached hardware, inventory, maintenance tasks and their service history, projects, and jobs | A backup you keep yourself, or copying a workspace into another one |
 | **Inventory (CSV)** | One row per item, with a column for every custom field | Opening your stock in a spreadsheet |
 
 The workspace export does **not** include members, the activity log, job requests and their uploaded files, or connected printers.
@@ -17,7 +17,7 @@ Both exports carry each spool's tag (the one a printer reads, or the serial of i
 
 ## Import a workspace file
 
-**Workspace file (JSON)** merges a file exported from Wrkbench into the current workspace. Categories, units, suppliers and machines that already exist with the same name are reused; items and jobs are added as new.
+**Workspace file (JSON)** merges a file exported from Wrkbench into the current workspace. Categories, units, suppliers and machines that already exist with the same name are reused; items, projects and jobs are added as new. An imported project keeps the target margin it was using, even if this workspace's is different.
 
 To start fresh from a backup, create a new blank workspace and import the file into it.
 

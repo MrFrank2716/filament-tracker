@@ -37,7 +37,9 @@ export function FilePicker({ files, onChange, limits }: FilePickerProps) {
         ref={input}
         type="file"
         multiple
-        accept={limits.extensions.map((ext) => `.${ext}`).join(',')}
+        // No `accept` list on purpose. Phones have no file type registered for workshop formats (.3mf, .step, .gcode,
+        // .nc ...), so their pickers grey those files out when a list is given. Every file can be chosen; the list
+        // below says at once which ones will not be taken, and the server checks again.
         className={styles.fileInput}
         onChange={(event) => {
           add(event.target.files);

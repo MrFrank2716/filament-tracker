@@ -31,6 +31,7 @@ export async function createGuest() {
           name: template.snapshot.workspace?.name ?? template.name,
           description: template.snapshot.workspace?.description ?? '',
           currency: template.snapshot.workspace?.currency ?? 'GBP',
+          targetMargin: template.snapshot.workspace?.targetMargin,
           members: { create: { userId: user.id, role: 'owner' } },
         },
       });

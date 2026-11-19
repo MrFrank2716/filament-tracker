@@ -43,6 +43,7 @@ function trimSnapshot(snapshot: Snapshot, excluded: Set<string>, includeSamples:
     machines: [],
     items: [],
     subUnits: [],
+    projects: [],
     jobs: [],
   };
 }

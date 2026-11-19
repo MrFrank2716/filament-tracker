@@ -342,13 +342,18 @@ export function buildExample(): SnapshotInput {
       { ...tasks.finishing[1], logs: [{ machine: 'm-sander', performedAt: daysAgo(9), hoursAtService: 27, notes: '' }] },
       { ...tasks.general[0], logs: [{ machine: 'm-bench', performedAt: daysAgo(150), hoursAtService: 0, notes: 'All tools present. Calipers checked against gauge block.' }] },
     ],
+    projects: [
+      { ref: 'p-enclosure', name: 'Printer enclosure', customer: 'Riverside Makers', notes: 'Panels printed, then sanded and primed. Not priced yet.', createdAt: daysAgo(10) },
+      { ref: 'p-bracket', name: 'Motor bracket batch', customer: 'Northfield Robotics', stage: 'invoiced', price: 12, createdAt: daysAgo(7) },
+      { ref: 'p-storage', name: 'Workshop storage', notes: 'For our own shelves.', createdAt: daysAgo(5) },
+    ],
     jobs: [
-      finishedJob('Enclosure panels', 'm-h2d', 0.35, 6.5, 9, [['i-petg-orange', 310]], 'PETG HF, 0.2 mm layers.'),
-      finishedJob('Aluminium motor bracket', 'm-z1', 0.5, 1.8, 6, [['i-em-6o', 0, 1.8], ['i-em-3175', 0, 0.4]], '6061, two setups.'),
-      finishedJob('Laser-cut storage box', 'm-h2d', 0.35, 0.6, 4, [['i-ply3', 2]], 'Finger joints, 3 mm birch.'),
-      finishedJob('Sand and prime enclosure', 'm-sander', 0, 0.8, 3, [['i-disc-240', 2], ['i-primer', 60]]),
+      { ...finishedJob('Enclosure panels', 'm-h2d', 0.35, 6.5, 9, [['i-petg-orange', 310]], 'PETG HF, 0.2 mm layers.'), project: 'p-enclosure' },
+      { ...finishedJob('Aluminium motor bracket', 'm-z1', 0.5, 1.8, 6, [['i-em-6o', 0, 1.8], ['i-em-3175', 0, 0.4]], '6061, two setups.'), project: 'p-bracket' },
+      { ...finishedJob('Laser-cut storage box', 'm-h2d', 0.35, 0.6, 4, [['i-ply3', 2]], 'Finger joints, 3 mm birch.'), project: 'p-storage' },
+      { ...finishedJob('Sand and prime enclosure', 'm-sander', 0, 0.8, 3, [['i-disc-240', 2], ['i-primer', 60]]), project: 'p-enclosure' },
       {
-        name: 'Drawer organiser set', machine: 'm-x2d', status: 'planned', durationHours: 9,
+        name: 'Drawer organiser set', machine: 'm-x2d', project: 'p-storage', status: 'planned', durationHours: 9,
         notes: 'Uses the matte charcoal - check there is enough on the spool first.',
         usages: [{ item: 'i-pla-matte', quantity: 420 }, { item: 'i-m3ins', quantity: 8 }],
       },

@@ -11,7 +11,7 @@ import type { Catalog } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
 import { formatQuantity, parseNumber } from '@/lib/format';
 import { PRIORITY } from '@/lib/status';
-import type { Item, Job } from '@/lib/types';
+import type { Item, Job, Project } from '@/lib/types';
 import styles from '@/components/jobs/Jobs.module.css';
 
 interface Line {
@@ -23,13 +23,14 @@ interface Line {
 interface Props {
   catalog: Catalog;
   items: Item[];
+  projects: Project[];
   job?: Job;
   /** Machine a new job starts on, e.g. the one in focus. */
   defaultMachineId?: string;
   onClose: () => void;
 }
 
-export function JobForm({ catalog, items, job, defaultMachineId, onClose }: Props) {
+export function JobForm({ catalog, items, projects, job, defaultMachineId, onClose }: Props) {
   const { wsPath, money, workspace } = useWorkspace();
   const { run, busy } = useAction();
   const [name, setName] = useState(job?.name ?? '');
@@ -38,6 +39,7 @@ export function JobForm({ catalog, items, job, defaultMachineId, onClose }: Prop
   const [extraCost, setExtraCost] = useState(job?.extraCost ? String(job.extraCost) : '');
   const [notes, setNotes] = useState(job?.notes ?? '');
   const [priority, setPriority] = useState(String(job?.priority ?? 0));
+  const [projectId, setProjectId] = useState(job?.project?.id ?? '');
   const [lines, setLines] = useState<Line[]>(
     job?.usages.map((u) => ({ itemId: u.itemId, quantity: u.quantity ? String(u.quantity) : '', hours: u.hours ? String(u.hours) : '' })) ?? [],
   );
@@ -79,6 +81,7 @@ export function JobForm({ catalog, items, job, defaultMachineId, onClose }: Prop
       extraCost: Math.max(0, parseNumber(extraCost) ?? 0),
       notes,
       priority: Number(priority),
+      projectId: projectId || null,
       usages: lines.map((l) => ({ itemId: l.itemId, quantity: Math.max(0, parseNumber(l.quantity) ?? 0), hours: Math.max(0, parseNumber(l.hours) ?? 0) })),
     };
     const ok = await run(async () => {
@@ -127,6 +130,16 @@ export function JobForm({ catalog, items, job, defaultMachineId, onClose }: Prop
                 </option>
               ))}
           </SelectField>
+          {projects.length > 0 && (
+            <SelectField label="Project" value={projectId} onChange={setProjectId} hint="The job's cost is added to the project's total.">
+              <option value="">None</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </SelectField>
+          )}
         </FormGrid>
 
         <div className={styles.lines}>

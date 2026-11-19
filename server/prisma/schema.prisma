@@ -43,11 +43,14 @@ model Workspace {
   name        String
   description String   @default("")
   currency    String   @default("GBP")
+  /// Profit wanted on a project, as a percentage of its price. Used to recommend a price from its cost.
+  targetMargin Float   @default(40)
   /// Secret part of the public "request a job" link. Null while outside requests are switched off.
   requestToken String? @unique
   createdAt   DateTime @default(now())
 
   jobRequests      JobRequest[]
+  projects         Project[]
   members          Membership[]
   units            Unit[]
   suppliers        Supplier[]
@@ -375,9 +378,12 @@ model Job {
   source        String    @default("manual")
   /// Why it failed, when a connected printer said: its error text, or "Cancelled at the printer".
   failureReason String    @default("")
+  /// The project this job is part of, if any.
+  projectId     String?
 
   workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   machine   Machine?   @relation(fields: [machineId], references: [id], onDelete: SetNull)
+  project   Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
   createdBy User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
   runs      PrinterRun[]
   usages    JobUsage[]
@@ -385,6 +391,29 @@ model Job {
   request   JobRequest?
 
   @@index([workspaceId, status])
+  @@index([projectId])
+}
+
+/// A piece of work for one customer, made up of jobs. It adds up what its jobs cost and sets that
+/// against the price invoiced for it.
+/// stage: "open" | "invoiced" | "paid"
+model Project {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  name          String
+  customer      String   @default("")
+  notes         String   @default("")
+  stage         String   @default("open")
+  /// The price invoiced for the whole project. Null until one is set.
+  price         Float?
+  /// Target margin for this project alone. Null uses the workspace's.
+  marginPercent Float?
+  createdAt     DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  jobs      Job[]
+
+  @@index([workspaceId, stage])
 }
 
 /// A job asked for by someone outside the workspace, through the public request link.
