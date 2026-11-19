@@ -28,8 +28,18 @@ export const readingSchema = z.object({
   unit: z.string().trim().max(20).default(''),
 });
 
+// A field's key names a value inside the item's fields. A value stored under __proto__ is silently
+// dropped (it sets the object's prototype instead), and invites prototype pollution in code that copies
+// the values about. "constructor" and "prototype" store and read back normally, so they stay allowed.
+const RESERVED_FIELD_KEYS = new Set(['__proto__']);
+
 export const customFieldSchema = z.object({
-  key: z.string().trim().min(1).max(60),
+  key: z
+    .string()
+    .trim()
+    .min(1)
+    .max(60)
+    .refine((key) => !RESERVED_FIELD_KEYS.has(key), 'That field key is reserved. Choose another'),
   label: z.string().trim().min(1).max(80),
   fieldType: z.enum(FIELD_TYPES),
   unit: z.string().trim().max(20).default(''),

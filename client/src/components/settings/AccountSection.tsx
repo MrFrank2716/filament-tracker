@@ -105,7 +105,7 @@ export function AccountSection() {
             onChange={setNext}
             autoComplete="new-password"
             minLength={8}
-            hint="At least 8 characters."
+            hint="8 to 72 characters."
             required
           />
         </FormGrid>
