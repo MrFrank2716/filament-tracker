@@ -50,8 +50,8 @@ Name branches after the work they hold, never a random or auto-generated name
 
 ## Before opening a PR
 
-- No CI runs the tests, and the Graphify review does not run them either. Run
-  `npm test` and `npm run typecheck` yourself and fix any failure first.
+- No CI runs the tests. Run `npm test` and `npm run typecheck` yourself and
+  fix any failure first.
 - Fill in the PR template. Tick a checklist item only if it actually passed;
   mark the ones that don't apply as not applicable.
 
@@ -62,9 +62,12 @@ Name branches after the work they hold, never a random or auto-generated name
 
 ## Pull requests
 
-- After opening a PR, subscribe to its activity and wait for the Graphify
-  review to arrive before doing anything toward merging.
-- Read every Graphify comment. Fix the valid ones and push; reply on the PR
-  to explain any that you don't act on.
-- Merge only after Graphify has reviewed, its comments are handled,
-  `npm test` and `npm run typecheck` pass, and the user has said to merge.
+- Do not wait for a Graphify review: the project has used up its Graphify PR
+  review allowance and is not upgrading for now. Treat Graphify as absent
+  until the user says otherwise.
+- After opening a PR, subscribe to its activity. Read every review comment
+  that does arrive, from a person or another bot. Fix the valid ones and push;
+  reply on the PR to explain any that you don't act on.
+- Merge only after any review comments are handled, the GitHub checks
+  (CodeQL) pass, `npm test` and `npm run typecheck` pass, and the user has
+  said to merge.

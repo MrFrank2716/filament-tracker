@@ -65,6 +65,24 @@ describe('reading the sliced file', () => {
     expect(plateFor(plates, null)).toBeNull();
     expect(readSliceInfo('not xml at all')).toEqual([]);
   });
+
+  it('reads only whole tags and attributes, as before', () => {
+    const plates = readSliceInfo(`<plate><filaments/><filament_x id="9" used_g="1"/>
+      <filament tray_id="7" id="2" xused_g="99" used_g="3.5" type="PETG"/></plate><plate>unclosed`);
+    expect(plates).toEqual([{ index: 1, seconds: null, filaments: [{ id: 2, material: 'PETG', colour: null, grams: 3.5 }] }]);
+  });
+
+  it('stays quick on a file made to be slow to read', () => {
+    const crafted = [
+      '<plate>'.repeat(60_000),
+      `<plate>${'<metadata'.repeat(40_000)}</plate>`,
+      `<plate><filament ${'id="'.repeat(80_000)}></plate>`,
+    ];
+    const started = performance.now();
+    for (const xml of crafted) readSliceInfo(xml);
+    // The old regexes took several seconds on the first of these alone.
+    expect(performance.now() - started).toBeLessThan(500);
+  });
 });
 
 describe('following a print', () => {
