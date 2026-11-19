@@ -379,14 +379,18 @@ deviceRouter.post('/tag/:uid/insert', async (req, res) => {
   res.json({ expiresAt, message: `Put ${forDisplay(item.name)} into ${forDisplay(device.machine.name)} in the next 2 minutes` });
 });
 
-/** Tie a new sticker to an item. An item that carries a printer's own spool tag keeps it: replacing it would stop the printer recognising the spool. */
+/** Tie a new sticker to an item kept at this display's location (or inside it). An item that carries a printer's own spool tag keeps it: replacing it would stop the printer recognising the spool. */
 deviceRouter.post('/tag/:uid/link', async (req, res) => {
   const device = deviceOf(res);
   requireWrite(device);
   const key = readTagKey(param(req, 'uid'));
   const { itemId } = parse(z.object({ itemId: z.string().min(1) }), req.body);
-  const item = await prisma.item.findFirst({ where: { id: itemId, workspaceId: device.workspaceId, archived: false }, select: { id: true, name: true, tagId: true } });
+  if (!device.locationId) throw new HttpError(409, 'This display has no location yet. Choose one in Settings, Displays.');
+  const item = await prisma.item.findFirst({ where: { id: itemId, workspaceId: device.workspaceId, archived: false }, select: { id: true, name: true, tagId: true, locationId: true } });
   if (!item) throw notFound('Item');
+  // A display links tags to what is kept where it is (what its own list offers), not to anything in the workspace.
+  const tree = await locationTree(prisma, device.workspaceId);
+  if (!item.locationId || !tree.subtree(device.locationId).includes(item.locationId)) throw new HttpError(403, `${item.name} is not kept at this display's location`);
   if (item.tagId && !isStickerTag(item.tagId)) throw new HttpError(409, `${item.name} already has its spool's own tag, which the printer uses to recognise it`);
   await prisma.$transaction((tx) => assignTag(tx, device.workspaceId, item.id, tagIdFor(key)));
   await logChange(device, 'item.tag', `Tagged ${item.name}`, item.id);

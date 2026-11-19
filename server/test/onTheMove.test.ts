@@ -182,6 +182,22 @@ describe('tapping a spool on a display', () => {
     expect((await app.call('GET', ws('/unknown-tags'), operator)).body).toHaveLength(0);
   });
 
+  it('does not link a tag to an item kept somewhere else', async () => {
+    const elsewhere = await spool('PLA Elsewhere', 'PLA', '#445566', { locationId: drawerB });
+    const nowhere = await spool('PLA Nowhere', 'PLA', '#445566');
+    const inside = await spool('PLA Inside', 'PLA', '#445566', { locationId: insideA });
+    expect((await app.call('POST', '/device/tag/0455667788/link', token, { itemId: elsewhere.id })).status).toBe(403);
+    expect((await app.call('POST', '/device/tag/0455667788/link', token, { itemId: nowhere.id })).status).toBe(403);
+    expect((await itemNow(elsewhere.id)).tagId).toBeNull();
+    // A tag another item already has stays with it when the link is refused.
+    const red = await prisma.item.findFirstOrThrow({ where: { workspaceId, name: 'PLA Matte Red' } });
+    expect((await app.call('POST', `/device/tag/T${'F'.repeat(32)}/link`, token, { itemId: elsewhere.id })).status).toBe(403);
+    expect((await itemNow(red.id)).tagId).toBe('F'.repeat(32));
+    // Kept in a location inside the display's own: that is still here.
+    expect((await app.call('POST', '/device/tag/0455667788/link', token, { itemId: inside.id })).status).toBe(200);
+    expect((await itemNow(inside.id)).tagId).toBe('NFC0455667788');
+  });
+
   it('lets an operator dismiss a read, and an admin-only write stays refused', async () => {
     await tap('A1A1A1A1', bambuBlocks({ type: 'TPU', detail: 'TPU 95A', rgba: '00ff00ff', grams: 500, trayId: 'E'.repeat(32) }));
     const [waiting] = (await app.call('GET', ws('/unknown-tags'), operator)).body as unknown as Array<{ id: string }>;

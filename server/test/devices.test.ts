@@ -233,8 +233,12 @@ describe('tapping a tag on the display', () => {
 
     const theirs = await prisma.item.create({ data: { workspaceId: otherWorkspaceId, itemTypeId: (await prisma.itemType.create({ data: { workspaceId: otherWorkspaceId, name: 'T' } })).id, name: 'Theirs', fields: {} } });
     expect((await app.call('POST', '/device/tag/55667788/link', token, { itemId: theirs.id })).status).toBe(404);
+    // An item kept somewhere else is not this display's to tag; one kept here that has a printer's own tag keeps it.
     const printerTagged = await prisma.item.findFirstOrThrow({ where: { name: 'Printer tagged' } });
+    if (printerTagged.locationId !== loc.rack) expect((await app.call('POST', '/device/tag/55667788/link', token, { itemId: printerTagged.id })).status).toBe(403);
+    await prisma.item.update({ where: { id: printerTagged.id }, data: { locationId: loc.rack } });
     expect((await app.call('POST', '/device/tag/55667788/link', token, { itemId: printerTagged.id })).status).toBe(409);
+    await prisma.item.update({ where: { id: printerTagged.id }, data: { locationId: printerTagged.locationId } });
   });
 
   it('marks a spool for the printer beside it only while that printer is reporting', async () => {
