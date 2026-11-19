@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useAction, useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
+import { SerialSaver } from '@/lib/serialSave';
 import type { User } from '@/lib/types';
 import styles from '@/components/settings/Settings.module.css';
 
@@ -15,25 +16,23 @@ import styles from '@/components/settings/Settings.module.css';
 function DailyReportPreference() {
   const { user, updateUser } = useAuth();
   const toast = useToast();
-  // Quick clicks send overlapping saves. Only the newest one's answer may touch the screen,
-  // or an older reply would put back a choice that has since changed.
-  const latest = useRef(0);
+  // One save at a time, so quick clicks reach the server in order and the last one is what is stored.
+  const saver = useRef(new SerialSaver((dailyReportAuto: boolean) => api.patch<{ user: User }>('/auth/me/preferences', { dailyReportAuto })));
+  /** The account as it was before a burst of clicks, to put back if saving fails. */
+  const before = useRef<User | null>(null);
   if (!user) return null;
 
   const change = (dailyReportAuto: boolean) => {
-    const previous = user;
-    const request = ++latest.current;
+    if (!saver.current.busy) before.current = user;
     updateUser({ ...user, dailyReportAuto });
-    api
-      .patch<{ user: User }>('/auth/me/preferences', { dailyReportAuto })
-      .then(({ user: saved }) => {
-        if (request === latest.current) updateUser(saved);
-      })
-      .catch((error: unknown) => {
-        if (request !== latest.current) return;
-        updateUser(previous);
+    saver.current.save(dailyReportAuto, {
+      onSaved: ({ user: saved }) => updateUser(saved),
+      onFailed: (error, lastSaved) => {
+        const restore = lastSaved?.user ?? before.current;
+        if (restore) updateUser(restore);
         toast(error instanceof Error ? error.message : 'Could not save your choice', 'danger');
-      });
+      },
+    });
   };
 
   return (

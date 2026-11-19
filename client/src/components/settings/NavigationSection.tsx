@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/Form';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
+import { SerialSaver } from '@/lib/serialSave';
 import {
   ALWAYS_SHOWN,
   DEFAULT_LAYOUT,
@@ -31,9 +32,11 @@ export function NavigationSection() {
   const toast = useToast();
   const [dragging, setDragging] = useState<number | null>(null);
   const [over, setOver] = useState<number | null>(null);
-  // Quick clicks send overlapping saves. Only the newest one's answer may touch the screen, or an older
-  // reply would put back a stale order and the next click would build on it.
-  const latest = useRef(0);
+  // One save at a time, so quick clicks reach the server in order and the last layout is what is stored.
+  // Meanwhile the screen keeps the newest layout, and each click builds on it.
+  const saver = useRef(new SerialSaver((layout: NavLayout | null) => api.patch<{ user: User }>('/auth/me/navigation', { layout })));
+  /** The account as it was before a burst of changes, to put back if saving fails. */
+  const before = useRef<User | null>(null);
   if (!user) return null;
 
   const layout = normalizeLayout(user.navigation);
@@ -41,20 +44,17 @@ export function NavigationSection() {
   // Shows at once (the sidebar reads the same user record), then saves; a failed save puts the old order back.
   const save = (next: NavLayout) => {
     if (next === layout) return;
-    const previous = user;
-    const standard = isDefaultLayout(next);
-    const request = ++latest.current;
-    updateUser({ ...user, navigation: standard ? null : next });
-    api
-      .patch<{ user: User }>('/auth/me/navigation', { layout: standard ? null : next })
-      .then(({ user: saved }) => {
-        if (request === latest.current) updateUser(saved);
-      })
-      .catch((error: unknown) => {
-        if (request !== latest.current) return;
-        updateUser(previous);
+    const saved = isDefaultLayout(next) ? null : next;
+    if (!saver.current.busy) before.current = user;
+    updateUser({ ...user, navigation: saved });
+    saver.current.save(saved, {
+      onSaved: ({ user: confirmed }) => updateUser(confirmed),
+      onFailed: (error, lastSaved) => {
+        const restore = lastSaved?.user ?? before.current;
+        if (restore) updateUser(restore);
         toast(error instanceof Error ? error.message : 'Could not save your navigation', 'danger');
-      });
+      },
+    });
   };
 
   const full = layout.tabBar.length >= MAX_TAB_BAR;
