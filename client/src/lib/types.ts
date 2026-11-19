@@ -17,6 +17,8 @@ export interface User {
   appearance?: Appearance;
   /** Personal navigation layout as saved; null or missing for the standard one. Read it through normalizeLayout. */
   navigation?: unknown;
+  /** Whether the daily report opens by itself on the first visit of the day. Missing from an older server: it does. */
+  dailyReportAuto?: boolean;
 }
 
 export interface Workspace {

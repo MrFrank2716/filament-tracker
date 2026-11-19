@@ -408,3 +408,15 @@
   border-left-color: var(--color-accent);
   background: var(--color-accent-soft);
 }
+
+/* Choose what to export: one tick per part, two columns where there is room. */
+.exportParts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  column-gap: var(--space-4);
+}
+
+.exportAll {
+  display: flex;
+  gap: var(--space-2);
+}

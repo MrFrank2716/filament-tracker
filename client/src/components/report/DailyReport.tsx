@@ -49,21 +49,24 @@ type Mode = 'closed' | 'auto' | 'asked';
  * still valid, or coming back to a tab that was left open overnight. `show` opens it again at any time.
  */
 export function useDailyReport() {
+  const { user } = useAuth();
   const { workspace } = useWorkspace();
   const key = useReportKey();
+  // A personal choice (Settings, Your account). The button still opens the report.
+  const wanted = user?.dailyReportAuto !== false;
   // An empty workspace has nothing to report; it starts the day after something is added.
   const hasContent = Boolean(workspace?.counts && (workspace.counts.items > 0 || workspace.counts.machines > 0));
   const [mode, setMode] = useState<Mode>('closed');
 
   useEffect(() => {
-    if (!key || !hasContent) return;
+    if (!key || !hasContent || !wanted) return;
     const check = () => {
       if (document.visibilityState === 'visible' && lastShown(key) !== today()) setMode((current) => (current === 'closed' ? 'auto' : current));
     };
     check();
     document.addEventListener('visibilitychange', check);
     return () => document.removeEventListener('visibilitychange', check);
-  }, [key, hasContent]);
+  }, [key, hasContent, wanted]);
 
   const show = useCallback(() => setMode('asked'), []);
   const close = useCallback(() => setMode('closed'), []);

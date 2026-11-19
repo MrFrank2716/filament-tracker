@@ -24,9 +24,11 @@ model User {
   themePreset  String   @default("graphite")
   /// "#rrggbb", or null to use the preset's own accent.
   themeAccent  String?
-  /// Order of the main navigation and which items sit in the phone tab bar, as JSON
-  /// { order: string[], tabBar: string[] }. Null for the standard layout.
+  /// Order of the main navigation, which items sit in the phone tab bar and which are hidden per device, as JSON
+  /// { order: string[], tabBar: string[], hiddenDesktop: string[], hiddenPhone: string[] }. Null for the standard layout.
   navLayout    String?
+  /// Whether the daily report opens by itself on the first visit of the day. The button always opens it.
+  dailyReportAuto Boolean @default(true)
   createdAt    DateTime @default(now())
 
   memberships     Membership[]

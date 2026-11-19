@@ -62,12 +62,24 @@ Filament data comes from [SpoolmanDB](https://github.com/Donkie/SpoolmanDB). Som
 
 ## Appearance
 
-**Appearance** in the sidebar sets your own look: **Light**, **Dark** or **Match device**, a palette, and an **Accent colour** for buttons and selected items. Warning and status colours never change, so alerts always look the same. Your choice is saved to your account and follows you to any device.
+**Settings**, **Appearance** sets your own look: **Light**, **Dark** or **Match device**, a palette, and an **Accent colour** for buttons and selected items. Warning and status colours never change, so alerts always look the same. Your choice is saved to your account and follows you to any device.
+
+## Navigation
+
+**Settings**, **Navigation** is your own layout for the main navigation. It is saved to your account, follows you to any device, and does not change what other members see.
+
+- **Order**: drag a page, or use the arrows, to put the pages you use most at the top.
+- **Where a page shows**: each page has a switch with **Both**, **Desktop**, **Phone** and **Hidden**. **Desktop** keeps it only in the sidebar on a computer, **Phone** only in the phone navigation, and **Hidden** takes it out of both. **Settings** always stays on **Both**.
+- **Phone tab bar**: tick up to four pages for the bar at the bottom of a phone. The rest are under **More**. A page that does not show on a phone cannot be in the bar.
+- **Reset to standard** puts back the original order and shows every page everywhere.
+
+A hidden page is only out of the navigation. It still opens from a link, a bookmark or a scanned label.
 
 ## Your account
 
 **Settings**, **Your account**:
 
+- **Daily report**: untick **Open the daily report on my first visit each day** to stop it opening by itself. See [the daily report](Dashboard-and-reports.md#daily-report).
 - **Change password**. This signs you out everywhere else.
 - **Other devices**: sign out every device except this one, for example after using a shared computer.
 - **Delete account**: removes your account and every workspace that only you belong to. Workspaces you share stay with the other members. If you are the only owner of a shared workspace, make someone else an owner first.

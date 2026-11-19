@@ -3,11 +3,44 @@ import { Link } from 'react-router-dom';
 import { LogOut, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Muted, SectionTitle } from '@/components/ui/Display';
-import { FormGrid, TextField } from '@/components/ui/Form';
+import { Checkbox, FormGrid, TextField } from '@/components/ui/Form';
 import { Modal } from '@/components/ui/Modal';
-import { useAction } from '@/components/ui/Toast';
+import { useAction, useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/context/AuthContext';
+import { api } from '@/lib/api';
+import type { User } from '@/lib/types';
 import styles from '@/components/settings/Settings.module.css';
+
+/** Whether the daily report opens by itself. Shows at once, then saves; a failed save puts the old choice back. */
+function DailyReportPreference() {
+  const { user, updateUser } = useAuth();
+  const toast = useToast();
+  if (!user) return null;
+
+  const change = (dailyReportAuto: boolean) => {
+    const previous = user;
+    updateUser({ ...user, dailyReportAuto });
+    api
+      .patch<{ user: User }>('/auth/me/preferences', { dailyReportAuto })
+      .then(({ user: saved }) => updateUser(saved))
+      .catch((error: unknown) => {
+        updateUser(previous);
+        toast(error instanceof Error ? error.message : 'Could not save your choice', 'danger');
+      });
+  };
+
+  return (
+    <>
+      <SectionTitle>Daily report</SectionTitle>
+      <Checkbox
+        label="Open the daily report on my first visit each day"
+        hint="When this is off, the Daily report button in the navigation still opens it. Only you are affected."
+        checked={user.dailyReportAuto !== false}
+        onChange={change}
+      />
+    </>
+  );
+}
 
 /** About the signed-in person, not the workspace: password, other devices, and deleting the account. */
 export function AccountSection() {
@@ -28,6 +61,7 @@ export function AccountSection() {
           You are using a guest session, which is removed after 7 days. <Link to="/register">Create an account</Link> to keep what you
           have set up.
         </Muted>
+        <DailyReportPreference />
       </>
     );
   }
@@ -45,6 +79,8 @@ export function AccountSection() {
       <Muted>
         Signed in as {user.name} ({user.email}).
       </Muted>
+
+      <DailyReportPreference />
 
       <SectionTitle>Change password</SectionTitle>
       <form
