@@ -133,14 +133,34 @@ describe('personal preferences', () => {
 describe('custom field keys', () => {
   const field = (key: string) => ({ key, label: 'Odd one', fieldType: 'text' });
 
-  it('refuses the names every JavaScript object already has, by hand or in an import', async () => {
-    for (const key of ['__proto__', 'constructor', 'prototype']) {
-      const created = await app.call('POST', ws('/item-types'), admin, { name: `Type ${key}`, fields: [field(key)] });
-      expect(created.status).toBe(400);
-      expect(created.body?.error).toMatch(/reserved/);
-      const imported = await app.call('POST', ws('/import'), admin, { itemTypes: [{ ref: 't-odd', name: 'Odd', fields: [field(key)] }] });
-      expect(imported.status).toBe(400);
-    }
-    expect((await app.call('POST', ws('/item-types'), admin, { name: 'Fine', fields: [field('constructor_2')] })).status).toBe(201);
+  it('refuses __proto__, whose values would be lost, by hand or in an import', async () => {
+    const created = await app.call('POST', ws('/item-types'), admin, { name: 'Odd', fields: [field('__proto__')] });
+    expect(created.status).toBe(400);
+    expect(created.body?.error).toMatch(/reserved/);
+    const imported = await app.call('POST', ws('/import'), admin, { itemTypes: [{ ref: 't-odd', name: 'Odd', fields: [field('__proto__')] }] });
+    expect(imported.status).toBe(400);
+  });
+
+  it('keeps a field keyed "prototype" working: its values, editing its category, and moving it to another workspace', async () => {
+    const shopId = (await prisma.workspace.create({ data: { name: 'Prototype shop' } })).id;
+    const owner = await member('prototypes@example.test', shopId, 'admin');
+    const type = await prisma.itemType.create({
+      data: { workspaceId: shopId, name: 'Parts', fields: { create: { key: 'prototype', label: 'Prototype', fieldType: 'text', options: [] } } },
+      include: { fields: true },
+    });
+    await prisma.item.create({ data: { workspaceId: shopId, itemTypeId: type.id, name: 'Bracket', fields: { prototype: 'yes' } } });
+
+    const edited = await app.call('PATCH', `/workspaces/${shopId}/item-types/${type.id}`, owner, {
+      name: 'Parts',
+      fields: [{ id: type.fields[0].id, key: 'prototype', label: 'Prototype', fieldType: 'text' }],
+    });
+    expect(edited.status).toBe(200);
+
+    const copyId = (await prisma.workspace.create({ data: { name: 'Prototype copy' } })).id;
+    const copier = await member('prototype-copy@example.test', copyId, 'admin');
+    const { body } = await app.call('GET', `/workspaces/${shopId}/export?include=inventory`, owner);
+    expect((await app.call('POST', `/workspaces/${copyId}/import`, copier, body)).status).toBe(200);
+    const copied = await prisma.item.findFirstOrThrow({ where: { workspaceId: copyId } });
+    expect(copied.fields).toEqual({ prototype: 'yes' });
   });
 });

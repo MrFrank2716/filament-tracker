@@ -9,7 +9,7 @@ Wrkbench keeps track of what your workshop has in stock, where it is, which mach
 - **Create an account** with your name, email and a password of 8 to 72 characters. Accented letters and emoji take up more room, so a password full of them has a lower limit.
 - **Continue as guest** to look around without registering. You get your own copy of the example maker space, full of sample machines, stock and jobs. If you like it, choose **Create an account** in the sidebar and everything you set up as a guest moves to your new account. A guest that is not turned into an account is deleted after 7 days.
 - **Forgot password?** emails you a link that works once, for one hour. (The person running your copy of Wrkbench has to have set up email for this to arrive.)
-- After 10 wrong passwords for one email within 15 minutes, signing in with that email is paused for 15 minutes, from any device. Choosing a new password with **Forgot password?** lifts the pause straight away.
+- After 10 wrong passwords for one email within 15 minutes, signing in with that email is paused for up to 15 minutes, from any device. Choosing a new password with **Forgot password?** lifts the pause straight away.
 
 ## Create a workspace
 

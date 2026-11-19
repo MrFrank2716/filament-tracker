@@ -12,7 +12,7 @@ import { api } from '@/lib/api';
 import type { CustomField, FieldType, ItemType } from '@/lib/types';
 import styles from '@/components/settings/Settings.module.css';
 
-const RESERVED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const RESERVED_KEYS = new Set(['__proto__']);
 
 const FIELD_TYPES: Array<{ value: FieldType; label: string }> = [
   { value: 'text', label: 'Text' },
@@ -62,8 +62,9 @@ export function TypeEditor({ catalog, type, onClose }: { catalog: Catalog; type?
       if (!field.label.trim()) return setError('Every field needs a label (or remove the empty one).');
       // Existing fields keep their key so stored values stay attached; new ones derive it from the label.
       let key = field.id ? field.key : slug(field.label) || 'field';
-      // The server refuses keys every JavaScript object already has, so a field labelled "Constructor" gets "constructor_2".
-      while (keys.has(key) || RESERVED_KEYS.has(key)) key = `${key}_2`;
+      // The server refuses the key __proto__. Only new fields are steered away from it: renaming an existing
+      // field's key would detach the values already stored under it.
+      while (keys.has(key) || (!field.id && RESERVED_KEYS.has(key))) key = `${key}_2`;
       keys.add(key);
       const options = field.fieldType === 'select' ? [...new Set(field.optionsText.split(',').map((o) => o.trim()).filter(Boolean))] : [];
       if (field.fieldType === 'select' && options.length === 0) return setError(`"${field.label}" needs at least one choice.`);
