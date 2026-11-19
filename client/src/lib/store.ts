@@ -13,6 +13,8 @@ interface Entry {
 }
 
 const entries = new Map<string, Entry>();
+/** Per path: changes laid over whatever the server returns, for as long as each is registered. */
+const masks = new Map<string, Set<(data: unknown) => unknown>>();
 
 function entryFor(key: string): Entry {
   let entry = entries.get(key);
@@ -29,6 +31,7 @@ function load(key: string): Promise<void> {
   entry.inflight = api
     .get<unknown>(key)
     .then((data) => {
+      for (const mask of masks.get(key) ?? []) data = mask(data);
       entry.data = data;
       entry.error = undefined;
     })
@@ -58,6 +61,45 @@ export function refreshAll(): void {
 /** Re-fetch one entry now, for something that must be current each time it is opened. */
 export function refresh(path: string): void {
   void load(path);
+}
+
+/**
+ * Show a small change before the server has confirmed it: rewrites one cached entry and tells every screen
+ * reading it. Returns the way back, for when the save fails. Not for stock levels, which must come from the server.
+ */
+export function patchCached<T>(path: string, change: (data: T) => T): () => void {
+  const entry = entries.get(path);
+  if (!entry || entry.data === undefined) return () => undefined;
+  const before = entry.data;
+  const patched = change(before as T);
+  entry.data = patched;
+  entry.listeners.forEach((notify) => notify());
+  return () => {
+    // Fresh data arrived meanwhile: it is already the truth, leave it.
+    if (entry.data !== patched) return;
+    entry.data = before;
+    entry.listeners.forEach((notify) => notify());
+  };
+}
+
+/**
+ * Keep something off the screen while its delete is held back for Undo: `mask` is applied to the cached entry
+ * now and to every reload, until the returned function lifts it (which also reloads the entry).
+ */
+export function maskCached<T>(path: string, mask: (data: T) => T): () => void {
+  const apply = mask as (data: unknown) => unknown;
+  const set = masks.get(path) ?? new Set();
+  masks.set(path, set);
+  set.add(apply);
+  const entry = entries.get(path);
+  if (entry && entry.data !== undefined) {
+    entry.data = apply(entry.data);
+    entry.listeners.forEach((notify) => notify());
+  }
+  return () => {
+    if (!set.delete(apply)) return;
+    if (entries.get(path)?.listeners.size) void load(path);
+  };
 }
 
 export function clearStore(): void {

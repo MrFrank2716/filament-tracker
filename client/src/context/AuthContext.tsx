@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api, ApiError, AUTH_EXPIRED_EVENT, tokenStore } from '@/lib/api';
+import { flushHeldDeletes } from '@/lib/heldDeletes';
 import { clearStore } from '@/lib/store';
 import type { User } from '@/lib/types';
 
@@ -46,6 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const logout = useCallback(() => {
+    // A delete still waiting out its Undo toast is sent while the sign-in is still there to send it with.
+    flushHeldDeletes();
     tokenStore.clear();
     clearStore();
     setUser(null);

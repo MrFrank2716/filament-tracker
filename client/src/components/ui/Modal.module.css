@@ -4,6 +4,7 @@
   padding: 0;
   border: var(--border);
   border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
   background: var(--color-surface);
   color: var(--color-text);
   box-shadow: var(--shadow-lg);
@@ -84,6 +85,11 @@
   overscroll-behavior: contain;
 }
 
+/* No footer: the content itself ends at the home indicator. */
+.body:last-child {
+  padding-bottom: max(var(--space-5), env(safe-area-inset-bottom));
+}
+
 .footer {
   display: flex;
   flex-wrap: wrap;
@@ -123,6 +129,30 @@
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     border-bottom: 0;
     --rise: 0.75rem;
+  }
+
+  .frame {
+    padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+  }
+
+  /* The top bar is the handle: drag it down to close the sheet (useSheetSwipe.ts). The Close button still works. */
+  .header {
+    position: relative;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .header::before {
+    content: '';
+    position: absolute;
+    top: var(--space-1);
+    left: 50%;
+    width: 2.25rem;
+    height: 0.25rem;
+    margin-left: -1.125rem;
+    border-radius: var(--radius-pill);
+    background: var(--color-border-strong);
   }
 
   .footer > * {

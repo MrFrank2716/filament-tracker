@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CalendarCheck, Check, History, Plus, Trash2, Wrench } from 'lucide-react';
 import { ItemPicker } from '@/components/items/ItemPicker';
 import { Button, IconButton } from '@/components/ui/Button';
-import { Badge, EmptyState, ErrorNote, Figure, List, Loading, Meter, Muted, PageHeader, Row, RowDetail, SectionTitle, Tabs } from '@/components/ui/Display';
+import { Badge, EmptyState, ErrorNote, Figure, List, Loading, Meter, Muted, PageHeader, PageSkeleton, Row, RowDetail, SectionTitle, Tabs } from '@/components/ui/Display';
 import { Checkbox, FormGrid, NumberField, SelectField, TextAreaField, TextField } from '@/components/ui/Form';
 import { Modal, useConfirm } from '@/components/ui/Modal';
 import { useAction } from '@/components/ui/Toast';
@@ -55,7 +55,7 @@ export function MaintenancePage() {
   const [taskForm, setTaskForm] = useState<{ task?: MaintenanceTask } | null>(null);
 
   if (error || catalog.error) return <ErrorNote>{error ?? catalog.error}</ErrorNote>;
-  if (!all || catalog.loading) return <Loading />;
+  if (!all || catalog.loading) return <PageSkeleton title="Maintenance" subtitle="Recurring service by date or by hours of use. Logging a service resets the clock." filters />;
 
   // With one machine in focus: its own schedule, plus the tasks set on it or on its type.
   const data: MaintenanceData = machine

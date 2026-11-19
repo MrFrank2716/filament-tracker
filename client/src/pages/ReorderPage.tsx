@@ -2,12 +2,13 @@ import { Link } from 'react-router-dom';
 import { CircleCheck, Copy, Download, ExternalLink, PackagePlus } from 'lucide-react';
 import { StockMeter } from '@/components/items/StockMeter';
 import { Button } from '@/components/ui/Button';
-import { Badge, EmptyState, ErrorNote, Figure, HeaderStat, Loading, Muted, PageHeader } from '@/components/ui/Display';
-import { useAction, useToast } from '@/components/ui/Toast';
+import { Badge, EmptyState, ErrorNote, Figure, HeaderStat, Muted, PageHeader, PageSkeleton } from '@/components/ui/Display';
+import { useToast } from '@/components/ui/Toast';
 import { useMachineFocus } from '@/context/FocusContext';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import { useItems } from '@/hooks/useCatalog';
-import { api, saveBlob } from '@/lib/api';
+import { useStockChange } from '@/hooks/useUndo';
+import { saveBlob } from '@/lib/api';
 import { formatNumber } from '@/lib/format';
 import type { ReorderData, ReorderLine } from '@/lib/types';
 import styles from '@/pages/ReorderPage.module.css';
@@ -34,15 +35,16 @@ function scopeTo(data: ReorderData, itemIds: Set<string>): ReorderData {
 }
 
 export function ReorderPage() {
-  const { canEdit, wsPath, money, workspace } = useWorkspace();
+  const { canEdit, money, workspace } = useWorkspace();
   const { data: all, error } = useWsQuery<ReorderData>('/reorder');
   const { items } = useItems();
   const { machine, relates } = useMachineFocus();
-  const { run, busy } = useAction();
+  const stock = useStockChange();
+  const busy = stock.busy;
   const toast = useToast();
 
   if (error) return <ErrorNote>{error}</ErrorNote>;
-  if (!all) return <Loading />;
+  if (!all) return <PageSkeleton title="Reorder" subtitle="Built from items below their minimum and tooling at the end of its life." />;
 
   // With one machine in focus, keep only the lines for things loaded in it or fitting it, and re-total.
   const data: ReorderData = machine ? scopeTo(all, new Set(items.filter(relates).map((item) => item.id))) : all;
@@ -74,7 +76,7 @@ export function ReorderPage() {
   };
 
   const receive = (line: ReorderLine) =>
-    run(() => api.post(wsPath(`/items/${line.itemId}/adjust`)!, { mode: 'delta', value: line.suggested, reason: 'restock', note: 'Received from reorder list' }), `${line.name} restocked`);
+    stock.change(line.itemId, { mode: 'delta', value: line.suggested, reason: 'restock', note: 'Received from reorder list' }, `${line.name} restocked`);
 
   return (
     <>

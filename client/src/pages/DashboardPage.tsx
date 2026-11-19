@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { CircleCheck, Wrench } from 'lucide-react';
-import { Badge, EmptyState, ErrorNote, Figure, Grid, HeaderStat, Ledger, List, Loading, Meter, PageHeader, Readout, Row, RowDetail, SectionTitle, Stack, type StatusTone } from '@/components/ui/Display';
+import { Badge, EmptyState, ErrorNote, Figure, Grid, HeaderStat, Ledger, List, Meter, PageHeader, PageSkeleton, Readout, Row, RowDetail, SectionTitle, Stack, type StatusTone } from '@/components/ui/Display';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import { useCatalog } from '@/hooks/useCatalog';
 import { formatDate, formatHours, formatNumber, formatQuantity } from '@/lib/format';
@@ -25,7 +25,7 @@ export function DashboardPage() {
   const { unitById } = useCatalog();
 
   if (error) return <ErrorNote>{error}</ErrorNote>;
-  if (!data || !workspace) return <Loading />;
+  if (!data || !workspace) return <PageSkeleton title={workspace?.name ?? 'Overview'} subtitle={workspace?.description || undefined} />;
   const { counts } = data;
 
   const queue: QueueEntry[] = [

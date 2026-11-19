@@ -63,6 +63,9 @@ export async function logSystemActivity(entry: {
 /** Only these can be undone: changes whose whole effect is the stock they moved. */
 export const UNDOABLE = new Set(['item.adjust', 'item.update']);
 
+/** Response header naming the activity entry a stock change became, sent only to members who may undo it. */
+export const UNDO_HEADER = 'X-Undo-Activity';
+
 // ---- Wording -----------------------------------------------------------------
 
 const NOUNS: Record<string, string> = {
@@ -199,6 +202,10 @@ export const recordActivity: RequestHandler = async (req, res, next) => {
     if (ended || res.statusCode >= 400) return end(...args);
     ended = true;
     write(req, segments, nameBefore, responseBody, context)
+      // Whoever may undo this change is told which entry it became, so the screen can offer Undo straight away.
+      .then((undoId) => {
+        if (undoId && !res.headersSent) res.setHeader(UNDO_HEADER, undoId);
+      })
       .catch((error: unknown) => console.error('Could not write activity log', error))
       .finally(() => end(...args));
     return res;
@@ -206,18 +213,19 @@ export const recordActivity: RequestHandler = async (req, res, next) => {
   store.run(context, () => next());
 };
 
-async function write(req: Request, segments: string[], nameBefore: string, body: Record<string, unknown> | undefined, context: Context) {
+/** Writes the entry. Resolves to its id when it is a stock change this member may undo, otherwise to null. */
+async function write(req: Request, segments: string[], nameBefore: string, body: Record<string, unknown> | undefined, context: Context): Promise<string | null> {
   // The workspace itself is gone: there is nowhere to write.
-  if (req.method === 'DELETE' && segments.length === 0) return;
+  if (req.method === 'DELETE' && segments.length === 0) return null;
   // Undo writes its own entry.
-  if (segments[0] === 'activity') return;
+  if (segments[0] === 'activity') return null;
   const name = nameBefore || String(body?.name ?? body?.title ?? '');
   const generic = describe(req.method, segments, name, body);
   const moved = await describeMovements(context.movementIds);
   // A stock adjustment is fully described by its movements, which already name the item.
   const summary = context.summary ?? (generic.action === 'item.adjust' && moved ? `Changed stock: ${moved}` : moved ? `${generic.text}: ${moved}` : generic.text);
   const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true } });
-  await prisma.activityLog.create({
+  const entry = await prisma.activityLog.create({
     data: {
       workspaceId: req.workspaceId,
       userId: req.userId,
@@ -229,6 +237,9 @@ async function write(req: Request, segments: string[], nameBefore: string, body:
       movementIds: context.movementIds,
     },
   });
+  // The same rule the activity list uses for its Undo button.
+  const mayUndo = req.role === 'admin' || req.role === 'owner';
+  return mayUndo && UNDOABLE.has(generic.action) && context.movementIds.length > 0 ? entry.id : null;
 }
 
 // ---- Undo ------------------------------------------------------------------------

@@ -10,7 +10,7 @@ import type { ScanState } from '@/components/scan/ScannerProvider';
 import { TagImportDialog } from '@/components/tags/TagImportDialog';
 import { Button } from '@/components/ui/Button';
 import { StockMeter } from '@/components/items/StockMeter';
-import { Badge, Chip, ChipRow, EmptyState, ErrorNote, Figure, List, Loading, Muted, PageHeader, Row, Swatch, Tabs, TypeIcon } from '@/components/ui/Display';
+import { Badge, Chip, ChipRow, EmptyState, ErrorNote, Figure, List, Muted, PageHeader, PageSkeleton, Row, Swatch, Tabs, TypeIcon } from '@/components/ui/Display';
 import { FormGrid, NumberField, SelectField } from '@/components/ui/Form';
 import { AddChooser } from '@/components/reference/AddChooser';
 import { ReferencePicker } from '@/components/reference/ReferencePicker';
@@ -192,7 +192,7 @@ export function InventoryPage() {
   }, [items]);
 
   if (error || catalog.error) return <ErrorNote>{error ?? catalog.error}</ErrorNote>;
-  if (loading || catalog.loading) return <Loading />;
+  if (loading || catalog.loading) return <PageSkeleton title="Inventory" layout="cards" filters />;
 
   const extraFilters = Number(Boolean(locationId)) + Number(Boolean(supplierId)) + Number(sort !== 'name');
 

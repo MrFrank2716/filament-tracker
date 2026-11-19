@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/db';
 import { ownerOnly, requireAuth, ROLES, workspaceGuard } from '@/auth';
 import { HttpError, notFound, param, parse } from '@/http';
+import { idempotent } from '@/idempotency';
 import { broadcastChanges } from '@/realtime';
 import { registerReferenceRoutes } from '@/routes/reference';
 import { recordActivity } from '@/services/activity';
@@ -14,6 +15,8 @@ import { getTemplate, listTemplates } from '@/templates';
 
 export const workspacesRouter = Router();
 workspacesRouter.use(requireAuth);
+// After the sign-in check, before anything runs: a request repeated with the same key is answered from memory.
+workspacesRouter.use(idempotent);
 
 const workspaceInput = z.object({
   name: z.string().trim().min(1, 'Give the workspace a name').max(80),

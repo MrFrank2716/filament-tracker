@@ -21,6 +21,19 @@
   transition: background-color var(--duration) var(--ease);
 }
 
+/* 36 px tall to look at; on touch screens an invisible margin makes the target 44 px. */
+@media (pointer: coarse) {
+  .trigger {
+    position: relative;
+  }
+
+  .trigger::after {
+    content: '';
+    position: absolute;
+    inset: -4px 0;
+  }
+}
+
 .trigger:hover {
   background: var(--color-surface-hover);
 }

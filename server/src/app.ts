@@ -6,6 +6,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { env } from '@/env';
 import { errorHandler, HttpError } from '@/http';
+import { REPLAYED_HEADER } from '@/idempotency';
 import { authRouter } from '@/routes/auth';
 import { registerActivityRoutes } from '@/routes/activity';
 import { registerCatalogRoutes } from '@/routes/catalog';
@@ -22,6 +23,7 @@ import { registerReportRoutes } from '@/routes/reports';
 import { publicRequestsRouter, registerRequestRoutes } from '@/routes/requests';
 import { registerTransferRoutes } from '@/routes/transfer';
 import { workspaceScope, workspacesRouter } from '@/routes/workspaces';
+import { UNDO_HEADER } from '@/services/activity';
 
 /** The whole HTTP app, without a port: index.ts listens on it, tests call it directly. */
 export function createApp(): express.Express {
@@ -40,7 +42,7 @@ export function createApp(): express.Express {
       },
     }),
   );
-  app.use(cors({ origin: env.CLIENT_ORIGIN }));
+  app.use(cors({ origin: env.CLIENT_ORIGIN, exposedHeaders: [UNDO_HEADER, REPLAYED_HEADER] }));
   app.use(express.json({ limit: '5mb' }));
 
   app.get('/api/health', (_req, res) => {

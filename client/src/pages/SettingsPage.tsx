@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AccountSection } from '@/components/settings/AccountSection';
 import { AppearanceSection } from '@/components/settings/AppearanceSection';
 import { NavigationSection } from '@/components/settings/NavigationSection';
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Building2, LogOut, Plus, Ruler, Shapes, Trash2, Truck } from 'lucide-react';
 import { CrudSection } from '@/components/settings/CrudSection';
 import { DataSection } from '@/components/settings/DataSection';
@@ -12,7 +12,7 @@ import { PrintersSection } from '@/components/settings/PrintersSection';
 import { RequestLinkSection } from '@/components/settings/RequestLinkSection';
 import { TypeEditor } from '@/components/settings/TypeEditor';
 import { Button } from '@/components/ui/Button';
-import { EmptyState, ErrorNote, Figure, List, Loading, Muted, PageHeader, Row, SectionTitle, TypeIcon } from '@/components/ui/Display';
+import { EmptyState, ErrorNote, Figure, List, Muted, PageHeader, PageSkeleton, Row, SectionTitle, TypeIcon } from '@/components/ui/Display';
 import { FormGrid, NumberField, SelectField, TextAreaField, TextField } from '@/components/ui/Form';
 import { useConfirm } from '@/components/ui/Modal';
 import { useAction } from '@/components/ui/Toast';
@@ -21,13 +21,15 @@ import { useCatalog } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
 import { parseNumber } from '@/lib/format';
 import { LegalLinks } from '@/pages/LegalPages';
+import { withViewTransition } from '@/lib/viewTransition';
 import type { ItemType } from '@/lib/types';
 import styles from '@/components/settings/Settings.module.css';
 
 type Tab = 'general' | 'lists' | 'members' | 'printers' | 'devices' | 'requests' | 'data' | 'appearance' | 'navigation' | 'account';
 
 /** Workspace sections are shared by every member; the personal ones belong to whoever is signed in. */
-const TABS: Array<{ id: Tab; label: string; personal?: boolean }> = [
+/** Every section, in order. Also what the command menu lists, so each can be opened by name. */
+export const SETTINGS_TABS: Array<{ id: Tab; label: string; personal?: boolean }> = [
   { id: 'general', label: 'Workspace' },
   { id: 'lists', label: 'Lists' },
   { id: 'members', label: 'Members' },
@@ -44,8 +46,8 @@ const TABS: Array<{ id: Tab; label: string; personal?: boolean }> = [
 const LEGACY_TABS: Record<string, Tab> = { categories: 'lists', units: 'lists', machineTypes: 'lists', suppliers: 'lists' };
 
 const GROUPS = [
-  { label: 'This workspace', tabs: TABS.filter((t) => !t.personal) },
-  { label: 'You', tabs: TABS.filter((t) => t.personal) },
+  { label: 'This workspace', tabs: SETTINGS_TABS.filter((t) => !t.personal) },
+  { label: 'You', tabs: SETTINGS_TABS.filter((t) => t.personal) },
 ];
 
 export function SettingsPage() {
@@ -53,13 +55,21 @@ export function SettingsPage() {
   const catalog = useCatalog();
   // Other screens can link straight to a section: /settings?tab=requests
   const [params] = useSearchParams();
-  const [tab, setTab] = useState<Tab>(() => TABS.find((t) => t.id === (LEGACY_TABS[params.get('tab') ?? ''] ?? params.get('tab')))?.id ?? 'general');
+  const [tab, setTab] = useState<Tab>(() => SETTINGS_TABS.find((t) => t.id === (LEGACY_TABS[params.get('tab') ?? ''] ?? params.get('tab')))?.id ?? 'general');
   const [typeEditor, setTypeEditor] = useState<{ type?: ItemType } | null>(null);
+  // A link to another section followed while Settings is already open (from the command menu, say) switches to it.
+  const askedTab = params.get('tab');
+  const navigationKey = useLocation().key;
+  useEffect(() => {
+    const asked = SETTINGS_TABS.find((t) => t.id === (LEGACY_TABS[askedTab ?? ''] ?? askedTab));
+    if (asked) setTab(asked.id);
+    // The navigation's key, not the section asked for: asking for the same section again must still switch back to it.
+  }, [askedTab, navigationKey]);
 
   // Locations used to be a section here; they have a page of their own now, and old links still land there.
   if (params.get('tab') === 'locations') return <Navigate to="/locations" replace />;
   if (catalog.error) return <ErrorNote>{catalog.error}</ErrorNote>;
-  if (catalog.loading) return <Loading />;
+  if (catalog.loading) return <PageSkeleton title="Settings" subtitle="Categories, units, suppliers and people for this workspace, and your own preferences." filters />;
 
   return (
     <>
@@ -72,7 +82,7 @@ export function SettingsPage() {
           <div key={group.label} className={styles.railGroup} role="group" aria-label={group.label}>
             <span className={styles.railHeading}>{group.label}</span>
             {group.tabs.map((t) => (
-              <button key={t.id} type="button" className={`${styles.railLink} ${t.id === tab ? styles.railActive : ''}`} aria-current={t.id === tab ? 'true' : undefined} onClick={() => setTab(t.id)}>
+              <button key={t.id} type="button" className={`${styles.railLink} ${t.id === tab ? styles.railActive : ''}`} aria-current={t.id === tab ? 'true' : undefined} onClick={() => withViewTransition(() => setTab(t.id))}>
                 {t.label}
               </button>
             ))}

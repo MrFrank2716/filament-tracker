@@ -228,6 +228,7 @@
   background: var(--color-surface);
   border: var(--border);
   border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
   box-shadow: var(--shadow-sm);
   min-width: 0;
 }
@@ -366,6 +367,60 @@
   }
 }
 
+/* ---- Skeleton: the page's own layout, drawn in grey blocks ------------ */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.bone {
+  display: block;
+  max-width: 100%;
+  height: 0.75em;
+  margin: 0.3em 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  animation: breathe 1.4s var(--ease) infinite alternate;
+}
+
+.bone-sm {
+  width: 7rem;
+}
+
+.bone-md {
+  width: 11rem;
+}
+
+.bone-lg {
+  width: 15rem;
+}
+
+.bone-title {
+  width: 9rem;
+  height: 1em;
+}
+
+.bone-chip {
+  width: 5.5rem;
+  height: 2.25rem;
+  margin: 0;
+  border-radius: var(--radius-md);
+}
+
+@keyframes breathe {
+  to {
+    opacity: 0.45;
+  }
+}
+
+/* With reduced motion the blocks hold still. */
+@media (prefers-reduced-motion: reduce) {
+  .bone {
+    animation: none;
+  }
+}
+
 .error {
   display: flex;
   align-items: flex-start;
@@ -420,6 +475,27 @@
 
 .chipActive .typeIconPlain {
   color: inherit;
+}
+
+/*
+ * Chips look 36 px tall; on touch screens an invisible margin makes the target 44 px. The row scrolls sideways,
+ * which would clip that margin, so the row grows by the same amount without moving anything.
+ */
+@media (pointer: coarse) {
+  .chipRow {
+    margin-top: calc(var(--space-1) * -1);
+    padding-top: var(--space-1);
+  }
+
+  .chip {
+    position: relative;
+  }
+
+  .chip::after {
+    content: '';
+    position: absolute;
+    inset: -4px 0;
+  }
 }
 
 .chipCount {
@@ -694,6 +770,22 @@
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.375rem;
+  height: 1.375rem;
+  padding: 0 var(--space-1);
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font-size: var(--text-label);
+  font-weight: 500;
+  line-height: 1;
   white-space: nowrap;
 }
 

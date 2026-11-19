@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { Button, IconButton } from '@/components/ui/Button';
+import { useSheetSwipe } from '@/components/ui/useSheetSwipe';
 import styles from '@/components/ui/Modal.module.css';
 
 interface ModalProps {
@@ -13,6 +14,23 @@ interface ModalProps {
   onSubmit?: () => void;
   size?: 'md' | 'lg';
 }
+
+/**
+ * The dialogs open right now, newest last. A modal dialog makes everything outside it unclickable, so anything
+ * that must stay usable over one (a toast's Undo button) has to be drawn inside the top dialog.
+ */
+const openDialogs: HTMLDialogElement[] = [];
+const dialogWatchers = new Set<() => void>();
+const tellWatchers = () => dialogWatchers.forEach((notify) => notify());
+const watchDialogs = (notify: () => void) => {
+  dialogWatchers.add(notify);
+  return () => {
+    dialogWatchers.delete(notify);
+  };
+};
+
+/** The dialog on top, or null when none is open. */
+export const useTopDialog = () => useSyncExternalStore(watchDialogs, () => openDialogs.at(-1) ?? null);
 
 const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -38,13 +56,18 @@ function leaveBehind(dialog: HTMLDialogElement) {
   });
 }
 
-/** Native <dialog>: focus trapping and Escape for free. Slides up as a sheet on phones. */
+/** Native <dialog>: focus trapping and Escape for free. On phones it is a sheet that slides up, and can be swiped down by its top bar. */
 export function Modal({ title, onClose, children, footer, onSubmit, size = 'md' }: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     const dialog = ref.current;
-    if (dialog && !dialog.open) dialog.showModal();
+    if (!dialog) return;
+    if (!dialog.open) dialog.showModal();
+    if (!openDialogs.includes(dialog)) {
+      openDialogs.push(dialog);
+      tellWatchers();
+    }
   }, []);
 
   // Closing unmounts the dialog, so CSS never gets to animate it out. A layout cleanup runs before React removes
@@ -52,11 +75,19 @@ export function Modal({ title, onClose, children, footer, onSubmit, size = 'md' 
   useLayoutEffect(() => {
     const dialog = ref.current;
     return () => {
+      const at = dialog ? openDialogs.indexOf(dialog) : -1;
+      if (at >= 0) {
+        openDialogs.splice(at, 1);
+        tellWatchers();
+      }
       if (!dialog?.open) return;
-      if (!prefersReducedMotion()) leaveBehind(dialog);
+      // Swiped away: it has already slid off the screen, so there is nothing left to fade.
+      if (!prefersReducedMotion() && !dialog.dataset.swiped) leaveBehind(dialog);
       dialog.close();
     };
   }, []);
+
+  const swipe = useSheetSwipe(ref, onClose);
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -65,7 +96,7 @@ export function Modal({ title, onClose, children, footer, onSubmit, size = 'md' 
 
   const content = (
     <>
-      <header className={styles.header}>
+      <header className={styles.header} {...swipe}>
         <h2 className={styles.title}>{title}</h2>
         <IconButton icon={X} label="Close" onClick={onClose} />
       </header>
