@@ -56,6 +56,12 @@ The sidebar has one entry per screen. On a phone, four of them sit in a bar at t
 
 A red number on a sidebar entry counts things waiting there: overdue maintenance, items to reorder, requests to check.
 
+### Search
+
+**Search**, at the top of the sidebar (the magnifying glass at the top of the screen on a phone), finds any page, any section of Settings, any item in your inventory and a few everyday actions such as **Scan a label** or **Sign out**. Type a few letters, move through the results with the up and down arrow keys, and press **Enter** to open the one that is highlighted.
+
+With a keyboard, **Ctrl K** opens it from anywhere (**⌘K** on a Mac), and pressing it again or **Esc** closes it. The shortcut is shown next to **Search** in the sidebar. It works while you are typing in a field, but not while another dialog is open.
+
 ### Whole workshop or one machine
 
 The **Whole workshop** button at the top right of most screens lets you pick a single machine. While one is picked, Overview becomes that machine's own page, and Inventory, Jobs, Maintenance and Reorder only show what concerns it. Pick **Whole workshop** again to go back. This is called **machine focus**, and Wrkbench remembers your choice on each device.

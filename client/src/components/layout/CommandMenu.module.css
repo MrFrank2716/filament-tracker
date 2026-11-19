@@ -1,0 +1,106 @@
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-target);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  corner-shape: var(--corner-shape);
+  background: var(--color-surface);
+  color: var(--color-text-faint);
+}
+
+.search:focus-within {
+  outline: 2px solid var(--color-focus);
+  border-color: transparent;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.5rem;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  /* 16px minimum stops iOS zooming the page when a field is focused */
+  font-size: max(1rem, var(--text-md));
+  outline: none;
+}
+
+/* The frame around the field shows the focus. */
+.input:focus-visible {
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--color-text-faint);
+}
+
+/* A steady height, so the dialog does not jump about as the results change. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  height: min(22rem, 50dvh);
+  margin: 0 calc(var(--space-2) * -1);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.heading {
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap-target);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.none {
+  padding: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.hints {
+  display: none;
+}
+
+/* Key hints only where there is a keyboard to use them with. */
+@media (hover: hover) and (pointer: fine) {
+  .hints {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+}

@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AccountSection } from '@/components/settings/AccountSection';
 import { AppearanceSection } from '@/components/settings/AppearanceSection';
 import { NavigationSection } from '@/components/settings/NavigationSection';
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Building2, LogOut, Plus, Ruler, Shapes, Trash2, Truck } from 'lucide-react';
 import { CrudSection } from '@/components/settings/CrudSection';
 import { DataSection } from '@/components/settings/DataSection';
@@ -27,7 +27,8 @@ import styles from '@/components/settings/Settings.module.css';
 type Tab = 'general' | 'lists' | 'members' | 'printers' | 'devices' | 'requests' | 'data' | 'appearance' | 'navigation' | 'account';
 
 /** Workspace sections are shared by every member; the personal ones belong to whoever is signed in. */
-const TABS: Array<{ id: Tab; label: string; personal?: boolean }> = [
+/** Every section, in order. Also what the command menu lists, so each can be opened by name. */
+export const SETTINGS_TABS: Array<{ id: Tab; label: string; personal?: boolean }> = [
   { id: 'general', label: 'Workspace' },
   { id: 'lists', label: 'Lists' },
   { id: 'members', label: 'Members' },
@@ -44,8 +45,8 @@ const TABS: Array<{ id: Tab; label: string; personal?: boolean }> = [
 const LEGACY_TABS: Record<string, Tab> = { categories: 'lists', units: 'lists', machineTypes: 'lists', suppliers: 'lists' };
 
 const GROUPS = [
-  { label: 'This workspace', tabs: TABS.filter((t) => !t.personal) },
-  { label: 'You', tabs: TABS.filter((t) => t.personal) },
+  { label: 'This workspace', tabs: SETTINGS_TABS.filter((t) => !t.personal) },
+  { label: 'You', tabs: SETTINGS_TABS.filter((t) => t.personal) },
 ];
 
 export function SettingsPage() {
@@ -53,8 +54,16 @@ export function SettingsPage() {
   const catalog = useCatalog();
   // Other screens can link straight to a section: /settings?tab=requests
   const [params] = useSearchParams();
-  const [tab, setTab] = useState<Tab>(() => TABS.find((t) => t.id === (LEGACY_TABS[params.get('tab') ?? ''] ?? params.get('tab')))?.id ?? 'general');
+  const [tab, setTab] = useState<Tab>(() => SETTINGS_TABS.find((t) => t.id === (LEGACY_TABS[params.get('tab') ?? ''] ?? params.get('tab')))?.id ?? 'general');
   const [typeEditor, setTypeEditor] = useState<{ type?: ItemType } | null>(null);
+  // A link to another section followed while Settings is already open (from the command menu, say) switches to it.
+  const askedTab = params.get('tab');
+  const navigationKey = useLocation().key;
+  useEffect(() => {
+    const asked = SETTINGS_TABS.find((t) => t.id === (LEGACY_TABS[askedTab ?? ''] ?? askedTab));
+    if (asked) setTab(asked.id);
+    // The navigation's key, not the section asked for: asking for the same section again must still switch back to it.
+  }, [askedTab, navigationKey]);
 
   // Locations used to be a section here; they have a page of their own now, and old links still land there.
   if (params.get('tab') === 'locations') return <Navigate to="/locations" replace />;

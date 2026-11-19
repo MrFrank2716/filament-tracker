@@ -399,6 +399,11 @@ export function Figure({ children, tone }: { children: ReactNode; tone?: StatusT
   return <span className={`${styles.figure} ${tone ? styles[`text-${tone}`] : ''}`}>{children}</span>;
 }
 
+/** A key or a keyboard shortcut, shown beside the action it belongs to. */
+export function Kbd({ children }: { children: ReactNode }) {
+  return <kbd className={styles.kbd}>{children}</kbd>;
+}
+
 export function Stack({ children, gap = 'md' }: { children: ReactNode; gap?: 'sm' | 'md' | 'lg' }) {
   return <div className={`${styles.stack} ${styles[`gap-${gap}`]}`}>{children}</div>;
 }

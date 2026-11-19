@@ -75,6 +75,11 @@
   text-align: left;
 }
 
+/* A keyboard shortcut at the end of a nav entry. */
+.shortcut {
+  display: inline-flex;
+}
+
 /* Sits at the foot of the sidebar list, apart from the screens. */
 .navEnd {
   margin-top: auto;
@@ -287,7 +292,8 @@
   .collapsed .brandIcon,
   .collapsed .brandName,
   .collapsed .accountText,
-  .collapsed .navLink .linkLabel {
+  .collapsed .navLink .linkLabel,
+  .collapsed .navLink .shortcut {
     display: none;
   }
 

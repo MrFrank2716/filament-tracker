@@ -1,22 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  Boxes, Eye, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, ScanLine, Sunrise,
+  ArrowLeftRight, Boxes, Eye, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, ScanLine, Search, Settings, Sunrise,
 } from 'lucide-react';
+import { CommandMenu } from '@/components/layout/CommandMenu';
 import { NAV_PAGES, type NavPage } from '@/components/layout/navPages';
 import { DailyReport, useDailyReport } from '@/components/report/DailyReport';
 import { ScanDialog } from '@/components/scan/ScanDialog';
 import { ScannerProvider } from '@/components/scan/ScannerProvider';
 import { Button, IconButton } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Display';
+import { Badge, Kbd } from '@/components/ui/Display';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { useAuth } from '@/context/AuthContext';
 import { useMachineFocus } from '@/context/FocusContext';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import { useItems } from '@/hooks/useCatalog';
+import type { Command } from '@/lib/commands';
 import { applyLayout, normalizeLayout, type NavId } from '@/lib/navigation';
+import { isApple, isShortcut, SEARCH_SHORTCUT, shortcutLabel } from '@/lib/shortcuts';
 import type { Dashboard, JobRequest, MaintenanceData, ReorderData } from '@/lib/types';
+import { SETTINGS_TABS } from '@/pages/SettingsPage';
 import styles from '@/components/layout/AppShell.module.css';
 
 interface NavItem extends NavPage {
@@ -62,6 +66,7 @@ export function AppShell() {
   const { machine, relates } = useMachineFocus();
   const [moreOpen, setMoreOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [collapsed, toggleSidebar] = useSidebarCollapsed();
   const report = useDailyReport();
   const navigate = useNavigate();
@@ -88,6 +93,49 @@ export function AppShell() {
       navigate('/');
     }
   };
+
+  // The command menu opens from anywhere with its shortcut, typing in a field included. Not over another dialog:
+  // going somewhere else from behind one would leave it stranded.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!isShortcut(event, SEARCH_SHORTCUT)) return;
+      event.preventDefault();
+      setSearching((open) => (open ? false : !document.querySelector('dialog:modal')));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Everything the command menu offers besides the inventory: every page whatever the user's own navigation
+  // shows, each Settings section, and the actions that live in this shell.
+  const commands: Command[] = [
+    ...NAV_PAGES.map((page) => ({ id: `page:${page.id}`, label: page.label, group: 'Go to', icon: page.icon, run: () => navigate(page.to) })),
+    ...SETTINGS_TABS.map((tab) => ({ id: `settings:${tab.id}`, label: `Settings: ${tab.label}`, group: 'Go to', icon: Settings, run: () => navigate(`/settings?tab=${tab.id}`) })),
+    { id: 'do:scan', label: 'Scan a label', group: 'Do', icon: ScanLine, keywords: 'qr barcode nfc camera', run: () => setScanning(true) },
+    { id: 'do:report', label: 'Open the daily report', group: 'Do', icon: Sunrise, keywords: 'today summary', run: () => report.show() },
+    ...workspaces
+      .filter((w) => w.id !== workspace?.id)
+      .map((w) => ({ id: `workspace:${w.id}`, label: `Switch to ${w.name}`, group: 'Do', icon: ArrowLeftRight, keywords: 'workspace change', run: () => switchWorkspace(w.id) })),
+    { id: 'do:new-workspace', label: 'New workspace', group: 'Do', icon: Plus, keywords: 'create add', run: () => switchWorkspace(NEW_WORKSPACE) },
+    { id: 'do:sign-out', label: 'Sign out', group: 'Do', icon: LogOut, keywords: 'log out leave', run: logout },
+  ];
+
+  // The way in for anyone who has not learnt the shortcut, which it shows.
+  const searchButton = (
+    <button
+      type="button"
+      className={`${styles.navLink} ${styles.navButton}`}
+      title={collapsed ? `Search (${shortcutLabel(SEARCH_SHORTCUT)})` : undefined}
+      aria-keyshortcuts={isApple() ? 'Meta+K' : 'Control+K'}
+      onClick={() => setSearching(true)}
+    >
+      <Search size={20} aria-hidden />
+      <span className={styles.linkLabel}>Search</span>
+      <span className={styles.shortcut}>
+        <Kbd>{shortcutLabel(SEARCH_SHORTCUT)}</Kbd>
+      </span>
+    </button>
+  );
 
   const switcher = (
     <label className={styles.switcher}>
@@ -167,6 +215,7 @@ export function AppShell() {
         </div>
         {!collapsed && switcher}
         <nav className={styles.nav} aria-label="Main">
+          {searchButton}
           {items.filter((i) => i.desktop).map((item) => link(item, styles.navLink))}
           {scanButton(styles.navEnd)}
           {reportButton()}
@@ -194,6 +243,7 @@ export function AppShell() {
             View only
           </Badge>
         )}
+        <IconButton icon={Search} label="Search" onClick={() => setSearching(true)} />
         <IconButton icon={ScanLine} label="Scan a label" onClick={() => setScanning(true)} />
       </header>
 
@@ -239,6 +289,7 @@ export function AppShell() {
         </Modal>
       )}
 
+      {searching && <CommandMenu commands={commands} onClose={() => setSearching(false)} />}
       {scanning && <ScanDialog onClose={() => setScanning(false)} />}
       {report.mode !== 'closed' && <DailyReport auto={report.mode === 'auto'} onClose={report.close} />}
     </div>
