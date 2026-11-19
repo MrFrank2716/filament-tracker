@@ -107,8 +107,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user || !workspaceId) return;
     const socket = io({ auth: (send) => send({ token: tokenStore.get() }), transports: ['websocket', 'polling'] });
-    const join = () => socket.emit('workspace:join', workspaceId);
-    socket.on('connect', join);
+    // Joining again after the connection dropped also re-fetches: changes made meanwhile were never announced here.
+    let connectedBefore = false;
+    socket.on('connect', () => {
+      socket.emit('workspace:join', workspaceId);
+      if (connectedBefore) refreshAll();
+      connectedBefore = true;
+    });
     socket.on('workspace:changed', () => {
       refreshAll();
       void reload().catch(() => undefined);
@@ -121,8 +126,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (document.visibilityState === 'visible') refreshAll();
     };
     document.addEventListener('visibilitychange', onVisible);
+    // So should clicking back into the window from another one, or the network returning.
+    window.addEventListener('focus', refreshAll);
+    window.addEventListener('online', refreshAll);
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', refreshAll);
+      window.removeEventListener('online', refreshAll);
       socket.disconnect();
       clearPrinterStates();
     };
