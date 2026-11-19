@@ -8,16 +8,16 @@ Everything is under **Settings**, **Import / export**. Exporting is open to ever
 
 | Export | What you get | Use it for |
 | --- | --- | --- |
-| **Whole workspace (JSON)** | Categories and their fields, units, suppliers, locations, machine types, machines and their attached hardware, inventory, maintenance tasks and their service history, and jobs | A backup you keep yourself, or copying a workspace into another one |
+| **Whole workspace (JSON)** | Categories and their fields, units, suppliers, locations, machine types, machines and their attached hardware, inventory, maintenance tasks and their service history, projects, and jobs | A backup you keep yourself, or copying a workspace into another one |
 | **Inventory (CSV)** | One row per item, with a column for every custom field | Opening your stock in a spreadsheet |
 
 The workspace export does **not** include members, the activity log, job requests and their uploaded files, or connected printers.
 
 ### Export only some parts
 
-To leave things out of the workspace file, press **Choose what to export** on the **Whole workspace (JSON)** card, tick the parts you want, and press **Download JSON**. The parts are **Categories and fields**, **Units**, **Suppliers**, **Locations**, **Machines**, **Inventory**, **Maintenance** and **Jobs**.
+To leave things out of the workspace file, press **Choose what to export** on the **Whole workspace (JSON)** card, tick the parts you want, and press **Download JSON**. The parts are **Categories and fields**, **Units**, **Suppliers**, **Locations**, **Machines**, **Inventory**, **Maintenance** and **Jobs and projects**.
 
-A part brings along what it points at, so the file still imports whole. Ticking **Inventory** also ticks its categories, units, suppliers and locations; **Maintenance** needs **Machines**; **Jobs** needs **Machines** and **Inventory**. Unticking a part unticks whatever needs it. The file is saved with `-selection` at the end of its name and imports the same way as a whole workspace file.
+A part brings along what it points at, so the file still imports whole. Ticking **Inventory** also ticks its categories, units, suppliers and locations; **Maintenance** needs **Machines**; **Jobs and projects** needs **Machines** and **Inventory**. Unticking a part unticks whatever needs it. The file is saved with `-selection` at the end of its name and imports the same way as a whole workspace file.
 
 Inventory and machines are linked only loosely, so neither brings the other. Export inventory without machines and the items no longer say which machines they fit; export machines without inventory and their material slots come back empty. The dialog warns you when your choice does this.
 
@@ -25,7 +25,7 @@ Both exports carry each spool's tag (the one a printer reads, or the serial of i
 
 ## Import a workspace file
 
-**Workspace file (JSON)** merges a file exported from Wrkbench into the current workspace. Categories, units, suppliers and machines that already exist with the same name are reused; items and jobs are added as new.
+**Workspace file (JSON)** merges a file exported from Wrkbench into the current workspace. Categories, units, suppliers and machines that already exist with the same name are reused; items, projects and jobs are added as new. An imported project keeps the target margin it was using, even if this workspace's is different.
 
 To start fresh from a backup, create a new blank workspace and import the file into it.
 

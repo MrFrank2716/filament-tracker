@@ -39,7 +39,7 @@ export async function moveStock(db: Db, { workspaceId, itemId, delta, reason, no
 export async function assertInWorkspace(
   db: Db,
   workspaceId: string,
-  refs: Partial<Record<'unit' | 'supplier' | 'location' | 'itemType' | 'machineType' | 'machine' | 'item', string | null | undefined | string[]>>,
+  refs: Partial<Record<'unit' | 'supplier' | 'location' | 'itemType' | 'machineType' | 'machine' | 'item' | 'project', string | null | undefined | string[]>>,
 ): Promise<void> {
   const checks: Array<[string, string[], Promise<number>]> = [];
   for (const [model, value] of Object.entries(refs)) {

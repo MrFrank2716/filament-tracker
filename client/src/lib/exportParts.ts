@@ -15,7 +15,7 @@ export const EXPORT_PART_INFO: Record<ExportPart, { label: string; detail: strin
   machines: { label: 'Machines', detail: 'Machine types, machines and their material slots.', needs: ['locations'] },
   inventory: { label: 'Inventory', detail: 'Every item in stock, with quantities and tags.', needs: ['categories', 'units', 'suppliers', 'locations'] },
   maintenance: { label: 'Maintenance', detail: 'Tasks and service history.', needs: ['machines'] },
-  jobs: { label: 'Jobs', detail: 'Job history with material use and costs.', needs: ['machines', 'inventory'] },
+  jobs: { label: 'Jobs and projects', detail: 'Job history with material use and costs, and the projects that group them.', needs: ['machines', 'inventory'] },
 };
 
 /** The part and everything it needs, directly or through another part. */

@@ -27,7 +27,8 @@ beforeAll(async () => {
     data: { workspaceId, itemTypeId: type.id, name: 'PLA Black', quantity: 800, unitId: unit.id, supplierId: supplier.id, locationId: shelf.id, fields: {} },
   });
   await prisma.maintenanceTask.create({ data: { workspaceId, name: 'Clean the bed', machineId: machine.id, intervalDays: 30 } });
-  await prisma.job.create({ data: { workspaceId, name: 'Bracket', machineId: machine.id } });
+  const project = await prisma.project.create({ data: { workspaceId, name: 'Shop fit-out' } });
+  await prisma.job.create({ data: { workspaceId, name: 'Bracket', machineId: machine.id, projectId: project.id } });
 });
 afterAll(async () => {
   await app.close();
@@ -35,7 +36,7 @@ afterAll(async () => {
 });
 
 describe('choosing what to export', () => {
-  const everything = { units: 1, suppliers: 1, locations: 1, itemTypes: 1, machineTypes: 1, machines: 1, items: 1, subUnits: 0, maintenanceTasks: 1, jobs: 1 };
+  const everything = { units: 1, suppliers: 1, locations: 1, itemTypes: 1, machineTypes: 1, machines: 1, items: 1, subUnits: 0, maintenanceTasks: 1, projects: 1, jobs: 1 };
   const nothing = Object.fromEntries(Object.keys(everything).map((key) => [key, 0]));
 
   it('exports the whole workspace when nothing is chosen', async () => {

@@ -14,8 +14,8 @@ import styles from '@/components/settings/Settings.module.css';
 
 const ROLE_HELP: Record<Role, string> = {
   owner: 'Everything, including members, settings and deleting the workspace.',
-  admin: 'Add, change and delete stock, machines, jobs and maintenance. Review requests and undo stock edits.',
-  operator: 'Run jobs, log what was used and maintenance done, load spools, reply to requests. Cannot add stock, edit the inventory or delete anything.',
+  admin: 'Add, change and delete stock, machines, jobs and maintenance. Price projects. Review requests and undo stock edits.',
+  operator: 'Run jobs and group them into projects, log what was used and maintenance done, load spools, reply to requests. Cannot add stock, edit the inventory or delete anything.',
   viewer: 'Look only. Good for students or visitors.',
 };
 

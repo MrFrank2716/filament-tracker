@@ -35,7 +35,11 @@ Where you buy from, with an optional website, email and notes. The [reorder list
 
 ## Workspace
 
-The workspace's name, description and **Currency**. Only an owner can change these. **Leave or delete** is also here. See [Members and roles](Members-and-roles.md#leave-a-workspace).
+The workspace's name, description, **Currency** and **Target margin**. Only an owner can change these.
+
+**Target margin** is the share of a project's price you want left as profit, from 0 to 95%. It starts at 40%. Wrkbench uses it to recommend a price for any project that has none yet. See [Projects](Jobs-and-queue.md#projects).
+
+**Leave or delete** is also here. See [Members and roles](Members-and-roles.md#leave-a-workspace).
 
 ## The other sections
 

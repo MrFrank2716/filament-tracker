@@ -1,6 +1,6 @@
 import type { StatusTone } from '@/components/ui/Display';
 import { formatNumber, relativeDays } from '@/lib/format';
-import type { DueStatus, JobStatus, MachineStatus, PrinterConnection, PrinterError, PrinterPhase, RequestStatus, ScheduleEntry } from '@/lib/types';
+import type { DueStatus, JobStatus, MachineStatus, PrinterConnection, PrinterError, PrinterPhase, ProjectStage, RequestStatus, ScheduleEntry } from '@/lib/types';
 
 export const MACHINE_STATUS: Record<MachineStatus, { label: string; tone: StatusTone }> = {
   ready: { label: 'Ready', tone: 'ok' },
@@ -38,6 +38,13 @@ export const JOB_STATUS: Record<JobStatus, { label: string; tone: StatusTone }> 
   failed: { label: 'Failed', tone: 'danger' },
   cancelled: { label: 'Cancelled', tone: 'neutral' },
 };
+
+export const PROJECT_STAGE: Record<ProjectStage, { label: string; tone: StatusTone }> = {
+  open: { label: 'Open', tone: 'neutral' },
+  invoiced: { label: 'Invoiced', tone: 'info' },
+  paid: { label: 'Paid', tone: 'ok' },
+};
+export const PROJECT_STAGES = Object.keys(PROJECT_STAGE) as ProjectStage[];
 
 export const REQUEST_STATUS: Record<RequestStatus, { label: string; tone: StatusTone }> = {
   pending: { label: 'Waiting to be checked', tone: 'warn' },
