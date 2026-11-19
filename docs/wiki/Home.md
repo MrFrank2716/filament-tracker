@@ -11,14 +11,14 @@ New here? Start with **[Getting started](Getting-started.md)**.
 | [Getting started](Getting-started.md) | Signing in, guest sessions, creating a workspace, finding your way around |
 | [Inventory](Inventory.md) | Adding items, changing stock, offcuts, tool life, reordering |
 | [Locations](Locations.md) | Rooms, shelves and bins: what is in each, putting things away |
-| [Labels and scanning](Labels-and-scanning.md) | Printing QR labels for items and locations, scanning them with a phone or inside Wrkbench |
+| [Labels and scanning](Labels-and-scanning.md) | Printing QR labels for items and locations, scanning them with a phone, inside Wrkbench or with a barcode scanner |
 | [Machines](Machines.md) | Machines, attached hardware and slots, a machine's own page |
 | [Maintenance](Maintenance.md) | Recurring servicing by date or hours, logging a service |
-| [Jobs and the queue](Jobs-and-queue.md) | Creating and finishing jobs, costs, the order jobs run in |
+| [Jobs and the queue](Jobs-and-queue.md) | Creating and finishing jobs, costs, the order jobs run in, grouping jobs into projects |
 | [Job requests](Job-requests.md) | Letting people outside the workshop ask for jobs |
 | [Dashboard and reports](Dashboard-and-reports.md) | Overview, the daily report, the activity log and undo |
 | [Members and roles](Members-and-roles.md) | Sharing a workspace and who can do what |
-| [Catalogue and settings](Catalogue-and-settings.md) | Categories, units, suppliers, the built-in catalogue, appearance, your account |
+| [Catalogue and settings](Catalogue-and-settings.md) | Categories, units, suppliers, the built-in catalogue, appearance, menu order, your account |
 | [Backups, import and export](Backups-and-data.md) | Exporting a workspace, importing from a spreadsheet |
 
 ## Connected printers

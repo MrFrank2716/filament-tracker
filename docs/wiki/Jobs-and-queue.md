@@ -20,11 +20,11 @@ The **Jobs** screen has four tabs:
    - **Run time**: how long the machine runs. Added to the machine's hours when the job finishes.
    - **Priority**: **Urgent**, **High**, **Normal** or **Low**.
    - **Project**: the project this job is part of, if any. Shown once you have a project.
-3. Under **Materials**, add the items it uses and how much of each.
-4. Under **Tool wear**, add any tooling that wears (such as an endmill) and its **Cutting time**.
-5. Under **Other**, add costs that are not in stock: labour, outsourcing.
+3. Under **Materials, tools and fixings**, press **Add** and pick each item the job uses, then enter how much of it. Tooling that wears (such as an endmill) also has a **Cutting time**.
+4. Under **Other costs**, enter anything that is not in stock: labour, outsourcing. **Notes** is for anything else worth keeping with the job.
+5. Press **Save as planned** to put it in the queue, or **Save and finish** if the work is already done.
 
-Wrkbench shows an **Estimated cost** as you go. If a job needs more of something than you have, it is marked **Short of stock** and appears in the [daily report](Dashboard-and-reports.md#daily-report).
+Wrkbench shows an **Estimated cost** as you go. If a job needs more of something than you have, the form warns you, the job's row in the queue says **Short** with the items it is short of, and it appears in the [daily report](Dashboard-and-reports.md#daily-report).
 
 ## Run a job
 
@@ -34,6 +34,10 @@ Open a job from the queue:
 - **Finish** marks it as completed.
 - **Failed** marks it as failed.
 - **Edit** changes the quantities if the job used more or less than planned.
+- **Cancel job** drops a job that will not be run. Nothing is taken from stock, and it moves to **History** as cancelled.
+- **Delete** (admins) removes the job altogether. Deleting a job that already finished does not put back the stock it used.
+
+Starting a job on a machine that is **Ready** marks the machine **In use**; finishing, failing or cancelling the job makes it **Ready** again.
 
 ## Finish a job
 

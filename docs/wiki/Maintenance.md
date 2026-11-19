@@ -20,7 +20,7 @@ The screen has three tabs:
 4. Set **Every (days)**, **Every (hours of use)**, or both. With both set, the task is due at whichever comes first.
 5. Optionally add **Instructions**: what to check and what to use.
 
-A task can be **Paused**: it stays defined but stops producing reminders.
+Untick **Active** to pause a task: it stays defined, shows as **Paused**, and stops producing reminders.
 
 ## When a task is due
 

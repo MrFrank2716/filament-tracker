@@ -70,7 +70,7 @@ Both copies use the same database file unless you also set `DATABASE_URL`.
 
 ## How the code is laid out
 
-This is an npm workspaces monorepo, all TypeScript, with four packages:
+This is an npm workspaces monorepo, all TypeScript, with four packages, plus the display firmware:
 
 | Package | What it is |
 | --- | --- |
@@ -89,9 +89,10 @@ Where to find things:
 | `server/src/env.ts` | Every server setting, with defaults and validation |
 | `server/src/routes/` | The REST API. Everything under `/api/workspaces/:id` is membership- and role-checked |
 | `server/src/auth.ts` | Sign-in tokens and role checks (see [Roles](#roles) below) |
-| `server/src/services/` | Business logic: stock, maintenance, the daily report, the reorder list, email, uploads |
+| `server/src/services/` | Business logic: stock, jobs and the queue, projects, maintenance, the daily report, the reorder list, spool tags, email, uploads |
 | `server/src/services/snapshot.ts` | The portable workspace format behind JSON import and export, templates and the seed |
 | `server/src/routes/requests.ts` | Outside job requests: the public routes (the only ones that need no account) and the review queue |
+| `server/src/routes/devices.ts` | Location displays: the routes members use to set them up, and the ones a display calls with its own key (`/api/device`) |
 | `server/src/integrations/` | Connected printers: reading Bambu Lab status (`bambu/`), the live registry, AMS and spool sync, and where bridges connect |
 | `server/src/templates/` | Workspace templates and the example maker space, as data |
 | `server/src/reference/` | The built-in catalogue of machines and materials |

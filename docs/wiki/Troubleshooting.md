@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Common problems and what to do about them. Problems with connected printers and the bridge have their own table in the [Bridge reference](Bridge-reference.md#when-something-is-wrong).
+Common problems and what to do about them. Problems with connected printers and the bridge have their own table in the [Bridge reference](Bridge-reference.md#when-something-is-wrong), and so do [location displays](Location-displays.md#troubleshooting).
 
 ## Using Wrkbench
 
@@ -22,7 +22,7 @@ Common problems and what to do about them. Problems with connected printers and 
 | What you see | Likely cause and what to do |
 | --- | --- |
 | The server stops at start with "Invalid environment" | A setting is missing or wrong; the lines below the message name it. Most often `JWT_SECRET` (missing or under 16 characters) or `DATABASE_URL`. See [Self-hosting](Self-hosting.md#settings) |
-| `PRINTERS_ENABLED` is named in that error | It must be exactly `true` or `false`, not `0`, `1`, `yes` or `no` |
+| `PRINTERS_ENABLED` or `DEVICES_ENABLED` is named in that error | It must be exactly `true` or `false`, not `0`, `1`, `yes` or `no` |
 | Links in emails, or the bridge set-up command, point at `localhost:5173` | `CLIENT_ORIGIN` (or `APP_URL`) is not set to your site's real address |
 | Emails only appear in the server log | Neither `RESEND_API_KEY` nor `SMTP_URL` is set. See [Self-hosting](Self-hosting.md#email) |
 | Emails are rejected by the provider | `MAIL_FROM` must be an address on a domain your mail provider has verified |

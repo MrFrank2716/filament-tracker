@@ -2,6 +2,8 @@
 
 **Settings** holds what shapes a workspace: its categories, units, places, suppliers and people. Most of it is set up for you by a template, and all of it can be changed. Changing settings needs an admin, and a few things need an owner.
 
+Its sections come in two groups. **This workspace** is shared by every member. **You** (Appearance, Navigation and Your account) belongs to whoever is signed in, and anyone can change their own.
+
 ## Categories
 
 **Settings**, **Categories** lists the kinds of thing you stock. Add one for anything you keep: resin, timber, drill bits, PPE, electronics.
@@ -47,8 +49,11 @@ The workspace's name, description, **Currency** and **Target margin**. Only an o
 | --- | --- |
 | **Members** | [Members and roles](Members-and-roles.md) |
 | **Printers** | [Connecting printers](Connecting-printers.md) |
+| **Displays** | [Location displays](Location-displays.md) |
 | **Job requests** | [Job requests](Job-requests.md) |
 | **Import / export** | [Backups, import and export](Backups-and-data.md) |
+| **Appearance** | [Below](#appearance) |
+| **Navigation** | [Below](#navigation) |
 | **Your account** | [Below](#your-account) |
 
 ## The built-in catalogue
