@@ -1,12 +1,14 @@
 import { useRef, useState } from 'react';
-import { Download, FileJson, FileSpreadsheet, Upload } from 'lucide-react';
+import { Download, FileJson, FileSpreadsheet, ListChecks, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, ErrorNote, Muted, SectionTitle } from '@/components/ui/Display';
-import { SelectField } from '@/components/ui/Form';
+import { Checkbox, SelectField } from '@/components/ui/Form';
+import { Modal } from '@/components/ui/Modal';
 import { useAction, useToast } from '@/components/ui/Toast';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import type { Catalog } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
+import { EXPORT_PARTS, EXPORT_PART_INFO, droppedLinks, neededBy, toggleExportPart, type ExportPart } from '@/lib/exportParts';
 import styles from '@/components/settings/Settings.module.css';
 
 interface CsvResult {
@@ -25,6 +27,8 @@ export function DataSection({ catalog }: { catalog: Catalog }) {
   const [defaultTypeId, setDefaultTypeId] = useState('');
   const [csvResult, setCsvResult] = useState<CsvResult | null>(null);
   const [jsonResult, setJsonResult] = useState<Record<string, number> | null>(null);
+  /** The parts ticked in the "choose what to export" dialog; null while it is closed. */
+  const [picking, setPicking] = useState<Set<ExportPart> | null>(null);
 
   if (!workspace) return null;
   const base = fileSlug(workspace.name);
@@ -63,6 +67,9 @@ export function DataSection({ catalog }: { catalog: Catalog }) {
             <Muted>Categories, fields, units, locations, machines, inventory, maintenance, projects and jobs. Import it into another workspace or keep it as a backup.</Muted>
             <Button icon={Download} disabled={busy} onClick={() => run(() => api.download(wsPath('/export')!, `${base}.json`))}>
               Download JSON
+            </Button>
+            <Button icon={ListChecks} disabled={busy} onClick={() => setPicking(new Set(EXPORT_PARTS))}>
+              Choose what to export
             </Button>
           </div>
         </Card>
@@ -144,6 +151,58 @@ export function DataSection({ catalog }: { catalog: Catalog }) {
             </Card>
           </div>
         </>
+      )}
+
+      {picking && (
+        <Modal
+          title="Choose what to export"
+          onClose={() => setPicking(null)}
+          onSubmit={() =>
+            void run(async () => {
+              await api.download(`${wsPath('/export')!}?include=${[...picking].join(',')}`, `${base}-selection.json`);
+              setPicking(null);
+            })
+          }
+          footer={
+            <>
+              <Button onClick={() => setPicking(null)}>Cancel</Button>
+              <Button type="submit" variant="primary" icon={Download} disabled={busy || picking.size === 0}>
+                Download JSON
+              </Button>
+            </>
+          }
+        >
+          <Muted>
+            Tick the parts to put in the file. A part brings along what it points at, so the file still imports whole: inventory needs its
+            categories, units, suppliers and locations.
+          </Muted>
+          <div className={styles.exportParts}>
+            {EXPORT_PARTS.map((part) => {
+              const info = EXPORT_PART_INFO[part];
+              const users = neededBy(picking, part);
+              return (
+                <Checkbox
+                  key={part}
+                  label={info.label}
+                  hint={users.length > 0 ? `${info.detail} Needed by ${users.map((user) => EXPORT_PART_INFO[user].label.toLowerCase()).join(', ')}.` : info.detail}
+                  checked={picking.has(part)}
+                  onChange={(on) => setPicking(toggleExportPart(picking, part, on))}
+                />
+              );
+            })}
+          </div>
+          {droppedLinks(picking).map((note) => (
+            <Muted key={note}>{note}</Muted>
+          ))}
+          <div className={styles.exportAll}>
+            <Button size="sm" variant="ghost" onClick={() => setPicking(new Set(EXPORT_PARTS))} disabled={picking.size === EXPORT_PARTS.length}>
+              Select all
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setPicking(new Set())} disabled={picking.size === 0}>
+              Clear
+            </Button>
+          </div>
+        </Modal>
       )}
     </>
   );

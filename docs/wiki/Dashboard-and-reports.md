@@ -26,6 +26,8 @@ Every line links to where it is dealt with. Press **Got it** to close it. To ope
 
 The report shows once per person, workspace and day, and the device remembers that it has been shown.
 
+To stop it opening by itself, go to **Settings**, **Your account** and untick **Open the daily report on my first visit each day**. The **Daily report** button still opens it whenever you want it. This is your own choice and does not change what other members see.
+
 ## Activity
 
 **Activity** records every change made in the workspace: who made it and when, newest first. Filter it by **Stock**, **Jobs and queue**, **Requests** or **Set-up and members**. It shows the latest 200 changes.

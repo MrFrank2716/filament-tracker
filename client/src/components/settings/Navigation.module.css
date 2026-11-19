@@ -56,17 +56,78 @@
   flex-shrink: 0;
 }
 
-/* Narrow screens: the tab bar tick drops under the name so nothing is squeezed. */
-@media (max-width: 30rem) {
+/* Where the page shows: four choices in one joined control. */
+.shown {
+  display: flex;
+  flex-shrink: 0;
+  border: var(--border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.shownOption {
+  display: flex;
+  flex: 1;
+  cursor: pointer;
+}
+
+.shownInput {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.shownLabel {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 2rem;
+  padding: 0 var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.shownOption:hover .shownLabel {
+  color: var(--color-text);
+}
+
+.shownInput:checked + .shownLabel {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.shownInput:focus-visible + .shownLabel {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+.shownInput:disabled + .shownLabel {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Narrower screens: the choices and the tab bar tick drop under the name so nothing is squeezed. */
+@media (max-width: 62rem) {
   .row {
     flex-wrap: wrap;
     padding-block: var(--space-2);
   }
 
-  .bar {
+  .shown {
     order: 3;
     flex-basis: 100%;
-    padding-left: calc(20px + var(--space-3));
+  }
+
+  .shownLabel {
+    min-height: var(--tap-target);
+    padding: 0 var(--space-1);
+  }
+
+  .bar {
+    order: 4;
+    flex-basis: 100%;
   }
 }
 

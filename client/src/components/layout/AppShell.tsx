@@ -22,6 +22,8 @@ import styles from '@/components/layout/AppShell.module.css';
 interface NavItem extends NavPage {
   /** Shown in the phone tab bar; the rest live under "More". */
   primary: boolean;
+  desktop: boolean;
+  phone: boolean;
   alert?: number;
 }
 
@@ -74,7 +76,7 @@ export function AppShell() {
     : dashboard && dashboard.counts.lowStock + dashboard.counts.wornTools;
   const waiting = requests?.filter((request) => request.status === 'pending' && (!machine || request.machine?.id === machine.id)).length;
 
-  // Order and tab bar are the user's own (Settings, Navigation); the badges stay with their page wherever it moves.
+  // Order, tab bar and which pages show on each device are the user's own (Settings, Navigation); the badges stay with their page wherever it moves.
   const alerts: Partial<Record<NavId, number | undefined>> = { jobs: waiting, maintenance: overdue, reorder: toReorder };
   const items: NavItem[] = applyLayout(NAV_PAGES, normalizeLayout(user?.navigation)).map((page) => ({ ...page, alert: alerts[page.id] }));
 
@@ -165,7 +167,7 @@ export function AppShell() {
         </div>
         {!collapsed && switcher}
         <nav className={styles.nav} aria-label="Main">
-          {items.map((item) => link(item, styles.navLink))}
+          {items.filter((i) => i.desktop).map((item) => link(item, styles.navLink))}
           {scanButton(styles.navEnd)}
           {reportButton()}
         </nav>
@@ -211,7 +213,7 @@ export function AppShell() {
         <button type="button" className={styles.tab} onClick={() => setMoreOpen(true)}>
           <Menu size={20} aria-hidden />
           <span className={styles.linkLabel}>More</span>
-          {items.some((i) => !i.primary && i.alert) && <span className={styles.alertDot} aria-label="Needs attention" />}
+          {items.some((i) => !i.primary && i.phone && i.alert) && <span className={styles.alertDot} aria-label="Needs attention" />}
         </button>
       </nav>
 
@@ -219,7 +221,7 @@ export function AppShell() {
         <Modal title="More" onClose={() => setMoreOpen(false)}>
           {switcher}
           <div className={styles.moreLinks}>
-            {items.filter((i) => !i.primary).map((item) => link(item, styles.navLink, () => setMoreOpen(false)))}
+            {items.filter((i) => !i.primary && i.phone).map((item) => link(item, styles.navLink, () => setMoreOpen(false)))}
             {reportButton(() => setMoreOpen(false))}
           </div>
           <Button icon={Plus} onClick={() => switchWorkspace(NEW_WORKSPACE)}>
