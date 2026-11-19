@@ -60,6 +60,25 @@ export function refresh(path: string): void {
   void load(path);
 }
 
+/**
+ * Show a small change before the server has confirmed it: rewrites one cached entry and tells every screen
+ * reading it. Returns the way back, for when the save fails. Not for stock levels, which must come from the server.
+ */
+export function patchCached<T>(path: string, change: (data: T) => T): () => void {
+  const entry = entries.get(path);
+  if (!entry || entry.data === undefined) return () => undefined;
+  const before = entry.data;
+  const patched = change(before as T);
+  entry.data = patched;
+  entry.listeners.forEach((notify) => notify());
+  return () => {
+    // Fresh data arrived meanwhile: it is already the truth, leave it.
+    if (entry.data !== patched) return;
+    entry.data = before;
+    entry.listeners.forEach((notify) => notify());
+  };
+}
+
 export function clearStore(): void {
   entries.clear();
 }

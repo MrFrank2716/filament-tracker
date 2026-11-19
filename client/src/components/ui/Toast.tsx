@@ -91,3 +91,26 @@ export function useAction() {
 
   return { run, busy };
 }
+
+/**
+ * Run a small, harmless write (a switch, a flag) without making anyone wait: `show` changes the screen at once
+ * and returns how to put it back, which happens, with the error, if the save fails.
+ */
+export function useOptimisticAction() {
+  const toast = useToast();
+  return useCallback(
+    async (show: () => () => void, action: () => Promise<unknown>): Promise<boolean> => {
+      const putBack = show();
+      try {
+        await action();
+        refreshAll();
+        return true;
+      } catch (error) {
+        putBack();
+        toast(error instanceof Error ? error.message : 'Something went wrong', 'danger');
+        return false;
+      }
+    },
+    [toast],
+  );
+}

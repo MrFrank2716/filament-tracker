@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/Button';
 import { Badge, ErrorNote, Loading, Muted, SectionTitle } from '@/components/ui/Display';
 import { Checkbox, FormGrid, SelectField, TextField } from '@/components/ui/Form';
 import { Modal, useConfirm } from '@/components/ui/Modal';
-import { useAction, useToast } from '@/components/ui/Toast';
+import { useAction, useOptimisticAction, useToast } from '@/components/ui/Toast';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import type { Catalog } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
 import { formatDateTime, locationPath } from '@/lib/format';
+import { patchCached } from '@/lib/store';
 import type { Device, DevicePairing } from '@/lib/types';
 import styles from '@/components/settings/Settings.module.css';
 
@@ -19,6 +20,7 @@ export function DevicesSection({ catalog }: { catalog: Catalog }) {
   const { canEdit, wsPath } = useWorkspace();
   const devices = useWsQuery<Device[]>('/devices');
   const { run, busy } = useAction();
+  const runNow = useOptimisticAction();
   const confirm = useConfirm();
   const [dialog, setDialog] = useState<Dialog | null>(null);
   // A set-up code is only ever shown by the request that made it, so it lives here until the page is left.
@@ -138,7 +140,13 @@ export function DevicesSection({ catalog }: { catalog: Catalog }) {
               hint="Tapping a tag may put the spool away here, mark it for the printer, or link a new sticker. Off: the display only shows things."
               checked={device.canWrite}
               disabled={!canEdit || busy}
-              onChange={(canWrite) => update(device, { canWrite }, canWrite ? 'Changes allowed' : 'Changes switched off')}
+              onChange={(canWrite) =>
+                // A switch: it flips at once and flips back if the save fails.
+                runNow(
+                  () => patchCached<Device[]>(wsPath('/devices')!, (all) => all.map((other) => (other.id === device.id ? { ...other, canWrite } : other))),
+                  () => api.patch(wsPath(`/devices/${device.id}`)!, { canWrite }),
+                )
+              }
             />
 
             {canEdit && (
