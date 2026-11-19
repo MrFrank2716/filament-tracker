@@ -6,7 +6,7 @@ Its sections come in two groups. **This workspace** is shared by every member. *
 
 ## Categories
 
-**Settings**, **Categories** lists the kinds of thing you stock. Add one for anything you keep: resin, timber, drill bits, PPE, electronics.
+**Settings**, **Lists** holds your categories, units, machine types and suppliers together on one page, one after the other. Categories come first: they are the kinds of thing you stock. Add one for anything you keep: resin, timber, drill bits, PPE, electronics.
 
 ![Categories under Settings](images/settings-categories.png)
 
@@ -21,11 +21,11 @@ Removing a field hides its values on existing items.
 
 ## Units
 
-How quantities are measured: by weight, length, volume or count. Each unit has a name (Kilograms), a symbol (kg), and how many **decimal places** to show (0 for whole numbers).
+Found under **Settings**, **Lists**. How quantities are measured: by weight, length, volume or count. Each unit has a name (Kilograms), a symbol (kg), and how many **decimal places** to show (0 for whole numbers).
 
 ## Machine types
 
-Group similar equipment, such as "FDM printer" or "Laser cutter". A maintenance task set on a type covers every machine of that type. See [Maintenance](Maintenance.md).
+Found under **Settings**, **Lists**. Group similar equipment, such as "FDM printer" or "Laser cutter". A maintenance task set on a type covers every machine of that type. See [Maintenance](Maintenance.md).
 
 ## Locations
 
@@ -33,7 +33,7 @@ Rooms, shelves, drawers and bins, nested as deep as you like (a bin **inside** a
 
 ## Suppliers
 
-Where you buy from, with an optional website, email and notes. The [reorder list](Inventory.md#reordering) is grouped by supplier.
+Found under **Settings**, **Lists**. Where you buy from, with an optional website, email and notes. The [reorder list](Inventory.md#reordering) is grouped by supplier.
 
 ## Workspace
 

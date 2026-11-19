@@ -24,15 +24,12 @@ import { LegalLinks } from '@/pages/LegalPages';
 import type { ItemType } from '@/lib/types';
 import styles from '@/components/settings/Settings.module.css';
 
-type Tab = 'general' | 'categories' | 'units' | 'machineTypes' | 'suppliers' | 'members' | 'printers' | 'devices' | 'requests' | 'data' | 'appearance' | 'navigation' | 'account';
+type Tab = 'general' | 'lists' | 'members' | 'printers' | 'devices' | 'requests' | 'data' | 'appearance' | 'navigation' | 'account';
 
 /** Workspace sections are shared by every member; the personal ones belong to whoever is signed in. */
 const TABS: Array<{ id: Tab; label: string; personal?: boolean }> = [
   { id: 'general', label: 'Workspace' },
-  { id: 'categories', label: 'Categories' },
-  { id: 'units', label: 'Units' },
-  { id: 'machineTypes', label: 'Machine types' },
-  { id: 'suppliers', label: 'Suppliers' },
+  { id: 'lists', label: 'Lists' },
   { id: 'members', label: 'Members' },
   { id: 'printers', label: 'Printers' },
   { id: 'devices', label: 'Displays' },
@@ -42,6 +39,9 @@ const TABS: Array<{ id: Tab; label: string; personal?: boolean }> = [
   { id: 'navigation', label: 'Navigation', personal: true },
   { id: 'account', label: 'Your account', personal: true },
 ];
+
+/** Categories, units, machine types and suppliers used to be tabs of their own; old links still land on the combined one. */
+const LEGACY_TABS: Record<string, Tab> = { categories: 'lists', units: 'lists', machineTypes: 'lists', suppliers: 'lists' };
 
 const GROUPS = [
   { label: 'This workspace', tabs: TABS.filter((t) => !t.personal) },
@@ -53,7 +53,7 @@ export function SettingsPage() {
   const catalog = useCatalog();
   // Other screens can link straight to a section: /settings?tab=requests
   const [params] = useSearchParams();
-  const [tab, setTab] = useState<Tab>(() => TABS.find((t) => t.id === params.get('tab'))?.id ?? 'general');
+  const [tab, setTab] = useState<Tab>(() => TABS.find((t) => t.id === (LEGACY_TABS[params.get('tab') ?? ''] ?? params.get('tab')))?.id ?? 'general');
   const [typeEditor, setTypeEditor] = useState<{ type?: ItemType } | null>(null);
 
   // Locations used to be a section here; they have a page of their own now, and old links still land there.
@@ -63,7 +63,7 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Categories, units and people for this workspace, and your own preferences." />
+      <PageHeader title="Settings" subtitle="Categories, units, suppliers and people for this workspace, and your own preferences." />
 
       <div className={styles.layout}>
       {/* This many sections do not fit a tab strip on a phone: a list down the side on wide screens, a select on narrow ones. */}
@@ -96,7 +96,7 @@ export function SettingsPage() {
       <div className={styles.section}>
         {tab === 'general' && <GeneralSection />}
 
-        {tab === 'categories' && (
+        {tab === 'lists' && (
           <>
             <SectionTitle
               count={catalog.types.length}
@@ -133,10 +133,7 @@ export function SettingsPage() {
                 ))}
               </List>
             )}
-          </>
-        )}
 
-        {tab === 'units' && (
           <CrudSection
             title="Units"
             noun="unit"
@@ -152,9 +149,7 @@ export function SettingsPage() {
             rowTitle={(unit) => `${unit.name} (${unit.symbol})`}
             rowSubtitle={(unit) => (unit.decimals ? `${unit.decimals} decimal place${unit.decimals === 1 ? '' : 's'}` : 'Whole numbers')}
           />
-        )}
 
-        {tab === 'machineTypes' && (
           <CrudSection
             title="Machine types"
             noun="machine type"
@@ -174,9 +169,7 @@ export function SettingsPage() {
             }}
             deleteNote="Machines of this type keep working but lose the type, and maintenance tasks defined on the type are removed."
           />
-        )}
 
-        {tab === 'suppliers' && (
           <CrudSection
             title="Suppliers"
             noun="supplier"
@@ -193,6 +186,7 @@ export function SettingsPage() {
             rowTitle={(supplier) => supplier.name}
             rowSubtitle={(supplier) => [supplier.website, supplier.email, supplier.notes].filter(Boolean).join(' · ')}
           />
+          </>
         )}
 
         {tab === 'members' && <MembersSection />}

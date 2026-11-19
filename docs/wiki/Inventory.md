@@ -6,7 +6,7 @@
 
 ## Categories and their fields
 
-A category (filament, endmill, sheet stock and so on) decides which details you record for its items. Filament might have material, colour and diameter; an endmill has flutes, diameter and coating. Templates set up sensible categories for you. To add or change one, go to **Settings**, **Categories**. See [Catalogue and settings](Catalogue-and-settings.md#categories).
+A category (filament, endmill, sheet stock and so on) decides which details you record for its items. Filament might have material, colour and diameter; an endmill has flutes, diameter and coating. Templates set up sensible categories for you. To add or change one, go to **Settings**, **Lists**. See [Catalogue and settings](Catalogue-and-settings.md#categories).
 
 ## Add an item
 
@@ -68,7 +68,7 @@ Finishing a job also takes its materials out of stock. See [Jobs and the queue](
 
 An **offcut** (also called a remnant) is a usable leftover piece, such as half a sheet of plywood. Open the original item and press **Add offcut** to record it with its own size. (The button appears for categories that record a size, such as sheet stock.) Offcuts are kept off the reorder list.
 
-To find a piece big enough for a job, use **Find a piece that fits** and enter the size you need. Pieces are matched in any orientation, offcuts first. This works for categories that have a size, set up under **Settings**, **Categories**.
+To find a piece big enough for a job, use **Find a piece that fits** and enter the size you need. Pieces are matched in any orientation, offcuts first. This works for categories that have a size, set up under **Settings**, **Lists**.
 
 ## Tool life
 
