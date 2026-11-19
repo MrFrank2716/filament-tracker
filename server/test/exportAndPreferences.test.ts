@@ -129,3 +129,18 @@ describe('personal preferences', () => {
     expect((await app.call('PATCH', '/auth/me/navigation', viewer, { layout: { ...base, hiddenDesktop: ['jobs', 'jobs'] } })).status).toBe(400);
   });
 });
+
+describe('custom field keys', () => {
+  const field = (key: string) => ({ key, label: 'Odd one', fieldType: 'text' });
+
+  it('refuses the names every JavaScript object already has, by hand or in an import', async () => {
+    for (const key of ['__proto__', 'constructor', 'prototype']) {
+      const created = await app.call('POST', ws('/item-types'), admin, { name: `Type ${key}`, fields: [field(key)] });
+      expect(created.status).toBe(400);
+      expect(created.body?.error).toMatch(/reserved/);
+      const imported = await app.call('POST', ws('/import'), admin, { itemTypes: [{ ref: 't-odd', name: 'Odd', fields: [field(key)] }] });
+      expect(imported.status).toBe(400);
+    }
+    expect((await app.call('POST', ws('/item-types'), admin, { name: 'Fine', fields: [field('constructor_2')] })).status).toBe(201);
+  });
+});

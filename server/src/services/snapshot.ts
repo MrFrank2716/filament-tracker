@@ -28,8 +28,17 @@ export const readingSchema = z.object({
   unit: z.string().trim().max(20).default(''),
 });
 
+// A field's key names a value inside the item's fields. These names belong to every JavaScript object,
+// so storing a value under one would quietly lose it, or worse in code that copies the values about.
+const RESERVED_FIELD_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 export const customFieldSchema = z.object({
-  key: z.string().trim().min(1).max(60),
+  key: z
+    .string()
+    .trim()
+    .min(1)
+    .max(60)
+    .refine((key) => !RESERVED_FIELD_KEYS.has(key), 'That field key is reserved. Choose another'),
   label: z.string().trim().min(1).max(80),
   fieldType: z.enum(FIELD_TYPES),
   unit: z.string().trim().max(20).default(''),
