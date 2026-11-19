@@ -39,6 +39,21 @@
   font-size: var(--text-sm);
 }
 
+/* Text links one line tall: on touch screens an invisible margin makes each target 44 px. */
+@media (pointer: coarse) {
+  .link,
+  .lineName {
+    position: relative;
+  }
+
+  .link::after,
+  .lineName::after {
+    content: '';
+    position: absolute;
+    inset: -13px 0;
+  }
+}
+
 .lines {
   border: var(--border);
   border-radius: var(--radius-lg);

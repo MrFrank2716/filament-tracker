@@ -189,6 +189,14 @@ button.slot:hover {
   text-decoration: none;
 }
 
+/* Rows sit directly under one another, so on touch screens each is simply as tall as a fingertip needs. */
+@media (pointer: coarse) {
+  .part,
+  .serviceLink {
+    min-height: var(--tap-target);
+  }
+}
+
 .partList li:last-child .part {
   border-bottom: 0;
 }

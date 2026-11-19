@@ -477,6 +477,27 @@
   color: inherit;
 }
 
+/*
+ * Chips look 36 px tall; on touch screens an invisible margin makes the target 44 px. The row scrolls sideways,
+ * which would clip that margin, so the row grows by the same amount without moving anything.
+ */
+@media (pointer: coarse) {
+  .chipRow {
+    margin-top: calc(var(--space-1) * -1);
+    padding-top: var(--space-1);
+  }
+
+  .chip {
+    position: relative;
+  }
+
+  .chip::after {
+    content: '';
+    position: absolute;
+    inset: -4px 0;
+  }
+}
+
 .chipCount {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
