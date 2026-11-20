@@ -7,3 +7,5 @@ dev-dist/
 server/uploads/
 .DS_Store
 .pio/
+*.db-wal
+*.db-shm

@@ -6,7 +6,7 @@ How to run your own copy of Wrkbench for your workshop. If you only want to try 
 
 Wrkbench is a single Node.js program. It serves the web app, its API and live updates on one port, and keeps everything in two places:
 
-- a **SQLite database file** (no separate database server is needed), and
+- a **SQLite database file** (no separate database server is needed), with two small files SQLite keeps beside it while the app runs (the same name ending in `-wal` and `-shm`), and
 - an **uploads folder** for files sent with [job requests](Job-requests.md).
 
 So the host needs:
@@ -122,7 +122,7 @@ A display is told the server's address from `APP_URL` (or `CLIENT_ORIGIN`). On a
 
 ## Backups
 
-The database and uploads together are the only things to back up. With Docker, that is the volume mounted at `/data`. Turn on scheduled volume backups if your host offers them, or copy the folder regularly. Copy the database while the app is stopped, or use SQLite's own backup command, so the copy is not caught half-written.
+The database and uploads together are the only things to back up. With Docker, that is the volume mounted at `/data`. Turn on scheduled volume backups if your host offers them, or copy the folder regularly. Copy the database while the app is stopped, or use SQLite's own backup command, so the copy is not caught half-written. The newest changes can be in the `-wal` file, so a copy of the main file alone, taken while the app runs, can be missing them.
 
 Members can also export each workspace themselves. See [Backups, import and export](Backups-and-data.md).
 
