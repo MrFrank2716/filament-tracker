@@ -11,7 +11,7 @@ import { describeActivity } from '@/services/activity';
 import { estimateJob } from '@/services/queue';
 import { canMoveTo, emailComment, emailStatus } from '@/services/requestStatus';
 import { assertInWorkspace } from '@/services/stock';
-import { cleanFileName, newToken, receiveFiles, removeStored, storedPath, uploadedFiles, uploadLimits } from '@/services/uploads';
+import { assertWorkspaceRoom, cleanFileName, newToken, receiveFiles, removeStored, requireDiskRoom, storedPath, uploadedFiles, uploadLimits } from '@/services/uploads';
 
 /**
  * Outside job requests.
@@ -81,6 +81,8 @@ const viaTrackLink: RequestHandler = async (req, _res, next) => {
 const fileRows = (req: Parameters<RequestHandler>[0]) =>
   uploadedFiles(req).map((file) => ({ name: cleanFileName(file.originalname), storedName: file.filename, size: file.size }));
 
+const incomingBytes = (files: Array<{ size: number }>) => files.reduce((sum, file) => sum + file.size, 0);
+
 /** If anything fails after the files were written, do not leave them behind. */
 async function discardOnFailure<T>(req: Parameters<RequestHandler>[0], work: () => Promise<T>): Promise<T> {
   try {
@@ -108,7 +110,7 @@ publicRequestsRouter.get('/requests/:token', viaRequestLink, async (req, res) =>
   });
 });
 
-publicRequestsRouter.post('/requests/:token', submitLimit, viaRequestLink, receiveFiles, async (req, res) => {
+publicRequestsRouter.post('/requests/:token', submitLimit, viaRequestLink, requireDiskRoom, receiveFiles, async (req, res) => {
   const trackToken = await discardOnFailure(req, async () => {
     const data = parse(submissionInput, req.body ?? {});
     const files = fileRows(req);
@@ -116,6 +118,7 @@ publicRequestsRouter.post('/requests/:token', submitLimit, viaRequestLink, recei
 
     const waiting = await prisma.jobRequest.count({ where: { workspaceId: req.workspaceId, status: { in: OPEN } } });
     if (waiting >= MAX_OPEN_REQUESTS) throw new HttpError(503, 'The queue is full at the moment. Please try again later.');
+    await assertWorkspaceRoom(req.workspaceId, incomingBytes(files));
 
     const machineId = data.machineId || null;
     if (machineId && !(await prisma.machine.findFirst({ where: { id: machineId, workspaceId: req.workspaceId }, select: { id: true } }))) {
@@ -192,7 +195,7 @@ publicRequestsRouter.post('/track/:token/comments', submitLimit, async (req, res
 });
 
 /** Answering "changes requested": new files and an optional message put the request back in the queue. */
-publicRequestsRouter.post('/track/:token/resubmit', submitLimit, viaTrackLink, receiveFiles, async (req, res) => {
+publicRequestsRouter.post('/track/:token/resubmit', submitLimit, viaTrackLink, requireDiskRoom, receiveFiles, async (req, res) => {
   const trackToken = param(req, 'token');
   await discardOnFailure(req, async () => {
     const { message } = parse(resubmitInput, req.body ?? {});
@@ -203,6 +206,7 @@ publicRequestsRouter.post('/track/:token/resubmit', submitLimit, viaTrackLink, r
     if (request._count.files + files.length > MAX_FILES_PER_REQUEST) {
       throw new HttpError(400, `A request can hold ${MAX_FILES_PER_REQUEST} files in total. Send a new request instead.`);
     }
+    await assertWorkspaceRoom(req.workspaceId, incomingBytes(files));
     // Claimed conditionally so a double submit cannot add the files twice.
     const claimed = await prisma.jobRequest.updateMany({
       where: { id: request.id, status: 'changes_requested' },

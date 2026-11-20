@@ -19,6 +19,12 @@ const schema = z.object({
   UPLOAD_DIR: z.string().min(1).default('uploads'),
   UPLOAD_MAX_MB: z.coerce.number().positive().max(2048).default(50),
   UPLOAD_MAX_FILES: z.coerce.number().int().positive().max(50).default(5),
+  // The most one workspace's request files may take up together, in MB. A request that would pass it is refused.
+  UPLOAD_MAX_WORKSPACE_MB: z.coerce.number().positive().max(1_000_000).default(500),
+  // Uploads are refused while the disk has less than this free, in MB, so the database always has room to write.
+  UPLOAD_MIN_FREE_MB: z.coerce.number().min(0).max(1_000_000).default(100),
+  // Files of requests that were rejected or finished this many days ago are deleted. 0 keeps them for ever.
+  UPLOAD_KEEP_DAYS: z.coerce.number().int().min(0).max(36_500).default(90),
   // Emails: password reset links, and status updates to people who sent a job request.
   // RESEND_API_KEY sends over HTTPS, which works on hosts that block outgoing SMTP (it wins when both are set).
   // SMTP_URL is the alternative, e.g. smtps://user:pass@smtp.example.com:465. With neither, emails are printed to the log.
