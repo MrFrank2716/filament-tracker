@@ -126,11 +126,17 @@ interface BackupOptions {
   uploads?: string;
   now?: Date;
   keep?: { daily: number; weekly: number };
+  /** Where progress is written. A first backup can take minutes, and silence looks the same as being stuck. */
+  log?: (line: string) => void;
 }
 
-export async function runBackup(bucket: Bucket, { db, uploads = uploadRoot, now = new Date(), keep }: BackupOptions): Promise<BackupResult> {
+/** How often progress is reported while uploaded files are being sent. */
+const PROGRESS_EVERY = 50;
+
+export async function runBackup(bucket: Bucket, { db, uploads = uploadRoot, now = new Date(), keep, log = () => undefined }: BackupOptions): Promise<BackupResult> {
   const work = await mkdtemp(path.join(tmpdir(), 'wrkbench-backup-'));
   try {
+    log('Backup started');
     const copy = path.join(work, 'copy.db');
     const packed = `${copy}.gz`;
     await snapshotDatabase(db, copy);
@@ -141,11 +147,13 @@ export async function runBackup(bucket: Bucket, { db, uploads = uploadRoot, now 
     await bucket.putFile(key, packed);
 
     const held = new Set((await bucket.list(UPLOAD_PREFIX)).map((object) => object.key));
+    const missing = (await filesUnder(uploads)).filter((name) => !held.has(`${UPLOAD_PREFIX}${name}`));
+    log(`Backup: database copy saved as ${key}, ${missing.length} uploaded file${missing.length === 1 ? '' : 's'} to send`);
     let uploadsAdded = 0;
-    for (const name of await filesUnder(uploads)) {
-      if (held.has(`${UPLOAD_PREFIX}${name}`)) continue;
+    for (const name of missing) {
       await bucket.putFile(`${UPLOAD_PREFIX}${name}`, path.join(uploads, name));
       uploadsAdded += 1;
+      if (uploadsAdded % PROGRESS_EVERY === 0 && uploadsAdded < missing.length) log(`Backup: sent ${uploadsAdded} of ${missing.length} uploaded files`);
     }
 
     // Only after the new copy is safely there.
@@ -261,7 +269,7 @@ export function scheduleBackups(db: PrismaClient): void {
     try {
       newest ??= (await listBackups(bucket))[0]?.at.getTime() ?? 0;
       if (Date.now() - newest < BACKUP_EVERY_MS) return;
-      const result = await runBackup(bucket, { db });
+      const result = await runBackup(bucket, { db, log: (line) => console.log(line) });
       newest = Date.now();
       console.log(`Backup ${result.key} saved (${megabytes(result.bytes)}, ${result.uploadsAdded} new uploaded file${result.uploadsAdded === 1 ? '' : 's'}, ${result.removed} old cop${result.removed === 1 ? 'y' : 'ies'} removed)`);
     } catch (cause) {

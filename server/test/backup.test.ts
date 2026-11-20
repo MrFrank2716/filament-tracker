@@ -114,6 +114,22 @@ describe('a backup', () => {
     expect((await assertUsableDatabase(path.join(odd, 'copy.db'))).users).toBe(1);
   });
 
+  it('reports as it goes, so a long first backup does not look stuck', async () => {
+    fake = await startFakeBucket();
+    const uploads = path.join(work, 'uploads-many');
+    await mkdir(path.join(uploads, 'workspace1'), { recursive: true });
+    for (let i = 0; i < 120; i++) await writeFile(path.join(uploads, 'workspace1', `file${i}`), 'x');
+    const lines: string[] = [];
+    const result = await runBackup(openBucket(fake.config), { db: prisma, uploads, now: new Date('2026-11-21T03:00:00Z'), log: (line) => lines.push(line) });
+    expect(result.uploadsAdded).toBe(120);
+    expect(lines).toEqual([
+      'Backup started',
+      'Backup: database copy saved as db/2026-11-21T03-00-00Z.db.gz, 120 uploaded files to send',
+      'Backup: sent 50 of 120 uploaded files',
+      'Backup: sent 100 of 120 uploaded files',
+    ]);
+  });
+
   it('says why when the bucket refuses', async () => {
     fake = await startFakeBucket();
     const bucket = openBucket({ ...fake.config, secretAccessKey: 'wrong' });
