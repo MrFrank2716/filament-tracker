@@ -1,3 +1,4 @@
+import { ConfirmEmailNotice } from '@/components/layout/ConfirmEmailNotice';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, BookOpen, Check, FileQuestion, LogOut, X } from 'lucide-react';
@@ -125,6 +126,9 @@ export function NewWorkspacePage() {
 
   return (
     <main className={styles.page}>
+      <div className={styles.notice}>
+        <ConfirmEmailNotice />
+      </div>
       <form
         className={styles.panel}
         onSubmit={(event) => {

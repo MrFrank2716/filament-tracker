@@ -35,7 +35,7 @@ Run these from the root of the repository.
 | `pio run -d firmware/cyd` | Build the location display firmware (needs [PlatformIO](https://platformio.org/)). See [firmware/README.md](firmware/README.md) |
 | `pio run -d firmware/cyd -e cyd-st7789 -t upload` | Build and flash a display plugged in by USB |
 
-There is no linter or formatter set up yet, and no CI that runs the tests. Please run `npm test` and `npm run typecheck` before opening a pull request.
+There is no linter or formatter set up yet. GitHub type-checks, runs every test and builds the web app on each pull request and on `main` (`.github/workflows/test.yml`). Run `npm test` and `npm run typecheck` yourself before opening a pull request, so the first run is green.
 
 ## Where each branch runs
 
@@ -88,8 +88,11 @@ Where to find things:
 | `server/prisma/schema.prisma` | The data model: generic `ItemType` / `CustomField` / `Item`, machines, attached hardware (`SubUnit`) and slots, maintenance, jobs, the stock audit trail |
 | `server/prisma/migrations/` | Database migrations |
 | `server/src/env.ts` | Every server setting, with defaults and validation |
+| `server/src/db.ts` | The database client. It uses one connection, so changes take turns, and switches SQLite to its write-ahead log when the server starts |
 | `server/src/routes/` | The REST API. Everything under `/api/workspaces/:id` is membership- and role-checked |
 | `server/src/auth.ts` | Sign-in tokens and role checks (see [Roles](#roles) below) |
+| `server/src/services/twoStep.ts` | Two-step sign-in: authenticator codes (RFC 6238), how the secret is stored, recovery codes. The routes are in `server/src/routes/auth.ts`; the host's off switch is `server/scripts/two-step-off.ts` |
+| `server/src/services/attempts.ts` | Counting tries at something that must not be guessed (passwords), per account, in the database so a restart does not reset it |
 | `server/src/idempotency.ts` | Idempotency keys: a POST repeated with the same `Idempotency-Key` is answered from memory instead of running twice. The web app sends one with every POST (`client/src/lib/idempotency.ts`) |
 | `server/src/services/` | Business logic: stock, jobs and the queue, projects, maintenance, the daily report, the reorder list, spool tags, email, uploads |
 | `server/src/services/backup.ts` | Nightly backups to S3-compatible storage and putting one back; `s3.ts` beside it is the small client it uses. `server/scripts/prestart.ts` runs before each start |

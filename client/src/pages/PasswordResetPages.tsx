@@ -8,7 +8,8 @@ import { api, ApiError } from '@/lib/api';
 import { LegalLinks } from '@/pages/LegalPages';
 import styles from '@/pages/AuthPage.module.css';
 
-function Frame({ children, footer }: { children: ReactNode; footer: ReactNode }) {
+/** The panel every signed-out page of this kind sits in. */
+export function Frame({ children, footer }: { children: ReactNode; footer: ReactNode }) {
   return (
     <main className={styles.page}>
       <div className={styles.panel}>
@@ -111,8 +112,9 @@ export function ResetPasswordPage() {
     setError('');
     setBusy(true);
     try {
-      await resetPassword(token, password);
-      navigate('/', { replace: true });
+      if (await resetPassword(token, password)) navigate('/', { replace: true });
+      // With two-step sign-in the new password is only half of signing in.
+      else navigate('/login', { replace: true, state: { notice: 'Your password is changed. Sign in with it, then enter a code from your authenticator app.' } });
     } catch (cause) {
       setError(message(cause));
       setBusy(false);

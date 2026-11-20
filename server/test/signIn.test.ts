@@ -3,37 +3,59 @@ import jwt from 'jsonwebtoken';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { signResetToken, signToken } from '@/auth';
 import { prisma } from '@/db';
-import { attemptCounter } from '@/rateLimit';
+import { attemptCounter, forgetOldAttempts } from '@/services/attempts';
 import { startApp } from './http';
 
 describe('counting sign-in attempts per account', () => {
   const MIN = 60_000;
+  const T0 = Date.UTC(2026, 0, 1);
 
-  it('allows the allowance, refuses the next, and forgets attempts once they are old', () => {
-    const counter = attemptCounter(3, 15 * MIN);
-    expect([0, 1, 2].map((i) => counter.attempt('a@x.test', i * MIN))).toEqual([true, true, true]);
-    expect(counter.attempt('a@x.test', 3 * MIN)).toBe(false);
+  it('allows the allowance, refuses the next, and forgets attempts once they are old', async () => {
+    const counter = attemptCounter('test-a', 3, 15 * MIN);
+    for (const i of [0, 1, 2]) expect(await counter.attempt('a@x.test', T0 + i * MIN)).toBe(true);
+    expect(await counter.attempt('a@x.test', T0 + 3 * MIN)).toBe(false);
     // Each account has its own allowance.
-    expect(counter.attempt('b@x.test', 3 * MIN)).toBe(true);
+    expect(await counter.attempt('b@x.test', T0 + 3 * MIN)).toBe(true);
     // A refused attempt is not recorded, so the lock lifts 15 minutes after the first attempt.
-    expect(counter.attempt('a@x.test', 15 * MIN)).toBe(true);
+    expect(await counter.attempt('a@x.test', T0 + 15 * MIN)).toBe(true);
   });
 
-  it('starts again once the account has proved who it is', () => {
-    const counter = attemptCounter(2, 15 * MIN);
-    counter.attempt('a@x.test', 0);
-    counter.attempt('a@x.test', 1);
-    expect(counter.attempt('a@x.test', 2)).toBe(false);
-    counter.clear('a@x.test');
-    expect(counter.attempt('a@x.test', 3)).toBe(true);
+  it('starts again once the account has proved who it is', async () => {
+    const counter = attemptCounter('test-b', 2, 15 * MIN);
+    await counter.attempt('a@x.test', T0);
+    await counter.attempt('a@x.test', T0 + 1);
+    expect(await counter.attempt('a@x.test', T0 + 2)).toBe(false);
+    await counter.clear('a@x.test');
+    expect(await counter.attempt('a@x.test', T0 + 3)).toBe(true);
   });
 
-  it('never forgets a busy account to make room for made-up ones', () => {
-    const counter = attemptCounter(2, 15 * MIN);
-    counter.attempt('victim@x.test', 0);
-    counter.attempt('victim@x.test', 1);
-    for (let i = 0; i < 6000; i++) counter.attempt(`made-up-${i}@x.test`, 2);
-    expect(counter.attempt('victim@x.test', 3)).toBe(false);
+  it('remembers across a restart, because the count is in the database and not in memory', async () => {
+    const before = attemptCounter('test-c', 2, 15 * MIN);
+    await before.attempt('victim@x.test', T0);
+    await before.attempt('victim@x.test', T0 + 1);
+    // What a new server process starts with: a counter that has seen nothing itself.
+    const after = attemptCounter('test-c', 2, 15 * MIN);
+    expect(await after.attempt('victim@x.test', T0 + 2)).toBe(false);
+  });
+
+  it('counts attempts made at the same moment, and keeps one kind of attempt apart from another', async () => {
+    const counter = attemptCounter('test-d', 3, 15 * MIN);
+    const results = await Promise.all(Array.from({ length: 8 }, () => counter.attempt('a@x.test', T0)));
+    expect(results.filter(Boolean).length).toBeLessThanOrEqual(3);
+    expect(await attemptCounter('test-e', 3, 15 * MIN).attempt('a@x.test', T0)).toBe(true);
+  });
+
+  it('stores a fingerprint of the address, never the address, and sweeps out old attempts', async () => {
+    // The tests above used a clock set in the past: start from nothing.
+    await prisma.signInAttempt.deleteMany();
+    const counter = attemptCounter('test-f', 3, 15 * MIN);
+    await counter.attempt('someone-private@x.test', Date.now() - 3 * 24 * 60 * MIN);
+    await counter.attempt('someone-private@x.test');
+    const rows = await prisma.signInAttempt.findMany();
+    expect(rows).toHaveLength(2);
+    expect(rows.some((row) => row.key.includes('someone-private'))).toBe(false);
+    expect(await forgetOldAttempts()).toBe(1);
+    expect(await prisma.signInAttempt.count()).toBe(1);
   });
 });
 

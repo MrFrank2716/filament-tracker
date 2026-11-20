@@ -27,10 +27,10 @@ export async function startApp() {
   return { call, raw, base, close: () => new Promise<void>((resolve) => server.close(() => resolve())) };
 }
 
-/** A user who is a member of the workspace with this role (or of none), and a sign-in token for them. */
+/** A user who is a member of the workspace with this role (or of none), with a confirmed address, and a sign-in token for them. */
 export async function member(email: string, workspaceId: string | null, role = 'viewer') {
   const user = await prisma.user.create({
-    data: { email, name: email.split('@')[0], passwordHash: 'x', ...(workspaceId ? { memberships: { create: { workspaceId, role } } } : {}) },
+    data: { email, name: email.split('@')[0], passwordHash: 'x', emailVerifiedAt: new Date(), ...(workspaceId ? { memberships: { create: { workspaceId, role } } } : {}) },
   });
   return signToken(user);
 }

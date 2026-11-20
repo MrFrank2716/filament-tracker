@@ -7,9 +7,37 @@ Wrkbench keeps track of what your workshop has in stock, where it is, which mach
 ![The sign-in page](images/sign-in.png)
 
 - **Create an account** with your name, email and a password of 8 to 72 characters. Accented letters and emoji take up more room, so a password full of them has a lower limit.
+- **Confirm your email.** After you create an account, Wrkbench emails you a link. Open it within a day to show the address is yours. If it is not in your inbox, look in your junk folder. You can use Wrkbench straight away without it, but until you do, nobody can add you to their workspace, and a notice at the top of the page reminds you. **Send the link again** on that notice sends a fresh one. (If whoever runs your copy of Wrkbench has not set up email, there is nothing to confirm and no notice.)
 - **Continue as guest** to look around without registering. You get your own copy of the example maker space, full of sample machines, stock and jobs. If you like it, choose **Create an account** in the sidebar and everything you set up as a guest moves to your new account. A guest that is not turned into an account is deleted after 7 days.
-- **Forgot password?** emails you a link that works once, for one hour. (The person running your copy of Wrkbench has to have set up email for this to arrive.)
+- **Forgot password?** emails you a link that works once, for one hour. (The person running your copy of Wrkbench has to have set up email for this to arrive.) Choosing a new password this way also confirms your email.
+- Whenever your password changes, Wrkbench emails you to say so. If you did not change it, use **Forgot password?** at once to choose a new one.
 - After 10 wrong passwords for one email within 15 minutes, signing in with that email is paused for up to 15 minutes, from any device. Choosing a new password with **Forgot password?** lifts the pause straight away.
+
+## Two-step sign-in
+
+Two-step sign-in asks for a code from an app on your phone as well as your password, so a password that leaks is not enough to get into your account. It is off until you turn it on, and it is yours alone: it does not change anything for other members.
+
+You need an authenticator app, such as Google Authenticator, Microsoft Authenticator, 1Password or Aegis.
+
+**Turn it on**
+
+1. Go to **Settings**, **Your account**, and press **Turn on two-step sign-in**.
+2. Enter your password and press **Continue**.
+3. In your authenticator app, add an account and scan the code on screen. If you cannot scan it, type the key shown under it into the app.
+4. Enter the **6-digit code** the app shows and press **Turn on**.
+5. Wrkbench shows ten **recovery codes**. **Copy** or **Download** them and keep them somewhere safe, away from your phone. They are shown only this once.
+
+Your other devices are signed out when you turn it on. You must have [confirmed your email](#sign-in-or-try-it-as-a-guest) first.
+
+**Signing in** then has a second step: after your password, enter the code your app shows for Wrkbench. Codes change every 30 seconds and each works once.
+
+**If you lose your phone**, press **Lost your phone? Use a recovery code** on that second step and enter one of your recovery codes. Each works once, and Wrkbench emails you whenever one is used. Then go to **Settings**, **Your account** to turn two-step sign-in off and on again with your new phone.
+
+Under **Settings**, **Your account** you can also see how many recovery codes are left, make a fresh set with **New recovery codes** (the old ones stop working), or **Turn off** two-step sign-in. Each asks for your password and a code.
+
+**Forgot password?** still works, but the new password does not sign you in by itself: you are asked for a code as usual.
+
+If you have lost both your phone and your recovery codes, only the person who runs your copy of Wrkbench can let you back in. See [Troubleshooting](Troubleshooting.md).
 
 ## Create a workspace
 

@@ -11,7 +11,14 @@ interface AuthValue {
   /** Set when a stored session could not be checked because the server was unreachable. */
   error: string | null;
   retry: () => void;
-  login: (email: string, password: string) => Promise<void>;
+  /**
+   * Resolves to null once signed in. For an account with two-step sign-in it resolves to a challenge instead:
+   * nobody is signed in until `completeTwoStep` is given it together with a code.
+   */
+  login: (email: string, password: string) => Promise<string | null>;
+  completeTwoStep: (challenge: string, code: string) => Promise<void>;
+  /** Finish turning two-step sign-in on. Resolves to the recovery codes, which are shown once. */
+  enableTwoStep: (code: string) => Promise<string[]>;
   /** For a guest this turns the session into a real account and keeps its workspaces. */
   register: (name: string, email: string, password: string) => Promise<void>;
   /** Start a temporary session with its own example workspace. */
@@ -19,13 +26,20 @@ interface AuthValue {
   /** Also signs out every other device. */
   changePassword: (currentPassword: string, password: string) => Promise<void>;
   signOutOthers: () => Promise<void>;
-  /** Finish a "forgot password" link: sets the password and signs in. */
-  resetPassword: (token: string, password: string) => Promise<void>;
+  /**
+   * Finish a "forgot password" link: sets the password and signs in. Resolves to false when the account has
+   * two-step sign-in, where the new password alone does not sign in.
+   */
+  resetPassword: (token: string, password: string) => Promise<boolean>;
   /** Permanently removes the account, then signs out. */
   deleteAccount: (password: string) => Promise<void>;
   logout: () => void;
   /** Replace the signed-in user with a fresher copy from the server. */
   updateUser: (user: User) => void;
+  /** Ask the server for the signed-in user again, quietly: nothing changes if it cannot be reached. */
+  refreshUser: () => void;
+  /** Send the "confirm your email" link again. Resolves to what to tell the user. */
+  resendConfirmation: () => Promise<string>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -72,6 +86,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(restore, [restore]);
 
+  const refreshUser = useCallback(() => {
+    if (!tokenStore.get()) return;
+    api
+      .get<{ user: User }>('/auth/me')
+      .then(({ user: current }) => setUser(current))
+      .catch(() => undefined);
+  }, []);
+
   useEffect(() => {
     window.addEventListener(AUTH_EXPIRED_EVENT, logout);
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, logout);
@@ -90,7 +112,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       retry: restore,
       logout,
       updateUser: setUser,
-      login: async (email, password) => start(await api.post<Session>('/auth/login', { email, password })),
+      refreshUser,
+      resendConfirmation: async () => {
+        const answer = await api.post<{ user: User; message: string }>('/auth/verify/resend');
+        setUser(answer.user);
+        return answer.message;
+      },
+      login: async (email, password) => {
+        const answer = await api.post<Session | { twoStep: true; challenge: string }>('/auth/login', { email, password });
+        if ('challenge' in answer) return answer.challenge;
+        start(answer);
+        return null;
+      },
+      completeTwoStep: async (challenge, code) => start(await api.post<Session>('/auth/login/two-step', { challenge, code })),
+      // Turning it on signs every other device out, so this one gets a new token along with the codes.
+      enableTwoStep: async (code) => {
+        const answer = await api.post<Session & { recoveryCodes: string[] }>('/auth/two-step/enable', { code });
+        start(answer, true);
+        return answer.recoveryCodes;
+      },
       // A guest who registers stays the same user, so what is on screen is still theirs.
       register: async (name, email, password) =>
         start(await api.post<Session>('/auth/register', { name, email, password }), Boolean(user?.isGuest)),
@@ -99,13 +139,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       changePassword: async (currentPassword, password) =>
         start(await api.post<Session>('/auth/password', { currentPassword, password }), true),
       signOutOthers: async () => start(await api.post<Session>('/auth/sign-out-others'), true),
-      resetPassword: async (token, password) => start(await api.post<Session>('/auth/reset', { token, password })),
+      resetPassword: async (token, password) => {
+        const answer = await api.post<Session | { twoStep: true }>('/auth/reset', { token, password });
+        if (!('token' in answer)) return false;
+        start(answer);
+        return true;
+      },
       deleteAccount: async (password) => {
         await api.post('/auth/delete-account', { password });
         logout();
       },
     };
-  }, [user, loading, error, restore, logout]);
+  }, [user, loading, error, restore, logout, refreshUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

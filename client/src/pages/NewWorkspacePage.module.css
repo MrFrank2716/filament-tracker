@@ -264,3 +264,9 @@
 .footerEnd {
   margin-left: auto;
 }
+
+/* Same width as the panel below it, so the two line up. */
+.notice {
+  width: min(100%, 46rem);
+  margin: 0 auto;
+}

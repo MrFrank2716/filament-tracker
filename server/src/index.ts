@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { createApp } from '@/app';
-import { prisma } from '@/db';
+import { prisma, useWriteAheadLog } from '@/db';
 import { env } from '@/env';
 import { attachBridgeGateway } from '@/integrations/bridgeGateway';
 import { flushRegistry, hydrateRegistry } from '@/integrations/registry';
@@ -8,6 +8,14 @@ import { attachRealtime } from '@/realtime';
 import { scheduleBackups } from '@/services/backup';
 import { scheduleGuestCleanup } from '@/services/guests';
 import { scheduleUploadCare } from '@/services/uploads';
+
+// Before anything reads or writes. Failing to switch is worth a line in the log, not a server that will not start.
+await useWriteAheadLog().then(
+  (mode) => {
+    if (mode !== 'wal') console.warn(`The database stayed in "${mode}" mode instead of the write-ahead log`);
+  },
+  (cause: unknown) => console.warn('Could not switch the database to the write-ahead log', cause),
+);
 
 const app = createApp();
 const server = createServer(app);

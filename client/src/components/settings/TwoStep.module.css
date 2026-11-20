@@ -1,0 +1,49 @@
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.inlineIcon {
+  vertical-align: text-bottom;
+  color: var(--color-ok);
+}
+
+.steps {
+  margin: 0;
+  padding-left: var(--space-5);
+  list-style: decimal;
+}
+
+/* Always dark on white, whatever the theme: that is what a phone camera reads. */
+.qr {
+  display: block;
+  width: min(100%, 13rem);
+  margin: 0 auto;
+  border-radius: var(--radius-md);
+}
+
+.key {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.key code {
+  /* A long key must wrap inside a phone-width sheet. */
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  color: var(--color-text);
+}
+
+.codes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  list-style: none;
+  border: var(--border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+}

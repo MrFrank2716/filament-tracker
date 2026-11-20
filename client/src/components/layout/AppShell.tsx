@@ -4,6 +4,7 @@ import {
   ArrowLeftRight, Boxes, Eye, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, ScanLine, Search, Settings, Sunrise,
 } from 'lucide-react';
 import { CommandMenu } from '@/components/layout/CommandMenu';
+import { ConfirmEmailNotice } from '@/components/layout/ConfirmEmailNotice';
 import { NAV_PAGES, type NavPage } from '@/components/layout/navPages';
 import { DailyReport, useDailyReport } from '@/components/report/DailyReport';
 import { ScanDialog } from '@/components/scan/ScanDialog';
@@ -264,6 +265,7 @@ export function AppShell() {
               <Eye size={16} aria-hidden /> You have view-only access to this workspace.
             </p>
           )}
+          <ConfirmEmailNotice />
           <Outlet />
         </div>
       </main>

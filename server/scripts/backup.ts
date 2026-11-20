@@ -22,7 +22,7 @@ const megabytes = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
 try {
   if (command === 'now') {
-    const result = await runBackup(bucket, { db: prisma });
+    const result = await runBackup(bucket, { db: prisma, log: (line) => console.log(line) });
     console.log(`Saved ${result.key} (${megabytes(result.bytes)}), ${result.uploadsAdded} new uploaded file(s), ${result.removed} old cop${result.removed === 1 ? 'y' : 'ies'} removed.`);
   } else if (command === 'list') {
     const copies = await listBackups(bucket);

@@ -13,6 +13,10 @@ export interface User {
   name: string;
   /** A try-it-out session: no email or password yet, removed after a week unless it registers. */
   isGuest: boolean;
+  /** False while a registered account has not opened its confirmation link. Missing from an older server: treat as confirmed. */
+  emailVerified?: boolean;
+  /** Whether signing in also asks for a code from an authenticator app. Missing from an older server: it does not. */
+  twoStep?: boolean;
   /** Personal theme. Missing from an older server: treat as the default. */
   appearance?: Appearance;
   /** Personal navigation layout as saved; null or missing for the standard one. Read it through normalizeLayout. */

@@ -6,7 +6,7 @@ How to run your own copy of Wrkbench for your workshop. If you only want to try 
 
 Wrkbench is a single Node.js program. It serves the web app, its API and live updates on one port, and keeps everything in two places:
 
-- a **SQLite database file** (no separate database server is needed), and
+- a **SQLite database file** (no separate database server is needed), with two small files SQLite keeps beside it while the app runs (the same name ending in `-wal` and `-shm`), and
 - an **uploads folder** for files sent with [job requests](Job-requests.md).
 
 So the host needs:
@@ -73,7 +73,7 @@ All settings are environment variables. The server checks them when it starts, a
 
 | Variable | What to set |
 | --- | --- |
-| `JWT_SECRET` | A long random string, at least 16 characters, used to sign people in. Generate one with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Never reuse the one from your own computer. Changing it signs everyone out |
+| `JWT_SECRET` | A long random string, at least 16 characters, used to sign people in. Generate one with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Never reuse the one from your own computer. Changing it signs everyone out, and stops the authenticator codes of members who use [two-step sign-in](#two-step-sign-in) |
 | `DATABASE_URL` | Where the database file is, for example `file:/data/app.db`. The Docker image sets this |
 
 ### Your site's address
@@ -94,6 +94,24 @@ Without email, password-reset links and job request updates are only printed to 
 | `RESEND_API_KEY` | Sends through [Resend](https://resend.com) over HTTPS. Use this on hosts that block outgoing mail ports. Wins if both are set |
 | `SMTP_URL` | Sends through any mail server, for example `smtps://user:password@smtp.example.com:465` |
 | `MAIL_FROM` | Who emails come from, for example `Workshop <workshop@example.com>`. It must be an address on a domain your mail provider has verified. Default `Wrkbench <no-reply@localhost>` |
+
+With email set up, a new account is also sent a link to confirm its address, and cannot be added to someone else's workspace until it is opened. Accounts that existed before count as confirmed.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `EMAIL_CONFIRMATION` | `auto` | `auto` asks new accounts to confirm their address when email is set up, and not otherwise. `on` always asks (the link is then only in the log if email is not set up). `off` never asks |
+
+### Two-step sign-in
+
+Members can turn on [two-step sign-in](Getting-started.md#two-step-sign-in) for their own account. There is nothing to set up. Two things to know when you run the server:
+
+- **A member who has lost their phone and their recovery codes** cannot get back in by themselves, and a password reset does not help them. Once you are sure it is them, turn it off for their account. Every device signed in to it is signed out and the account is emailed:
+
+  ```bash
+  npm run account:two-step-off -- someone@example.com
+  ```
+
+- **Changing `JWT_SECRET`** also stops every member's authenticator codes from working, because the app's secret is stored locked with a key made from it. Their recovery codes still work. After such a change, expect to run the command above for members who have none left.
 
 ### Uploads from job requests
 
@@ -199,7 +217,7 @@ npm run db:prepare
 
 ### Other ways
 
-Scheduled volume backups, if your host offers them, work too. If you copy the folder yourself, copy the database while the app is stopped, or use SQLite's own backup command, so the copy is not caught half-written.
+Scheduled volume backups, if your host offers them, work too. If you copy the folder yourself, copy the database while the app is stopped, or use SQLite's own backup command, so the copy is not caught half-written. The newest changes can be in the `-wal` file, so a copy of the main file alone, taken while the app runs, can be missing them.
 
 Members can also export each workspace themselves. See [Backups, import and export](Backups-and-data.md).
 
