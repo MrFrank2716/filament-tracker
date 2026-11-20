@@ -62,6 +62,14 @@ export function signToken(user: TokenUser, expiresIn: `${number}d` = '30d'): str
   return jwt.sign({ sub: user.id, v: user.tokenVersion }, env.JWT_SECRET, { algorithm: ALGORITHM, expiresIn });
 }
 
+/**
+ * Five minutes to finish signing in: handed out for the right password on an account with two-step sign-in,
+ * and swapped for a real sign-in only together with a code. Never accepted as a sign-in itself.
+ */
+export function signTwoStepChallenge(user: TokenUser): string {
+  return jwt.sign({ sub: user.id, v: user.tokenVersion, purpose: 'twostep' }, env.JWT_SECRET, { algorithm: ALGORITHM, expiresIn: '5m' });
+}
+
 /** A one-hour, single-purpose token for the emailed "set a new password" link. Never accepted as a sign-in. */
 export function signResetToken(user: TokenUser): string {
   return jwt.sign({ sub: user.id, v: user.tokenVersion, purpose: 'reset' }, env.JWT_SECRET, { algorithm: ALGORITHM, expiresIn: '1h' });
@@ -75,7 +83,7 @@ export function signVerifyToken(user: { id: string; email: string }): string {
   return jwt.sign({ sub: user.id, email: user.email, purpose: 'verify' }, env.JWT_SECRET, { algorithm: ALGORITHM, expiresIn: '1d' });
 }
 
-type Purpose = 'session' | 'reset' | 'verify';
+type Purpose = 'session' | 'reset' | 'verify' | 'twostep';
 
 function readToken(token: string, purpose: Purpose): { userId: string; version: number; email: string | null } | null {
   try {
@@ -98,7 +106,7 @@ export async function userForVerify(token: string) {
 }
 
 /** The user a token belongs to, or null when it is invalid, expired, revoked or the account is gone. */
-async function userFor(token: string, purpose: 'session' | 'reset') {
+async function userFor(token: string, purpose: 'session' | 'reset' | 'twostep') {
   const claims = token ? readToken(token, purpose) : null;
   if (!claims) return null;
   const user = await prisma.user.findUnique({ where: { id: claims.userId } });
@@ -106,6 +114,8 @@ async function userFor(token: string, purpose: 'session' | 'reset') {
 }
 
 export const userForSession = (token: string) => userFor(token, 'session');
+/** The user who gave the right password a moment ago and now owes the second step. */
+export const userForTwoStep = (token: string) => userFor(token, 'twostep');
 export const userForReset = (token: string) => userFor(token, 'reset');
 
 export const bearerToken = (header: string | undefined): string => (header?.startsWith('Bearer ') ? header.slice(7) : '');

@@ -13,6 +13,10 @@ Common problems and what to do about them. Problems with connected printers and 
 | "Confirm your email address" stays at the top of the page | Open the link in the email Wrkbench sent when you registered. It works for a day; **Send the link again** sends a new one. The notice goes when you come back to the page |
 | "This link has expired or is not for this account" | The confirmation link is more than a day old. Sign in and press **Send the link again** |
 | "That account has not confirmed its email address yet" when adding a member | The person has to open their confirmation link first. See [Members and roles](Members-and-roles.md#add-someone) |
+| "That code is not right" when signing in with two-step sign-in | Use the newest code in your authenticator app: they change every 30 seconds, and one that was already used is refused. If every code is refused, your phone's clock is probably wrong: set it to automatic time |
+| "Too many wrong codes" | Five wrong codes in 15 minutes pause the second step for that account. Wait up to 15 minutes |
+| You lost your phone | On the code step, press **Lost your phone? Use a recovery code** and enter one of the recovery codes you saved. See [Two-step sign-in](Getting-started.md#two-step-sign-in) |
+| You lost your phone and your recovery codes | Ask whoever runs your copy of Wrkbench to turn two-step sign-in off for your account. They will want to be sure it is you. Then sign in with your password and turn it on again |
 | The password reset email never arrives | Check your spam folder. If it is not there, whoever runs your copy of Wrkbench has not set up email yet |
 | A requester lost their progress link | Find the request under **Jobs**, **Requests**, press **Copy progress link** and send it to them again |
 | The request form says "Attach at least one file" | Every request needs at least one file for the workshop to check |

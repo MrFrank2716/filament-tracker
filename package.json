@@ -20,6 +20,7 @@
     "db:reset": "npm run db:reset -w server",
     "setup": "npm install && npm run db:migrate && npm run db:seed",
     "db:deploy": "npm run db:deploy -w server",
+    "account:two-step-off": "npm run account:two-step-off -w server --",
     "db:prepare": "npm run db:prepare -w server",
     "db:backup": "npm run db:backup -w server",
     "db:backups": "npm run db:backups -w server",

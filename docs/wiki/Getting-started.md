@@ -13,6 +13,32 @@ Wrkbench keeps track of what your workshop has in stock, where it is, which mach
 - Whenever your password changes, Wrkbench emails you to say so. If you did not change it, use **Forgot password?** at once to choose a new one.
 - After 10 wrong passwords for one email within 15 minutes, signing in with that email is paused for up to 15 minutes, from any device. Choosing a new password with **Forgot password?** lifts the pause straight away.
 
+## Two-step sign-in
+
+Two-step sign-in asks for a code from an app on your phone as well as your password, so a password that leaks is not enough to get into your account. It is off until you turn it on, and it is yours alone: it does not change anything for other members.
+
+You need an authenticator app, such as Google Authenticator, Microsoft Authenticator, 1Password or Aegis.
+
+**Turn it on**
+
+1. Go to **Settings**, **Your account**, and press **Turn on two-step sign-in**.
+2. Enter your password and press **Continue**.
+3. In your authenticator app, add an account and scan the code on screen. If you cannot scan it, type the key shown under it into the app.
+4. Enter the **6-digit code** the app shows and press **Turn on**.
+5. Wrkbench shows ten **recovery codes**. **Copy** or **Download** them and keep them somewhere safe, away from your phone. They are shown only this once.
+
+Your other devices are signed out when you turn it on. You must have [confirmed your email](#sign-in-or-try-it-as-a-guest) first.
+
+**Signing in** then has a second step: after your password, enter the code your app shows for Wrkbench. Codes change every 30 seconds and each works once.
+
+**If you lose your phone**, press **Lost your phone? Use a recovery code** on that second step and enter one of your recovery codes. Each works once, and Wrkbench emails you whenever one is used. Then go to **Settings**, **Your account** to turn two-step sign-in off and on again with your new phone.
+
+Under **Settings**, **Your account** you can also see how many recovery codes are left, make a fresh set with **New recovery codes** (the old ones stop working), or **Turn off** two-step sign-in. Each asks for your password and a code.
+
+**Forgot password?** still works, but the new password does not sign you in by itself: you are asked for a code as usual.
+
+If you have lost both your phone and your recovery codes, only the person who runs your copy of Wrkbench can let you back in. See [Troubleshooting](Troubleshooting.md).
+
 ## Create a workspace
 
 A **workspace** is one workshop: its stock, machines, jobs and members. You can belong to several and switch between them with the **Workspace** menu at the top of the sidebar.
