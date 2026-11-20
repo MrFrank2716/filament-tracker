@@ -34,7 +34,7 @@ Run these from the root of the repository.
 | `pio run -d firmware/cyd` | Build the location display firmware (needs [PlatformIO](https://platformio.org/)). See [firmware/README.md](firmware/README.md) |
 | `pio run -d firmware/cyd -e cyd-st7789 -t upload` | Build and flash a display plugged in by USB |
 
-There is no linter or formatter set up yet, and no CI that runs the tests. Please run `npm test` and `npm run typecheck` before opening a pull request.
+There is no linter or formatter set up yet. GitHub type-checks, runs every test and builds the web app on each pull request and on `main` (`.github/workflows/test.yml`). Run `npm test` and `npm run typecheck` yourself before opening a pull request, so the first run is green.
 
 ## Where each branch runs
 
