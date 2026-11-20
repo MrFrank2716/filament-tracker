@@ -21,11 +21,13 @@ The server checks every change against the member's role, so hiding a button is 
 
 Only owners can do this.
 
-1. The person creates their own Wrkbench account first.
+1. The person creates their own Wrkbench account first, and opens the link in the email Wrkbench sends them to confirm their address.
 2. Go to **Settings**, **Members**.
 3. Under **Add someone by email**, enter the email they signed up with, choose a **Role**, and add them.
 
 The workspace then appears in their **Workspace** menu.
+
+If you are told **That account has not confirmed its email address yet**, the person has not opened that link. Ask them to, or to press **Send the link again** on the notice at the top of their page, then add them. This is so that only the real owner of an address can be let in to your workspace.
 
 ## Change a role or remove someone
 

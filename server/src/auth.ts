@@ -67,16 +67,34 @@ export function signResetToken(user: TokenUser): string {
   return jwt.sign({ sub: user.id, v: user.tokenVersion, purpose: 'reset' }, env.JWT_SECRET, { algorithm: ALGORITHM, expiresIn: '1h' });
 }
 
-function readToken(token: string, purpose: 'session' | 'reset'): { userId: string; version: number } | null {
+/**
+ * A one-day, single-purpose token for the emailed "confirm your email" link. It names the address it was sent
+ * to, and is not tied to the token version: signing out elsewhere must not break a link still in the inbox.
+ */
+export function signVerifyToken(user: { id: string; email: string }): string {
+  return jwt.sign({ sub: user.id, email: user.email, purpose: 'verify' }, env.JWT_SECRET, { algorithm: ALGORITHM, expiresIn: '1d' });
+}
+
+type Purpose = 'session' | 'reset' | 'verify';
+
+function readToken(token: string, purpose: Purpose): { userId: string; version: number; email: string | null } | null {
   try {
     const payload = jwt.verify(token, env.JWT_SECRET, { algorithms: [ALGORITHM] });
     if (typeof payload !== 'object' || typeof payload.sub !== 'string') return null;
     if ((payload.purpose ?? 'session') !== purpose) return null;
     // Tokens from before versions existed carry none: they count as version 0.
-    return { userId: payload.sub, version: typeof payload.v === 'number' ? payload.v : 0 };
+    return { userId: payload.sub, version: typeof payload.v === 'number' ? payload.v : 0, email: typeof payload.email === 'string' ? payload.email : null };
   } catch {
     return null;
   }
+}
+
+/** The user a confirmation link belongs to, or null when it is invalid, expired, or was sent to another address. */
+export async function userForVerify(token: string) {
+  const claims = token ? readToken(token, 'verify') : null;
+  if (!claims) return null;
+  const user = await prisma.user.findUnique({ where: { id: claims.userId } });
+  return user && !user.isGuest && user.email === claims.email ? user : null;
 }
 
 /** The user a token belongs to, or null when it is invalid, expired, revoked or the account is gone. */

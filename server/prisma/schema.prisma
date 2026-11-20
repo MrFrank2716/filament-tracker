@@ -17,6 +17,9 @@ model User {
   passwordHash String
   /// A try-it-out session without an email or password. Removed after a week unless it registers.
   isGuest      Boolean  @default(false)
+  /// When the user proved the email address is theirs, by opening a link sent to it. Null until then.
+  /// An unconfirmed account works, but cannot be added to someone else's workspace.
+  emailVerifiedAt DateTime?
   /// Part of every sign-in token. Raising it signs the user out everywhere and cancels pending reset links.
   tokenVersion Int      @default(0)
   /// Appearance. themeMode: "system" | "light" | "dark". themePreset: a preset id from client/src/lib/themes.ts.
@@ -70,6 +73,17 @@ model Workspace {
   printerLinks     PrinterLink[]
   devices          Device[]
   unknownTags      UnknownTag[]
+}
+
+/// One counted try at something that must not be guessed, such as a password. Kept here, not in memory, so a
+/// restart does not hand out a fresh allowance. `key` is a SHA-256 of what was tried ("login:<email>"), so the
+/// table never holds an address nobody registered.
+model SignInAttempt {
+  id  String   @id @default(cuid())
+  key String
+  at  DateTime @default(now())
+
+  @@index([key, at])
 }
 
 /// role: "owner" | "admin" | "operator" | "viewer"

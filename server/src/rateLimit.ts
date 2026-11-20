@@ -25,35 +25,6 @@ export function rateLimit(max: number, windowMs: number): RequestHandler {
 }
 
 /**
- * Failed attempts per account, alongside the per-address limit: someone guessing one account's password
- * from many addresses is still stopped. `attempt` counts before the password is checked, so attempts made
- * in parallel all count; a right password then clears the count. Unknown accounts are counted the same
- * way, so a refusal says nothing about whether an account exists.
- */
-export function attemptCounter(max: number, windowMs: number) {
-  const attempts = new Map<string, number[]>();
-  const recent = (key: string, now: number) => (attempts.get(key) ?? []).filter((at) => now - at < windowMs);
-  return {
-    /** Records one attempt, or returns false (recording nothing) when the account has used its allowance. */
-    attempt(key: string, now = Date.now()): boolean {
-      const times = recent(key, now);
-      if (times.length >= max) return false;
-      times.push(now);
-      attempts.set(key, times);
-      if (attempts.size > 5000) {
-        // Only accounts with no recent attempts are forgotten, so a flood of made-up names cannot clear a real one.
-        for (const [other, at] of attempts) if (!at.some((t) => now - t < windowMs)) attempts.delete(other);
-      }
-      return true;
-    },
-    /** Forget the account's attempts, once it has proved who it is: the right password, or a password reset. */
-    clear(key: string): void {
-      attempts.delete(key);
-    },
-  };
-}
-
-/**
  * An allowance for one long-lived connection: `capacity` messages at once, refilled at `perSecond`.
  * Returns a function that says whether the next message is allowed.
  */

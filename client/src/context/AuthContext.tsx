@@ -26,6 +26,10 @@ interface AuthValue {
   logout: () => void;
   /** Replace the signed-in user with a fresher copy from the server. */
   updateUser: (user: User) => void;
+  /** Ask the server for the signed-in user again, quietly: nothing changes if it cannot be reached. */
+  refreshUser: () => void;
+  /** Send the "confirm your email" link again. Resolves to what to tell the user. */
+  resendConfirmation: () => Promise<string>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -72,6 +76,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(restore, [restore]);
 
+  const refreshUser = useCallback(() => {
+    if (!tokenStore.get()) return;
+    api
+      .get<{ user: User }>('/auth/me')
+      .then(({ user: current }) => setUser(current))
+      .catch(() => undefined);
+  }, []);
+
   useEffect(() => {
     window.addEventListener(AUTH_EXPIRED_EVENT, logout);
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, logout);
@@ -90,6 +102,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       retry: restore,
       logout,
       updateUser: setUser,
+      refreshUser,
+      resendConfirmation: async () => {
+        const answer = await api.post<{ user: User; message: string }>('/auth/verify/resend');
+        setUser(answer.user);
+        return answer.message;
+      },
       login: async (email, password) => start(await api.post<Session>('/auth/login', { email, password })),
       // A guest who registers stays the same user, so what is on screen is still theirs.
       register: async (name, email, password) =>
@@ -105,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout();
       },
     };
-  }, [user, loading, error, restore, logout]);
+  }, [user, loading, error, restore, logout, refreshUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

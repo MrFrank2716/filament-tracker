@@ -95,6 +95,12 @@ Without email, password-reset links and job request updates are only printed to 
 | `SMTP_URL` | Sends through any mail server, for example `smtps://user:password@smtp.example.com:465` |
 | `MAIL_FROM` | Who emails come from, for example `Workshop <workshop@example.com>`. It must be an address on a domain your mail provider has verified. Default `Wrkbench <no-reply@localhost>` |
 
+With email set up, a new account is also sent a link to confirm its address, and cannot be added to someone else's workspace until it is opened. Accounts that existed before count as confirmed.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `EMAIL_CONFIRMATION` | `auto` | `auto` asks new accounts to confirm their address when email is set up, and not otherwise. `on` always asks (the link is then only in the log if email is not set up). `off` never asks |
+
 ### Uploads from job requests
 
 | Variable | Default | What it does |

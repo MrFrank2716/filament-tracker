@@ -91,6 +91,7 @@ Where to find things:
 | `server/src/db.ts` | The database client. It uses one connection, so changes take turns, and switches SQLite to its write-ahead log when the server starts |
 | `server/src/routes/` | The REST API. Everything under `/api/workspaces/:id` is membership- and role-checked |
 | `server/src/auth.ts` | Sign-in tokens and role checks (see [Roles](#roles) below) |
+| `server/src/services/attempts.ts` | Counting tries at something that must not be guessed (passwords), per account, in the database so a restart does not reset it |
 | `server/src/idempotency.ts` | Idempotency keys: a POST repeated with the same `Idempotency-Key` is answered from memory instead of running twice. The web app sends one with every POST (`client/src/lib/idempotency.ts`) |
 | `server/src/services/` | Business logic: stock, jobs and the queue, projects, maintenance, the daily report, the reorder list, spool tags, email, uploads |
 | `server/src/services/backup.ts` | Nightly backups to S3-compatible storage and putting one back; `s3.ts` beside it is the small client it uses. `server/scripts/prestart.ts` runs before each start |

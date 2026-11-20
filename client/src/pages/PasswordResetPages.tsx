@@ -8,7 +8,8 @@ import { api, ApiError } from '@/lib/api';
 import { LegalLinks } from '@/pages/LegalPages';
 import styles from '@/pages/AuthPage.module.css';
 
-function Frame({ children, footer }: { children: ReactNode; footer: ReactNode }) {
+/** The panel every signed-out page of this kind sits in. */
+export function Frame({ children, footer }: { children: ReactNode; footer: ReactNode }) {
   return (
     <main className={styles.page}>
       <div className={styles.panel}>

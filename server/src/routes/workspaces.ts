@@ -7,6 +7,7 @@ import { idempotent } from '@/idempotency';
 import { broadcastChanges } from '@/realtime';
 import { registerReferenceRoutes } from '@/routes/reference';
 import { recordActivity } from '@/services/activity';
+import { confirmationRequired } from '@/services/mail';
 import { addFromReference, pickSchema } from '@/services/reference';
 import { MAX_MARGIN } from '@/services/projects';
 import { importSnapshot, snapshotSchema } from '@/services/snapshot';
@@ -167,6 +168,10 @@ scoped.post('/members', ownerOnly, async (req, res) => {
   const { email, role } = parse(z.object({ email: z.string().trim().toLowerCase(), role: roleSchema }), req.body);
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) throw new HttpError(404, 'No account uses that email yet. Ask them to register first, then add them here.');
+  // Until the address is confirmed, the account may belong to someone who only typed it in.
+  if (confirmationRequired() && !user.emailVerifiedAt) {
+    throw new HttpError(409, 'That account has not confirmed its email address yet. Ask them to open the link Wrkbench emailed them, then add them here.');
+  }
   const existing = await prisma.membership.findUnique({
     where: { userId_workspaceId: { userId: user.id, workspaceId: req.workspaceId } },
   });

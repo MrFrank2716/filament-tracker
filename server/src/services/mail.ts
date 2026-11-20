@@ -12,6 +12,12 @@ function transporter(): Transporter | null {
 
 export const appUrl = (path: string) => `${(env.APP_URL ?? env.CLIENT_ORIGIN).replace(/\/+$/, '')}${path}`;
 
+/** Whether emails go anywhere but the log. */
+export const mailIsSetUp = (): boolean => Boolean(env.RESEND_API_KEY || env.SMTP_URL);
+
+/** Whether new accounts have to confirm their address (see EMAIL_CONFIRMATION). */
+export const confirmationRequired = (): boolean => (env.EMAIL_CONFIRMATION === 'auto' ? mailIsSetUp() : env.EMAIL_CONFIRMATION === 'on');
+
 interface Mail {
   to: string;
   subject: string;
