@@ -1,27 +1,30 @@
 import type { RequestHandler } from 'express';
-import { HttpError } from '@/http';
+import { rateLimit as expressRateLimit } from 'express-rate-limit';
+
+const TOO_MANY = 'Too many requests from this connection. Please try again later.';
 
 /**
- * Small in-memory limiter for the routes anyone can reach without an account.
+ * A limit of `max` requests per `windowMs` for each client address, for the routes that take something
+ * guessable or that anyone can reach without an account. Built on express-rate-limit, the limiter that
+ * code scanners recognise, with its counts held in this process.
  *
- * Counts per client address, so behind a hosting proxy TRUST_PROXY must be set
- * or every visitor shares the proxy's address. It lives in this process only,
- * which is fine while the app runs as a single instance.
+ * Counts per client address, so behind a hosting proxy TRUST_PROXY must be set or every visitor shares the
+ * proxy's address. Being in this process only is fine while the app runs as a single instance.
+ *
+ * Every answer says how much of the allowance is left (the standard RateLimit headers), and a refusal says
+ * when to try again (Retry-After).
  */
 export function rateLimit(max: number, windowMs: number): RequestHandler {
-  const hits = new Map<string, number[]>();
-  return (req, _res, next) => {
-    const now = Date.now();
-    const key = req.ip ?? 'unknown';
-    const recent = (hits.get(key) ?? []).filter((at) => now - at < windowMs);
-    if (recent.length >= max) throw new HttpError(429, 'Too many requests from this connection. Please try again later.');
-    recent.push(now);
-    hits.set(key, recent);
-    if (hits.size > 5000) {
-      for (const [other, times] of hits) if (!times.some((at) => now - at < windowMs)) hits.delete(other);
-    }
-    next();
-  };
+  return expressRateLimit({
+    windowMs,
+    limit: max,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    // The same shape as every other error the API gives, so the web app and displays show it as they always have.
+    handler: (_req, res) => {
+      res.status(429).json({ error: TOO_MANY });
+    },
+  });
 }
 
 /**
