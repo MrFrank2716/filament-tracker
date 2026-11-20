@@ -86,6 +86,7 @@ model Membership {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([userId, workspaceId])
+  @@index([workspaceId])
 }
 
 /// User-defined unit of measure (g, m, pcs, sheets, ml ...).
@@ -133,6 +134,9 @@ model Location {
   items     Item[]
   machines  Machine[]
   devices   Device[]
+
+  @@index([workspaceId])
+  @@index([parentId])
 }
 
 /// A user-defined category of item. Custom fields hang off it.
@@ -272,6 +276,8 @@ model Machine {
   jobRequests      JobRequest[]
   printerLink      PrinterLink?
   devices          Device[]
+
+  @@index([workspaceId])
 }
 
 /// Hardware attached to a machine (multi-material feeder, tool changer, dryer ...).
@@ -293,6 +299,7 @@ model SubUnit {
   slots     Slot[]
 
   @@index([workspaceId, externalId])
+  @@index([machineId])
 }
 
 model Slot {
@@ -331,6 +338,8 @@ model MaintenanceTask {
   machine     Machine?         @relation(fields: [machineId], references: [id], onDelete: Cascade)
   machineType MachineType?     @relation(fields: [machineTypeId], references: [id], onDelete: Cascade)
   logs        MaintenanceLog[]
+
+  @@index([workspaceId])
 }
 
 model MaintenanceLog {
@@ -348,6 +357,7 @@ model MaintenanceLog {
   parts   MaintenancePart[]
 
   @@index([taskId, machineId, performedAt])
+  @@index([machineId])
 }
 
 model MaintenancePart {
@@ -358,6 +368,9 @@ model MaintenancePart {
 
   log  MaintenanceLog @relation(fields: [logId], references: [id], onDelete: Cascade)
   item Item           @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([logId])
+  @@index([itemId])
 }
 
 /// status: "planned" | "in_progress" | "completed" | "failed" | "cancelled"
@@ -401,6 +414,7 @@ model Job {
 
   @@index([workspaceId, status])
   @@index([projectId])
+  @@index([workspaceId, completedAt])
 }
 
 /// A piece of work for one customer, made up of jobs. It adds up what its jobs cost and sets that
@@ -490,6 +504,8 @@ model JobRequestFile {
   createdAt  DateTime @default(now())
 
   request JobRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
 }
 
 /// One line of a job: `quantity` is consumed from stock, `hours` is added to the item's tool life.
@@ -504,6 +520,9 @@ model JobUsage {
 
   job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
   item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([itemId])
 }
 
 /// Audit trail of every stock change. reason: "initial" | "restock" | "adjust" | "job" | "maintenance" | "import" | "undo"
@@ -525,6 +544,8 @@ model StockMovement {
   user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([itemId, createdAt])
+  @@index([workspaceId, createdAt])
+  @@index([jobId])
 }
 
 /// Who changed what and when: one row per successful change a member makes.

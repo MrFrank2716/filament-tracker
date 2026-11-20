@@ -88,6 +88,7 @@ Where to find things:
 | `server/prisma/schema.prisma` | The data model: generic `ItemType` / `CustomField` / `Item`, machines, attached hardware (`SubUnit`) and slots, maintenance, jobs, the stock audit trail |
 | `server/prisma/migrations/` | Database migrations |
 | `server/src/env.ts` | Every server setting, with defaults and validation |
+| `server/src/db.ts` | The database client. It uses one connection, so changes take turns, and switches SQLite to its write-ahead log when the server starts |
 | `server/src/routes/` | The REST API. Everything under `/api/workspaces/:id` is membership- and role-checked |
 | `server/src/auth.ts` | Sign-in tokens and role checks (see [Roles](#roles) below) |
 | `server/src/idempotency.ts` | Idempotency keys: a POST repeated with the same `Idempotency-Key` is answered from memory instead of running twice. The web app sends one with every POST (`client/src/lib/idempotency.ts`) |
