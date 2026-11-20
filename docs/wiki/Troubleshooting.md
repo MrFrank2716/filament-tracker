@@ -10,6 +10,9 @@ Common problems and what to do about them. Problems with connected printers and 
 | "No account uses that email yet" when adding a member | The person must sign up with that email address before an owner can add them |
 | "You are the only owner" when leaving a workspace or deleting your account | Make another member an owner first, or delete the workspace |
 | "Too many sign-in attempts for this email" | Someone, maybe you, typed the wrong password for this email 10 times in 15 minutes. Wait up to 15 minutes, or use **Forgot password?** to choose a new password, which lets you straight back in |
+| "Confirm your email address" stays at the top of the page | Open the link in the email Wrkbench sent when you registered. It works for a day; **Send the link again** sends a new one. The notice goes when you come back to the page |
+| "This link has expired or is not for this account" | The confirmation link is more than a day old. Sign in and press **Send the link again** |
+| "That account has not confirmed its email address yet" when adding a member | The person has to open their confirmation link first. See [Members and roles](Members-and-roles.md#add-someone) |
 | The password reset email never arrives | Check your spam folder. If it is not there, whoever runs your copy of Wrkbench has not set up email yet |
 | A requester lost their progress link | Find the request under **Jobs**, **Requests**, press **Copy progress link** and send it to them again |
 | The request form says "Attach at least one file" | Every request needs at least one file for the workshop to check |

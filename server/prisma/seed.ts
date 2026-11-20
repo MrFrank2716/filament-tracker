@@ -18,7 +18,7 @@ async function main() {
   const user = await prisma.user.upsert({
     where: { email },
     update: {},
-    create: { email, name, passwordHash: await bcrypt.hash(password, 10) },
+    create: { email, name, passwordHash: await bcrypt.hash(password, 10), emailVerifiedAt: new Date() },
   });
 
   const existing = await prisma.membership.count({ where: { userId: user.id } });

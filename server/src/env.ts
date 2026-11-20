@@ -18,6 +18,9 @@ const schema = z.object({
   RESEND_API_KEY: z.string().optional(),
   SMTP_URL: z.string().optional(),
   MAIL_FROM: z.string().default('Wrkbench <no-reply@localhost>'),
+  // Whether a new account must open a link sent to its address before it can be added to someone else's workspace.
+  // "auto" asks for it when email can actually be sent (RESEND_API_KEY or SMTP_URL), and not otherwise.
+  EMAIL_CONFIRMATION: z.enum(['auto', 'on', 'off']).default('auto'),
   // Where the app is reached, for links in emails. Defaults to CLIENT_ORIGIN.
   APP_URL: z.string().optional(),
   // Connected printers. PRINTERS_ENABLED=false hides the feature and refuses bridges.
