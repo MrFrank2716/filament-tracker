@@ -145,6 +145,8 @@ export function scheduleUploadCare(): void {
           : 'Looked for old request files to remove: none',
       );
       const free = await freeBytes();
+      // Said every day, so whoever runs the server can see what the disk reports and how it is trending.
+      console.log(free === null ? 'Could not read how much room the disk has' : `The disk has ${Math.round(free / MB)} MB free`);
       // Warn at twice the point where uploads stop, so there is time to act.
       if (free !== null && free < env.UPLOAD_MIN_FREE_MB * 2 * MB) {
         const room = `${Math.round(free / MB)} MB`;
