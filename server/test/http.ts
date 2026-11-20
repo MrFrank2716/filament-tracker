@@ -23,7 +23,8 @@ export async function startApp() {
     const text = await response.text();
     return { status: response.status, body: (text ? JSON.parse(text) : null) as Record<string, unknown> | null };
   };
-  return { call, raw, close: () => new Promise<void>((resolve) => server.close(() => resolve())) };
+  /** `base` is the address of /api, for the few tests that send something other than JSON. */
+  return { call, raw, base, close: () => new Promise<void>((resolve) => server.close(() => resolve())) };
 }
 
 /** A user who is a member of the workspace with this role (or of none), and a sign-in token for them. */

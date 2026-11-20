@@ -59,4 +59,6 @@ Members and the requester can comment on a request. The requester is emailed on 
 
 - Emails only go out if whoever runs your copy of Wrkbench has set up email. See [Self-hosting](Self-hosting.md#email).
 - Uploaded files are kept on the server and only ever handed to signed-in members as downloads.
+- **Old files are removed.** The files of a request that was rejected or finished are deleted 90 days later, to keep room on the server. The request, its messages and the job made from it stay. Download anything you want to keep before then.
+- **A workspace's request files share an allowance** (500 MB unless whoever runs your copy of Wrkbench changed it). When a new request would pass it, the requester is told **This workshop cannot take files at the moment**. Delete requests you no longer need to make room. The same message is shown if the server's disk is nearly full.
 - Uploaded files are not included in the workspace export. See [Backups, import and export](Backups-and-data.md).

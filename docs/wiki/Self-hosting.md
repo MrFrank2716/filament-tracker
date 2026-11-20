@@ -103,6 +103,11 @@ Without email, password-reset links and job request updates are only printed to 
 | `UPLOAD_MAX_MB` | `50` | Largest file, in MB (up to 2048). Keep it small enough that requests cannot fill your disk |
 | `UPLOAD_MAX_FILES` | `5` | Most files per request (up to 50) |
 | `UPLOAD_EXTENSIONS` | `3mf,stl,step,stp,obj,amf,gcode,nc,svg,dxf,pdf,png,jpg,jpeg,txt` | File types accepted, comma separated |
+| `UPLOAD_MAX_WORKSPACE_MB` | `500` | The most one workspace's request files may take up together, in MB. A request that would pass it is refused |
+| `UPLOAD_MIN_FREE_MB` | `100` | Uploads are refused while the disk has less than this free, in MB, so the database always has room to write. `0` never refuses |
+| `UPLOAD_KEEP_DAYS` | `90` | The files of a request that was rejected or finished are deleted this many days later. `0` keeps them for ever |
+
+Once a day the app removes those old files and looks at the disk. When less than twice `UPLOAD_MIN_FREE_MB` is free it says so in the log, and emails `ALERT_EMAIL` if that is set. Files already saved by a [nightly backup](#nightly-backups-to-a-bucket) stay in the bucket.
 
 ### Connected printers
 

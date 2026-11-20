@@ -7,6 +7,7 @@ import { flushRegistry, hydrateRegistry } from '@/integrations/registry';
 import { attachRealtime } from '@/realtime';
 import { scheduleBackups } from '@/services/backup';
 import { scheduleGuestCleanup } from '@/services/guests';
+import { scheduleUploadCare } from '@/services/uploads';
 
 const app = createApp();
 const server = createServer(app);
@@ -16,6 +17,7 @@ server.listen(env.PORT, () => {
   console.log(`Wrkbench API listening on http://localhost:${env.PORT}`);
   scheduleGuestCleanup();
   scheduleBackups(prisma);
+  scheduleUploadCare();
   hydrateRegistry().catch((cause: unknown) => console.error('Could not load connected printers', cause));
 });
 

@@ -6,3 +6,5 @@ import path from 'node:path';
 const file = path.join(process.env.TEST_DB_DIR!, `${randomBytes(6).toString('hex')}.db`);
 copyFileSync(process.env.TEST_DB_TEMPLATE!, file);
 process.env.DATABASE_URL = `file:${file}`;
+// Files a test uploads go beside its database, not into the project folder, and are removed with it.
+process.env.UPLOAD_DIR = path.join(process.env.TEST_DB_DIR!, `uploads-${randomBytes(6).toString('hex')}`);

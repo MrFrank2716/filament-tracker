@@ -10,6 +10,7 @@ Common problems and what to do about them. Problems with connected printers and 
 | "No account uses that email yet" when adding a member | The person must sign up with that email address before an owner can add them |
 | "You are the only owner" when leaving a workspace or deleting your account | Make another member an owner first, or delete the workspace |
 | "Too many sign-in attempts for this email" | Someone, maybe you, typed the wrong password for this email 10 times in 15 minutes. Wait up to 15 minutes, or use **Forgot password?** to choose a new password, which lets you straight back in |
+| A requester is told "This workshop cannot take files at the moment" | The workspace's request files have reached their allowance, or the server's disk is nearly full. Delete job requests you no longer need. If that does not help, tell whoever runs your copy of Wrkbench |
 | The password reset email never arrives | Check your spam folder. If it is not there, whoever runs your copy of Wrkbench has not set up email yet |
 | A requester lost their progress link | Find the request under **Jobs**, **Requests**, press **Copy progress link** and send it to them again |
 | The request form says "Attach at least one file" | Every request needs at least one file for the workshop to check |
