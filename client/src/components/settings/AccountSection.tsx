@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LogOut, Trash2 } from 'lucide-react';
+import { TwoStepSection } from '@/components/settings/TwoStepSection';
 import { Button } from '@/components/ui/Button';
 import { Muted, SectionTitle } from '@/components/ui/Display';
 import { Checkbox, FormGrid, TextField } from '@/components/ui/Form';
@@ -115,6 +116,8 @@ export function AccountSection() {
           </Button>
         </div>
       </form>
+
+      <TwoStepSection />
 
       <SectionTitle>Other devices</SectionTitle>
       <Muted>If you signed in somewhere you no longer use or trust, sign those devices out. This one stays signed in.</Muted>

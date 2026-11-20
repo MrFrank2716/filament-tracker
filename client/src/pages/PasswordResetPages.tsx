@@ -112,8 +112,9 @@ export function ResetPasswordPage() {
     setError('');
     setBusy(true);
     try {
-      await resetPassword(token, password);
-      navigate('/', { replace: true });
+      if (await resetPassword(token, password)) navigate('/', { replace: true });
+      // With two-step sign-in the new password is only half of signing in.
+      else navigate('/login', { replace: true, state: { notice: 'Your password is changed. Sign in with it, then enter a code from your authenticator app.' } });
     } catch (cause) {
       setError(message(cause));
       setBusy(false);

@@ -20,6 +20,13 @@ model User {
   /// When the user proved the email address is theirs, by opening a link sent to it. Null until then.
   /// An unconfirmed account works, but cannot be added to someone else's workspace.
   emailVerifiedAt DateTime?
+  /// Two-step sign-in. The authenticator secret, encrypted with a key made from JWT_SECRET ("v1.<iv>.<tag>.<data>"),
+  /// so a copy of the database alone gives nobody working codes. Set when set-up starts.
+  totpSecret      String?
+  /// When the first code proved the app works. Two-step sign-in is on from then; null while only set up, or off.
+  totpEnabledAt   DateTime?
+  /// The 30-second step of the last code accepted, so the same code cannot be used twice.
+  totpLastStep    Int?
   /// Part of every sign-in token. Raising it signs the user out everywhere and cancels pending reset links.
   tokenVersion Int      @default(0)
   /// Appearance. themeMode: "system" | "light" | "dark". themePreset: a preset id from client/src/lib/themes.ts.
@@ -41,6 +48,21 @@ model User {
   reviewedRequests JobRequest[]
   requestComments  JobRequestComment[]
   activities       ActivityLog[]
+  recoveryCodes    RecoveryCode[]
+}
+
+/// A single-use code that signs in instead of the authenticator app, for a lost phone. Shown once, when two-step
+/// sign-in is turned on; only its SHA-256 is stored.
+model RecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String    @unique
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Workspace {
