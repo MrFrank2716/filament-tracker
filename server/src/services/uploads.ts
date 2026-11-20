@@ -16,7 +16,7 @@ import { HttpError } from '@/http';
  * - files are never served from a public folder, only handed to signed-in members as downloads.
  */
 const serverRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const uploadRoot = path.resolve(serverRoot, env.UPLOAD_DIR);
+export const uploadRoot = path.resolve(serverRoot, env.UPLOAD_DIR);
 
 export const uploadLimits = {
   maxFiles: env.UPLOAD_MAX_FILES,
