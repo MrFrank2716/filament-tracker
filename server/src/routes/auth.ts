@@ -222,7 +222,7 @@ authRouter.post('/login/two-step', loginLimit, async (req, res) => {
   const { challenge, code } = parse(z.object({ challenge: z.string().min(1).max(2000), code: secondStepCode }), req.body);
   const user = await userForTwoStep(challenge);
   if (!user || !user.totpEnabledAt) throw new HttpError(401, 'That took too long. Sign in again with your password.');
-  const how = await takeSecondStep(user, code);
+  const how = await takeSecondStep(user.id, user, code);
   if (how === 'recovery') {
     const left = await prisma.recoveryCode.count({ where: { userId: user.id, usedAt: null } });
     sendAccountNotice(user, 'A recovery code was used to sign in to Wrkbench', [
@@ -412,9 +412,11 @@ type TwoStepUser = { id: string; totpSecret: string | null; totpEnabledAt: Date 
  * try. What is accepted is used up in the same step: a code works once.
  * A wrong code is a 401 while signing in. From the settings of someone already signed in it must be a 400:
  * the web app takes a 401 there to mean the session ended, and signs out.
+ * The count is kept under `accountId`, passed on its own: the id of whoever is signing in or signed in, never
+ * anything derived from a password check.
  */
-async function takeSecondStep(user: TwoStepUser, typed: string, wrongStatus: 400 | 401 = 401): Promise<'app' | 'recovery'> {
-  if (!(await twoStepAttempts.attempt(user.id))) throw new HttpError(429, 'Too many wrong codes. Wait 15 minutes and try again.');
+async function takeSecondStep(accountId: string, user: TwoStepUser, typed: string, wrongStatus: 400 | 401 = 401): Promise<'app' | 'recovery'> {
+  if (!(await twoStepAttempts.attempt(accountId))) throw new HttpError(429, 'Too many wrong codes. Wait 15 minutes and try again.');
   let how: 'app' | 'recovery' | null = null;
   if (looksLikeAppCode(typed)) {
     const secret = user.totpSecret ? openSecret(user.totpSecret) : null;
@@ -429,7 +431,7 @@ async function takeSecondStep(user: TwoStepUser, typed: string, wrongStatus: 400
     if (taken.count === 1) how = 'recovery';
   }
   if (!how) throw new HttpError(wrongStatus, WRONG_CODE);
-  await twoStepAttempts.clear(user.id);
+  await twoStepAttempts.clear(accountId);
   return how;
 }
 
@@ -494,7 +496,7 @@ authRouter.post('/two-step/disable', passwordLimit, requireAuth, async (req, res
   const { password, code } = parse(proof, req.body);
   const user = await confirmPassword(req.userId, password);
   if (!user.totpEnabledAt) throw new HttpError(409, 'Two-step sign-in is not on');
-  await takeSecondStep(user, code, 400);
+  await takeSecondStep(req.userId, user, code, 400);
   const [, updated] = await prisma.$transaction([
     prisma.recoveryCode.deleteMany({ where: { userId: user.id } }),
     prisma.user.update({ where: { id: user.id }, data: { totpSecret: null, totpEnabledAt: null, totpLastStep: null } }),
@@ -510,7 +512,7 @@ authRouter.post('/two-step/recovery-codes', passwordLimit, requireAuth, async (r
   const { password, code } = parse(proof, req.body);
   const user = await confirmPassword(req.userId, password);
   if (!user.totpEnabledAt) throw new HttpError(409, 'Two-step sign-in is not on');
-  await takeSecondStep(user, code, 400);
+  await takeSecondStep(req.userId, user, code, 400);
   const codes = newRecoveryCodes();
   await prisma.$transaction([
     prisma.recoveryCode.deleteMany({ where: { userId: user.id } }),
