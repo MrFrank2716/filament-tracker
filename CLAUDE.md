@@ -50,8 +50,9 @@ Name branches after the work they hold, never a random or auto-generated name
 
 ## Before opening a PR
 
-- No CI runs the tests. Run `npm test` and `npm run typecheck` yourself and
-  fix any failure first.
+- GitHub runs `npm run typecheck` and `npm test` on every pull request (the
+  Tests workflow). Run both yourself first and fix any failure. Never
+  merge on a red run.
 - Fill in the PR template. Tick a checklist item only if it actually passed;
   mark the ones that don't apply as not applicable.
 
@@ -69,5 +70,5 @@ Name branches after the work they hold, never a random or auto-generated name
   that does arrive, from a person or another bot. Fix the valid ones and push;
   reply on the PR to explain any that you don't act on.
 - Merge only after any review comments are handled, the GitHub checks
-  (CodeQL) pass, `npm test` and `npm run typecheck` pass, and the user has
+  (Tests and CodeQL) pass, `npm test` and `npm run typecheck` pass, and the user has
   said to merge.
