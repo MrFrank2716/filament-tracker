@@ -15,6 +15,10 @@
     "db:reset": "prisma migrate reset --force --skip-seed && npm run db:seed",
     "db:deploy": "prisma migrate deploy",
     "account:two-step-off": "tsx --env-file-if-exists=.env scripts/two-step-off.ts",
+    "db:prepare": "tsx --env-file-if-exists=.env scripts/prestart.ts",
+    "db:backup": "tsx --env-file-if-exists=.env scripts/backup.ts now",
+    "db:backups": "tsx --env-file-if-exists=.env scripts/backup.ts list",
+    "db:restore": "tsx --env-file-if-exists=.env scripts/backup.ts restore",
     "reference:filaments": "tsx scripts/import-filaments.ts",
     "test": "vitest run",
     "reference:hms": "tsx scripts/import-hms.ts"

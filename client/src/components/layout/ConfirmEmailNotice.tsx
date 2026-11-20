@@ -46,7 +46,7 @@ export function ConfirmEmailNotice() {
     <div className={styles.notice} role="status">
       <MailCheck size={18} aria-hidden className={styles.icon} />
       <p className={styles.text}>
-        <strong>Confirm your email address.</strong> We sent a link to {user.email}. Until you open it, nobody can add you to their workspace.
+        <strong>Confirm your email address.</strong> We sent a link to {user.email}. If it is not in your inbox, look in your junk folder. Until you open it, nobody can add you to their workspace.
       </p>
       <Button size="sm" onClick={send} disabled={busy}>
         Send the link again

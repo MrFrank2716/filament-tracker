@@ -1,0 +1,44 @@
+# Type-checks every package, runs every test and builds the web app, the same checks the Docker build makes.
+# Runs on each pull request and on main, so a broken change is seen before it is merged or goes live.
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  # A newer push to the same pull request replaces the run before it. Runs on main are each left to finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Generate the database client
+        run: npm run db:generate -w server
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build the web app
+        run: npm run build -w client

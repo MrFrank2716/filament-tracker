@@ -43,6 +43,6 @@ The easiest way to get the columns right is to export your inventory as CSV firs
 
 ## Keeping a real backup
 
-The JSON export covers one workspace and leaves some things out (see above). If you run Wrkbench yourself, the complete backup is the server's data folder, which holds the database and every uploaded file. See [Self-hosting](Self-hosting.md#backups).
+The JSON export covers one workspace and leaves some things out (see above). If you run Wrkbench yourself, the complete backup is the server's data folder, which holds the database and every uploaded file. Wrkbench can save a copy of both to storage somewhere else every night, and put one back. See [Self-hosting](Self-hosting.md#backups).
 
 If someone else runs Wrkbench for you, ask them how it is backed up, and export your workspace now and then as well.

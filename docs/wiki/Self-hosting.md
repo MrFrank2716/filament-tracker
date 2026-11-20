@@ -6,7 +6,7 @@ How to run your own copy of Wrkbench for your workshop. If you only want to try 
 
 Wrkbench is a single Node.js program. It serves the web app, its API and live updates on one port, and keeps everything in two places:
 
-- a **SQLite database file** (no separate database server is needed), and
+- a **SQLite database file** (no separate database server is needed), with two small files SQLite keeps beside it while the app runs (the same name ending in `-wal` and `-shm`), and
 - an **uploads folder** for files sent with [job requests](Job-requests.md).
 
 So the host needs:
@@ -31,7 +31,7 @@ docker run -d --name wrkbench --restart unless-stopped \
   wrkbench
 ```
 
-Each time it starts, the container applies any pending database changes and then starts the app. To update: pull the new code, build again, and replace the container. The volume keeps your data.
+Each time it starts, the container applies any pending database changes and then starts the app. If there are any, it first [keeps a copy of the database as it was](#a-copy-before-every-update). To update: pull the new code, build again, and replace the container. The volume keeps your data.
 
 Building the image also type-checks the code and runs the server's tests, so a broken change fails the build instead of reaching your site.
 
@@ -56,6 +56,8 @@ npm run db:deploy
 ```bash
 npm start
 ```
+
+When you update later, run `npm run db:prepare` before `npm run db:deploy`. It [keeps a copy of the database](#a-copy-before-every-update) if the update is about to change it.
 
 Set the variables below in the environment, or in a `server/.env` file (read when present). Run `npm ci` without `NODE_ENV=production`, because the build needs the development tools. Keep the app running with whatever you use for services, such as systemd or pm2.
 
@@ -140,7 +142,77 @@ A display is told the server's address from `APP_URL` (or `CLIENT_ORIGIN`). On a
 
 ## Backups
 
-The database and uploads together are the only things to back up. With Docker, that is the volume mounted at `/data`. Turn on scheduled volume backups if your host offers them, or copy the folder regularly. Copy the database while the app is stopped, or use SQLite's own backup command, so the copy is not caught half-written.
+The database and uploads together are the only things to back up. With Docker, that is the volume mounted at `/data`. A copy on the same disk, or with the same host, is lost along with them, so keep one somewhere else.
+
+### Nightly backups to a bucket
+
+Wrkbench can do this by itself. Give it a bucket at any S3-compatible storage service (Cloudflare R2, Backblaze B2, Amazon S3, your own MinIO) and it saves:
+
+- **a copy of the whole database** once a day, compressed, and
+- **every uploaded file**, once, the first night after it arrives.
+
+Set these and restart. Create an access key that can read, write and delete in that one bucket only.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `BACKUP_S3_ENDPOINT` | | The storage service's address, without the bucket name. For example `https://<account id>.r2.cloudflarestorage.com` or `https://s3.us-west-004.backblazeb2.com` |
+| `BACKUP_S3_BUCKET` | | The bucket's name |
+| `BACKUP_S3_ACCESS_KEY_ID` | | The access key's id |
+| `BACKUP_S3_SECRET_ACCESS_KEY` | | The access key's secret |
+| `BACKUP_S3_REGION` | `auto` | `auto` suits Cloudflare R2. Backblaze B2 and Amazon S3 need theirs, such as `us-west-004` or `eu-west-2` |
+| `BACKUP_KEEP_DAILY` | `7` | Database copies kept: the newest from each of this many days |
+| `BACKUP_KEEP_WEEKLY` | `4` | And the newest from each of this many weeks |
+| `ALERT_EMAIL` | | Who is emailed when a backup fails. Needs [email](#email) set up |
+
+The first four go together: set all of them or none. With none, there are no backups and the log says so when the app starts.
+
+The app looks once an hour and makes a backup when the newest copy in the bucket is a day old, so a restart neither skips a night nor makes an extra copy. Each one is written to the log as `Backup db/<time>.db.gz saved`. A backup that fails is tried again the next hour.
+
+Uploaded files are never removed from the bucket, even after they are deleted in Wrkbench. That way a server that comes back with an empty disk cannot empty the backup too. Delete them at the storage service if you need them gone.
+
+The copies are as private as the bucket is. They hold everything in the database, so keep the bucket private and its key to yourself.
+
+To make a backup now, or to see what is in the bucket:
+
+```bash
+npm run db:backup
+```
+
+```bash
+npm run db:backups
+```
+
+### Putting a backup back
+
+**On a platform, or with Docker:** set `RESTORE_BACKUP` to `latest`, or to a name from `npm run db:backups` such as `2026-11-20T03-00-00Z`, and restart. Before the app starts, it fetches that copy, checks it opens as a database, moves the database that was there into `/data/pre-restore/`, puts the copy in its place and fetches any uploaded file that is missing. Then **remove the setting**. A value is only acted on once, so a restart with it still set does nothing, but a setting left behind is a trap for later.
+
+**With Node.js:** stop the app, then:
+
+```bash
+npm run db:restore -- latest
+```
+
+```bash
+npm run db:deploy
+```
+
+A restore that cannot finish (no such copy, a damaged copy, wrong keys) changes nothing, and on a platform the app does not start, so it cannot come up on the wrong data. The log says why.
+
+Try a restore once before you need one, on a spare copy of the site.
+
+### A copy before every update
+
+An update that changes the database cannot be undone by going back to the older code. So each time the app starts and finds such a change waiting, it first keeps the database as it was in `/data/pre-migrate/`, named after the time and the change. The last two are kept. To go back: stop the app, put that file in place of `app.db`, and start the older version.
+
+The Docker image does this by itself. With Node.js, run it before `npm run db:deploy` when you update:
+
+```bash
+npm run db:prepare
+```
+
+### Other ways
+
+Scheduled volume backups, if your host offers them, work too. If you copy the folder yourself, copy the database while the app is stopped, or use SQLite's own backup command, so the copy is not caught half-written. The newest changes can be in the `-wal` file, so a copy of the main file alone, taken while the app runs, can be missing them.
 
 Members can also export each workspace themselves. See [Backups, import and export](Backups-and-data.md).
 
