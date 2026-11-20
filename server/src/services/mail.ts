@@ -67,3 +67,9 @@ export function sendMail(mail: Mail): void {
   }
   smtp.sendMail({ from: env.MAIL_FROM, ...mail }).catch(failed);
 }
+
+/** A message for whoever runs the server (ALERT_EMAIL). Without that setting it is only in the log, where the caller already put it. */
+export function alertOperator(subject: string, lines: string[]): void {
+  if (!env.ALERT_EMAIL) return;
+  sendMail({ to: env.ALERT_EMAIL, subject, text: [...lines, '', `Sent by Wrkbench at ${appUrl('')}`].join('\n') });
+}

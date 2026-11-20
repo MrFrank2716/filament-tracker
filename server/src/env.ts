@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+/** A host's settings page often leaves a cleared variable behind as an empty string: that counts as not set. */
+const optionalText = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => value || undefined);
+
 const schema = z.object({
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters'),
@@ -30,9 +37,34 @@ const schema = z.object({
   DEVICES_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
   DEVICE_MAX_PER_WORKSPACE: z.coerce.number().int().min(0).max(100).default(5),
   UPLOAD_EXTENSIONS: z.string().default('3mf,stl,step,stp,obj,amf,gcode,nc,svg,dxf,pdf,png,jpg,jpeg,txt'),
+  // Backups to S3-compatible storage somewhere else (Cloudflare R2, Backblaze B2, Amazon S3, MinIO ...).
+  // Set the endpoint, bucket and both keys to switch them on; with none set there are no backups.
+  BACKUP_S3_ENDPOINT: optionalText.pipe(z.url('BACKUP_S3_ENDPOINT must be an address such as https://s3.example.com').optional()),
+  BACKUP_S3_BUCKET: optionalText,
+  // "auto" suits Cloudflare R2. Backblaze B2 and Amazon S3 need their own, such as us-west-004 or eu-west-2.
+  BACKUP_S3_REGION: z.string().min(1).default('auto'),
+  BACKUP_S3_ACCESS_KEY_ID: optionalText,
+  BACKUP_S3_SECRET_ACCESS_KEY: optionalText,
+  // How many copies of the database to keep: the newest of each of the last days, and of each of the last weeks.
+  BACKUP_KEEP_DAILY: z.coerce.number().int().min(1).max(365).default(7),
+  BACKUP_KEEP_WEEKLY: z.coerce.number().int().min(0).max(520).default(4),
+  // Who is told when something needs the attention of whoever runs the server, such as a backup that failed.
+  ALERT_EMAIL: optionalText.pipe(z.email('ALERT_EMAIL must be an email address').optional()),
+  // Set to "latest", or to the name of one backup, to put that backup back when the server next starts.
+  // It happens once per value: see the Self-hosting guide before using it.
+  RESTORE_BACKUP: optionalText,
 });
 
-const parsed = schema.safeParse(process.env);
+const BACKUP_KEYS = ['BACKUP_S3_ENDPOINT', 'BACKUP_S3_BUCKET', 'BACKUP_S3_ACCESS_KEY_ID', 'BACKUP_S3_SECRET_ACCESS_KEY'] as const;
+
+const parsed = schema
+  .superRefine((value, context) => {
+    const missing = BACKUP_KEYS.filter((key) => !value[key]);
+    if (missing.length > 0 && missing.length < BACKUP_KEYS.length) {
+      for (const key of missing) context.addIssue({ code: 'custom', path: [key], message: 'Backups need all four of the endpoint, bucket and both keys' });
+    }
+  })
+  .safeParse(process.env);
 if (!parsed.success) {
   console.error('Invalid environment. Copy server/.env.example to server/.env and fill it in, or set these on your host.');
   console.error(parsed.error.issues.map((i) => `  ${i.path.join('.')}: ${i.message}`).join('\n'));
