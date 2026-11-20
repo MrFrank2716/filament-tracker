@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
+import { prisma } from '@/db';
 import { env } from '@/env';
 import { errorHandler, HttpError } from '@/http';
 import { REPLAYED_HEADER } from '@/idempotency';
@@ -45,8 +46,14 @@ export function createApp(): express.Express {
   app.use(cors({ origin: env.CLIENT_ORIGIN, exposedHeaders: [UNDO_HEADER, REPLAYED_HEADER] }));
   app.use(express.json({ limit: '5mb' }));
 
-  app.get('/api/health', (_req, res) => {
-    res.json({ ok: true });
+  // The host asks this to decide whether the app is up. It reads from the database, so an app that cannot is not "up".
+  app.get('/api/health', async (_req, res) => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      res.json({ ok: true });
+    } catch {
+      res.status(503).json({ ok: false });
+    }
   });
 
   // Everything under /api/workspaces/:wid is membership- and role-checked by workspaceGuard.
