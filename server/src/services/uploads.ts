@@ -138,12 +138,17 @@ export function scheduleUploadCare(): void {
   const run = async () => {
     try {
       const removed = await removeOldRequestFiles();
-      if (removed > 0) console.log(`Removed ${removed} file${removed === 1 ? '' : 's'} of requests finished more than ${env.UPLOAD_KEEP_DAYS} days ago`);
+      // The settings are named, not printed: a log should not repeat what the environment holds.
+      console.log(
+        removed > 0
+          ? `Removed ${removed} file${removed === 1 ? '' : 's'} of requests that were rejected or finished longer ago than UPLOAD_KEEP_DAYS`
+          : 'Looked for old request files to remove: none',
+      );
       const free = await freeBytes();
       // Warn at twice the point where uploads stop, so there is time to act.
       if (free !== null && free < env.UPLOAD_MIN_FREE_MB * 2 * MB) {
         const room = `${Math.round(free / MB)} MB`;
-        console.warn(`The disk is nearly full: ${room} free. Uploads are refused below ${env.UPLOAD_MIN_FREE_MB} MB.`);
+        console.warn(`The disk is nearly full: ${room} free. Uploads are refused once it falls below UPLOAD_MIN_FREE_MB.`);
         if (Date.now() - lastAlert > DAY) {
           lastAlert = Date.now();
           alertOperator('Wrkbench is running out of disk space', [
