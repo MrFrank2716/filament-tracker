@@ -30,5 +30,6 @@ ENV NODE_ENV=production \
 
 EXPOSE 4000
 
-# Bring the database up to date, then start. JWT_SECRET and CLIENT_ORIGIN come from the host.
-CMD ["sh", "-c", "npm run db:deploy && npm start"]
+# Keep a copy of the database if an update is about to change it (and put a backup back, if asked), bring it up
+# to date, then start. JWT_SECRET and CLIENT_ORIGIN come from the host.
+CMD ["sh", "-c", "npm run db:prepare && npm run db:deploy && npm start"]

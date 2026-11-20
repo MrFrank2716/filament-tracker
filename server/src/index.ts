@@ -5,6 +5,7 @@ import { env } from '@/env';
 import { attachBridgeGateway } from '@/integrations/bridgeGateway';
 import { flushRegistry, hydrateRegistry } from '@/integrations/registry';
 import { attachRealtime } from '@/realtime';
+import { scheduleBackups } from '@/services/backup';
 import { scheduleGuestCleanup } from '@/services/guests';
 
 // Before anything reads or writes. Failing to switch is worth a line in the log, not a server that will not start.
@@ -22,6 +23,7 @@ attachBridgeGateway(io);
 server.listen(env.PORT, () => {
   console.log(`Wrkbench API listening on http://localhost:${env.PORT}`);
   scheduleGuestCleanup();
+  scheduleBackups(prisma);
   hydrateRegistry().catch((cause: unknown) => console.error('Could not load connected printers', cause));
 });
 
