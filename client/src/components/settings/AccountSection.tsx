@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LogOut, Trash2 } from 'lucide-react';
+import { PasskeysSection } from '@/components/settings/PasskeysSection';
 import { TwoStepSection } from '@/components/settings/TwoStepSection';
 import { Button } from '@/components/ui/Button';
 import { Muted, SectionTitle } from '@/components/ui/Display';
@@ -112,6 +113,8 @@ export function AccountSection() {
           </Button>
         </div>
       </form>
+
+      <PasskeysSection />
 
       <TwoStepSection />
 

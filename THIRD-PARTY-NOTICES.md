@@ -17,6 +17,8 @@ To regenerate a full list: `npx license-checker --production --summary`.
 
 The bridge (`bridge/`) adds `mqtt` (MQTT.js, MIT) and `socket.io-client` (MIT).
 
+Passkeys are checked with SimpleWebAuthn (`@simplewebauthn/server` and `@simplewebauthn/browser`, MIT, Matthew Miller).
+
 Labels and scanning use `qrcode-generator` (MIT, Kazuhiko Arase) to draw QR codes and `jsqr` (Apache-2.0) to read
 them where the browser has no reader of its own. "QR Code" is a registered trademark of DENSO WAVE INCORPORATED.
 
