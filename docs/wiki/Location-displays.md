@@ -45,7 +45,7 @@ If the code was mistyped or has run out, the display shows a keyboard: make a ne
 
 When a display has a **Printer beside it** (see below), a line under the top bar shows that printer: a dot, its state and, while it prints, how far along it is and the time left, with a thin progress line. The dot is blue while it works, green when idle or finished, orange when paused or warning, red when it has stopped or reports a fault, and grey when it is not reporting (the line then says why, such as "Bridge offline"). Updates come every 15 seconds while it prints.
 
-Tap that line for the printer's own screen: progress and time left, the job's name, the layer, nozzle and bed temperatures, the printer's worst error in red, and up to eight spools along the bottom (A1 is AMS 1 slot 1) with the one feeding now outlined. Tap the top bar to go back; it also goes back by itself after two minutes.
+Tap that line for the printer's own screen: progress and time left, the job's name and layer, a dial each for the nozzle and bed temperatures (blue while heating, green at the set temperature, orange while still hot with the heater off), the printer's worst error in red, and up to eight spools along the bottom (A1 is AMS 1 slot 1) with the one feeding now outlined. Tap the top bar to go back; it also goes back by itself after two minutes.
 
 The status comes from a [connected printer](Connecting-printers.md), so it needs a bridge. A machine that is not connected to one shows "Not connected".
 

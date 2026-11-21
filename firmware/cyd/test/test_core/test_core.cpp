@@ -158,6 +158,25 @@ void test_colours_uids_backoff_and_ages() {
   TEST_ASSERT_EQUAL_STRING("2 h ago", ago);
 }
 
+static void test_temperature_line_read_as_heaters() {
+  Heat h[MAX_HEATS];
+  TEST_ASSERT_EQUAL_UINT(2, parseHeats("Nozzle 220/220 C  Bed 60 C", h, MAX_HEATS));
+  TEST_ASSERT_EQUAL_STRING("Nozzle", h[0].label);
+  TEST_ASSERT_EQUAL_INT(220, h[0].current);
+  TEST_ASSERT_EQUAL_INT(220, h[0].target);
+  TEST_ASSERT_EQUAL_STRING("Bed", h[1].label);
+  TEST_ASSERT_EQUAL_INT(60, h[1].current);
+  TEST_ASSERT_EQUAL_INT(0, h[1].target);
+  TEST_ASSERT_EQUAL_UINT(1, parseHeats("Bed 25 C", h, MAX_HEATS));
+  // Empty, or not in the expected form: none, so the screen falls back to the text.
+  TEST_ASSERT_EQUAL_UINT(0, parseHeats("", h, MAX_HEATS));
+  TEST_ASSERT_EQUAL_UINT(0, parseHeats(nullptr, h, MAX_HEATS));
+  TEST_ASSERT_EQUAL_UINT(0, parseHeats("Nozzle hot", h, MAX_HEATS));
+  TEST_ASSERT_EQUAL_UINT(0, parseHeats("Nozzle 220 F", h, MAX_HEATS));
+  TEST_ASSERT_EQUAL_UINT(0, parseHeats("Nozzle 220/ C", h, MAX_HEATS));
+  TEST_ASSERT_EQUAL_UINT(0, parseHeats("A 1 C  B 2 C  C 3 C  D 4 C", h, MAX_HEATS));
+}
+
 static int runAll() {
   UNITY_BEGIN();
   RUN_TEST(test_overview_is_read_into_the_fixed_struct);
@@ -168,6 +187,7 @@ static int runAll() {
   RUN_TEST(test_pair_and_messages);
   RUN_TEST(test_codes_and_addresses_as_typed);
   RUN_TEST(test_colours_uids_backoff_and_ages);
+  RUN_TEST(test_temperature_line_read_as_heaters);
   return UNITY_END();
 }
 

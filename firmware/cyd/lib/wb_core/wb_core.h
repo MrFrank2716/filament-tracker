@@ -139,6 +139,20 @@ uint32_t backoffMs(unsigned failures);
 /** "just now", "1 min ago", "12 min ago", "3 h ago". */
 void formatAgo(uint32_t seconds, char *out, size_t outLen);
 
+/** One heater read back from the printer's temperature line. */
+struct Heat {
+  char label[12];  // "Nozzle", "Bed"
+  int current;
+  int target;      // 0 when it has none (off, or cooling down)
+};
+constexpr size_t MAX_HEATS = 3;
+
+/**
+ * The server's temperature line ("Nozzle 220/220 C  Bed 60 C") as heaters, for the dials. Returns how many
+ * were read; 0 when the line is empty or not in that form, and the screen then shows the line as text.
+ */
+size_t parseHeats(const char *temps, Heat *out, size_t max);
+
 /** Copy that always ends in a NUL and never overruns. */
 void copyText(char *out, size_t outLen, const char *in);
 
