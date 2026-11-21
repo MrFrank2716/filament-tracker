@@ -13,6 +13,9 @@
 
 #include "certs.h"
 
+#ifndef WB_BOARD
+#define WB_BOARD "28"  // screen size in tenths of an inch, for the model name the server records
+#endif
 #ifndef WB_VERSION
 #define WB_VERSION "dev"
 #endif
@@ -164,7 +167,7 @@ void unauthorized() {
 void pair(const char *code) {
   setStatus(Phase::Pairing);
   char body[200];
-  snprintf(body, sizeof body, "{\"code\":\"%s\",\"model\":\"cyd-28-%s%s\",\"version\":\"%s\"}", code, WB_PANEL, readerPresent ? "+pn532" : "", WB_VERSION);
+  snprintf(body, sizeof body, "{\"code\":\"%s\",\"model\":\"cyd-%s-%s%s\",\"version\":\"%s\"}", code, WB_BOARD, WB_PANEL, readerPresent ? "+pn532" : "", WB_VERSION);
   settings.token[0] = '\0';
   const int status = request("POST", "/api/device/pair", body);
   if (status <= 0 || status >= 500 || status == 429) {
