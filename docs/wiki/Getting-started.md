@@ -34,6 +34,31 @@ To check for leaks, Wrkbench asks a public service, Have I Been Pwned. Your pass
 
 **A password you already have keeps working**, even if it is shorter than 12 characters. The rules apply the next time you change it.
 
+## Passkeys
+
+A passkey lets you sign in with your fingerprint, your face or your device's screen lock, without typing your password. It is kept by your phone, computer or security key, and it only works on your copy of Wrkbench, so it cannot be tricked out of you by a fake sign-in page.
+
+Your password keeps working alongside it. If you lose the device, sign in with your password as before.
+
+**Add one**
+
+1. Go to **Settings**, **Your account**, and press **Add a passkey**.
+2. Enter your password and press **Continue**. If you use [two-step sign-in](#two-step-sign-in), enter a code as well.
+3. Your device asks for your fingerprint, face or screen lock. Follow what it shows.
+4. Give the passkey a name you will recognise, such as **Bench laptop**, and press **Done**.
+
+Wrkbench emails you whenever a passkey is added or removed. You can have up to 10. You must have [confirmed your email](#sign-in-or-try-it-as-a-guest) first, and a guest session cannot have one.
+
+**Sign in with it.** On the sign-in page press **Sign in with a passkey** and follow what your device shows. You do not need to type your email. A passkey counts as both steps of two-step sign-in, so you are not asked for a code.
+
+**Rename or remove one** under **Settings**, **Your account**, where each passkey shows when it was added and last used. Removing one stops it signing in at once; you can remove the last one. Your device may keep listing it until you delete it there too.
+
+Good to know:
+
+- A passkey saved to your Apple, Google or Microsoft account, or to a password manager, follows you to your other devices. One saved to a single device or a security key stays there, so add a passkey on each device you use.
+- Choosing a new password with **Forgot password?** does not remove your passkeys.
+- If you lose a device, remove its passkey under **Settings**, **Your account** from another device. If you cannot get in at all, see [Troubleshooting](Troubleshooting.md).
+
 ## Two-step sign-in
 
 Two-step sign-in asks for a code from an app on your phone as well as your password, so a password that leaks is not enough to get into your account. It is off until you turn it on, and it is yours alone: it does not change anything for other members.

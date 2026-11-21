@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { passkeySiteFrom } from '@/services/passkeySite';
 
 /** A host's settings page often leaves a cleared variable behind as an empty string: that counts as not set. */
 const optionalText = z
@@ -40,6 +41,10 @@ const schema = z.object({
   PASSWORD_BREACH_CHECK: z.enum(['on', 'off']).default('on'),
   // Where the app is reached, for links in emails. Defaults to CLIENT_ORIGIN.
   APP_URL: z.string().optional(),
+  // The site address passkeys are tied to. Leave it unset to use the host name of APP_URL (or CLIENT_ORIGIN).
+  // Set it to a parent of that name (example.com for www.example.com) so passkeys survive a move between the two.
+  // Changing it later stops every passkey already made: see the Self-hosting guide.
+  PASSKEY_SITE: optionalText,
   // Connected printers. PRINTERS_ENABLED=false hides the feature and refuses bridges.
   PRINTERS_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
   BRIDGE_MAX_PER_WORKSPACE: z.coerce.number().int().min(0).max(50).default(3),
@@ -76,6 +81,8 @@ const parsed = schema
     if (missing.length > 0 && missing.length < BACKUP_KEYS.length) {
       for (const key of missing) context.addIssue({ code: 'custom', path: [key], message: 'Backups need all four of the endpoint, bucket and both keys' });
     }
+    const site = passkeySiteFrom(value);
+    if (typeof site === 'string') context.addIssue({ code: 'custom', path: ['PASSKEY_SITE'], message: site });
   })
   .safeParse(process.env);
 if (!parsed.success) {

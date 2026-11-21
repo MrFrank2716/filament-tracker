@@ -49,7 +49,8 @@ export function PrivacyPage() {
       <h2>What we collect</h2>
       <ul>
         <li>
-          <strong>Account:</strong> your name, email address and a hashed password. Guest sessions use a throwaway
+          <strong>Account:</strong> your name, email address and a hashed password. If you add a passkey, its public key, the name you
+          give it and when it was last used; the private half never leaves your device. Guest sessions use a throwaway
           address and are deleted after 7 days.
         </li>
         <li>

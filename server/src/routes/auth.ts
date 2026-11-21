@@ -80,7 +80,7 @@ function readNavLayout(stored: string | null): unknown {
   }
 }
 
-const publicUser = (user: UserRecord) => ({
+export const publicUser = (user: UserRecord) => ({
   id: user.id,
   email: user.email,
   name: user.name,
@@ -108,12 +108,12 @@ const appearanceInput = z.object({
 });
 
 // Per client address. Generous enough for a shared workshop connection, tight enough to stop password guessing.
-const loginLimit = rateLimit(20, 15 * 60 * 1000);
+export const loginLimit = rateLimit(20, 15 * 60 * 1000);
 const registerLimit = rateLimit(10, 60 * 60 * 1000);
 // Each guest session copies the whole example workspace, so these are rationed harder.
 const guestLimit = rateLimit(5, 60 * 60 * 1000);
 // Both check the current password, so they are guessing targets like sign-in.
-const passwordLimit = rateLimit(10, 15 * 60 * 1000);
+export const passwordLimit = rateLimit(10, 15 * 60 * 1000);
 const forgotLimit = rateLimit(5, 60 * 60 * 1000);
 const resetLimit = rateLimit(10, 60 * 60 * 1000);
 const resetCheckLimit = rateLimit(30, 60 * 60 * 1000);
@@ -275,7 +275,7 @@ authRouter.patch('/me/preferences', requireAuth, async (req, res) => {
 // ---- Password and sessions ---------------------------------------------------
 
 /** The signed-in user, once they have proved they know the current password. Guests have none. */
-async function confirmPassword(userId: string, password: unknown) {
+export async function confirmPassword(userId: string, password: unknown) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new HttpError(401, 'Please sign in');
   if (user.isGuest) throw new HttpError(400, 'Guest sessions have no password. Create an account first.');
@@ -402,7 +402,7 @@ authRouter.post('/reset', resetLimit, async (req, res) => {
 // ---- Two-step sign-in ---------------------------------------------------------
 
 /** An authenticator code ("123 456") or a recovery code ("ABCD-EFGH-JKMN"). */
-const secondStepCode = z.string().trim().min(6, 'Enter the 6-digit code').max(40);
+export const secondStepCode = z.string().trim().min(6, 'Enter the 6-digit code').max(40);
 // Per account, from any address, across signing in and the settings below: five wrong codes in 15 minutes.
 const twoStepAttempts = attemptCounter('twostep', 5, 15 * 60 * 1000);
 const WRONG_CODE = 'That code is not right. Codes change every 30 seconds, so use the newest one, or a recovery code.';
@@ -417,7 +417,7 @@ type TwoStepUser = { id: string; totpSecret: string | null; totpEnabledAt: Date 
  * The count is kept under `accountId`, passed on its own: the id of whoever is signing in or signed in, never
  * anything derived from a password check.
  */
-async function takeSecondStep(accountId: string, user: TwoStepUser, typed: string, wrongStatus: 400 | 401 = 401): Promise<'app' | 'recovery'> {
+export async function takeSecondStep(accountId: string, user: TwoStepUser, typed: string, wrongStatus: 400 | 401 = 401): Promise<'app' | 'recovery'> {
   if (!(await twoStepAttempts.attempt(accountId))) throw new HttpError(429, 'Too many wrong codes. Wait 15 minutes and try again.');
   let how: 'app' | 'recovery' | null = null;
   if (looksLikeAppCode(typed)) {
@@ -437,7 +437,7 @@ async function takeSecondStep(accountId: string, user: TwoStepUser, typed: strin
   return how;
 }
 
-function sendAccountNotice(user: { email: string; name: string }, subject: string, lines: string[]): void {
+export function sendAccountNotice(user: { email: string; name: string }, subject: string, lines: string[]): void {
   sendMail({
     to: user.email,
     subject,

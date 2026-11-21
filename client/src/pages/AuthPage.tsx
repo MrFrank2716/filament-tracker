@@ -1,16 +1,19 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Fingerprint } from 'lucide-react';
 import { LegalNote } from '@/pages/LegalPages';
 import { Button } from '@/components/ui/Button';
 import { ErrorNote } from '@/components/ui/Display';
 import { TextField } from '@/components/ui/Form';
 import { NewPasswordField } from '@/components/ui/NewPasswordField';
 import { useAuth } from '@/context/AuthContext';
+import { ApiError } from '@/lib/api';
+import { passkeyPromptDismissed, passkeysSupported } from '@/lib/passkeys';
 import { REFUSALS, weakness } from '@/lib/passwordRules';
 import styles from '@/pages/AuthPage.module.css';
 
 export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
-  const { user, login, register, continueAsGuest, completeTwoStep } = useAuth();
+  const { user, login, register, continueAsGuest, completeTwoStep, signInWithPasskey } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -68,6 +71,17 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
       });
     }
   };
+
+  const usePasskey = () =>
+    void run(async () => {
+      try {
+        await signInWithPasskey();
+      } catch (cause) {
+        // Closing the device's prompt is a change of mind, not a failure to report.
+        if (passkeyPromptDismissed(cause)) return;
+        throw cause instanceof ApiError ? cause : new Error('Your device could not use a passkey. Sign in with your password instead.');
+      }
+    });
 
   const startOver = () => {
     setChallenge(null);
@@ -180,6 +194,11 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           <Button type="submit" variant="primary" size="lg" block disabled={busy}>
             {registering ? 'Create account' : 'Sign in'}
           </Button>
+          {!registering && passkeysSupported() && (
+            <Button size="lg" block icon={Fingerprint} disabled={busy} onClick={usePasskey}>
+              Sign in with a passkey
+            </Button>
+          )}
           {!upgrading && (
             <>
               <div className={styles.divider}>or</div>

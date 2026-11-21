@@ -23,6 +23,12 @@ Common problems and what to do about them. Problems with connected printers and 
 | "Do not make your password from your name, your email address or the word Wrkbench" | Those are the first things someone who knows you would try. Choose something else |
 | "This password has appeared in a data leak" | That exact password was among those stolen from some website, not necessarily from you, and such passwords are tried everywhere. Choose a different one. If you use it elsewhere, change it there too |
 | You could sign in with a short password, but cannot set one | Passwords set before the rules changed keep working. The rules apply only when you choose a new one |
+| There is no **Sign in with a passkey** button, or "This browser cannot use passkeys" | The browser is too old for passkeys, or this copy of Wrkbench is not opened at a secure address (one starting with https). Sign in with your password |
+| "That passkey was not accepted" | The passkey was removed from your account, was made for a different copy of Wrkbench, or your device did not check your fingerprint, face or screen lock. Sign in with your password, then look under **Settings**, **Your account** |
+| Your device offers no passkey for Wrkbench | The passkey is on another device, or was deleted from this one. Sign in with your password and add a passkey on this device |
+| "This device already has a passkey for your account" | Each device holds one passkey per account. Use the one it has, or remove it under **Settings**, **Your account** and on the device, then add it again |
+| A passkey says "Made for another address. It will not work here." | This copy of Wrkbench has moved to a new address since the passkey was made. Remove it and add a new one |
+| You lost the device your passkey is on | Sign in with your password and remove that passkey under **Settings**, **Your account**. If someone else may have the device unlocked, also press **Sign out other devices** |
 | The password reset email never arrives | Check your spam folder. If it is not there, whoever runs your copy of Wrkbench has not set up email yet |
 | A requester lost their progress link | Find the request under **Jobs**, **Requests**, press **Copy progress link** and send it to them again |
 | The request form says "Attach at least one file" | Every request needs at least one file for the workshop to check |
