@@ -16,13 +16,13 @@ import { EmptyState, ErrorNote, Figure, List, Muted, PageHeader, PageSkeleton, R
 import { FormGrid, NumberField, SelectField, TextAreaField, TextField } from '@/components/ui/Form';
 import { useConfirm } from '@/components/ui/Modal';
 import { useAction } from '@/components/ui/Toast';
-import { useWorkspace } from '@/context/WorkspaceContext';
+import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import { useCatalog } from '@/hooks/useCatalog';
 import { api } from '@/lib/api';
 import { parseNumber } from '@/lib/format';
 import { LegalLinks } from '@/pages/LegalPages';
 import { withViewTransition } from '@/lib/viewTransition';
-import type { ItemType } from '@/lib/types';
+import type { AiStatus, ItemType } from '@/lib/types';
 import styles from '@/components/settings/Settings.module.css';
 
 type Tab = 'general' | 'lists' | 'members' | 'printers' | 'devices' | 'requests' | 'data' | 'appearance' | 'navigation' | 'account';
@@ -220,6 +220,23 @@ export function SettingsPage() {
   );
 }
 
+/** For owners, when the server has the assistant on: what this workspace spent on it this month. */
+function AiUsageLine() {
+  const { isOwner } = useWorkspace();
+  const { data } = useWsQuery<AiStatus>('/ai/status');
+  if (!isOwner || !data?.enabled) return null;
+  const spend = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(data.workspaceSpendUsd ?? 0);
+  return (
+    <>
+      <SectionTitle>AI assistant</SectionTitle>
+      <Muted>
+        This month this workspace has used <Figure>{spend}</Figure> of AI. The workspace can ask {data.questionsPerDay} questions a day between its members.
+        {data.paused ? ' It is paused until next month: the server has reached its monthly limit.' : ''}
+      </Muted>
+    </>
+  );
+}
+
 function GeneralSection() {
   const { workspace, isOwner, wsPath, reload } = useWorkspace();
   const { run, busy } = useAction();
@@ -288,6 +305,8 @@ function GeneralSection() {
           <Muted>Only an owner can change these.</Muted>
         )}
       </form>
+
+      <AiUsageLine />
 
       <SectionTitle>Leave or delete</SectionTitle>
       <div className={styles.danger}>

@@ -50,6 +50,7 @@ model User {
   activities       ActivityLog[]
   recoveryCodes    RecoveryCode[]
   passkeys         Passkey[]
+  aiUsage          AiUsage[]
 }
 
 /// A single-use code that signs in instead of the authenticator app, for a lost phone. Shown once, when two-step
@@ -136,6 +137,8 @@ model Workspace {
   printerLinks     PrinterLink[]
   devices          Device[]
   unknownTags      UnknownTag[]
+  aiUsage          AiUsage[]
+  aiSummaries      AiSummary[]
 }
 
 /// One counted try at something that must not be guessed, such as a password. Kept here, not in memory, so a
@@ -796,4 +799,37 @@ model PrinterRun {
 
   @@index([printerLinkId, endedAt])
   @@index([workspaceId, startedAt])
+}
+
+/// One call to the AI assistant, kept so spending can be capped: the server's monthly budget, and each workspace's
+/// questions per day. `costMicros` is millionths of a US dollar, worked out from the tokens the call reported.
+model AiUsage {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// Who asked. Null for the daily summary, and once the account is gone.
+  userId       String?
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// "ask" or "summary".
+  kind         String
+  model        String
+  inputTokens  Int
+  outputTokens Int
+  costMicros   Int
+  createdAt    DateTime  @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([createdAt])
+}
+
+/// The AI-written paragraph on the Overview, made at most once per workspace per day (`day` is "YYYY-MM-DD", UTC).
+model AiSummary {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  day         String
+  text        String
+  createdAt   DateTime  @default(now())
+
+  @@unique([workspaceId, day])
 }

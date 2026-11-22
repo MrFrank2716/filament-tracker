@@ -699,3 +699,14 @@ export interface PendingSpoolEvent {
   mismatch?: boolean;
   reason?: 'several' | 'gone';
 }
+
+/** GET /ai/status: whether the assistant is on for this server, and what is left of today's questions. */
+export interface AiStatus {
+  enabled: boolean;
+  paused?: boolean;
+  pausedUntil?: string;
+  questionsPerDay?: number;
+  questionsLeft?: number;
+  /** Owners only: what this workspace has spent on it this month, in US dollars. */
+  workspaceSpendUsd?: number;
+}

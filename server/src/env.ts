@@ -76,6 +76,13 @@ const schema = z.object({
   BACKUP_KEEP_WEEKLY: z.coerce.number().int().min(0).max(520).default(4),
   // Who is told when something needs the attention of whoever runs the server, such as a backup that failed.
   ALERT_EMAIL: optionalText.pipe(z.email('ALERT_EMAIL must be an email address').optional()),
+  // The AI assistant on the Overview ("Ask your workshop" and the daily summary). Off unless ANTHROPIC_API_KEY is set.
+  ANTHROPIC_API_KEY: optionalText,
+  AI_MODEL: z.string().trim().min(1).default('claude-haiku-5-5'),
+  // The most the whole server may spend on it per calendar month (UTC), in US dollars. It pauses once this is reached.
+  AI_MONTHLY_BUDGET_USD: z.coerce.number().min(0).max(100_000).default(40),
+  // Questions each workspace may ask per day (UTC), and each person across all their workspaces.
+  AI_DAILY_QUESTIONS_PER_WORKSPACE: z.coerce.number().int().min(0).max(10_000).default(20),
   // Set to "latest", or to the name of one backup, to put that backup back when the server next starts.
   // It happens once per value: see the Self-hosting guide before using it.
   RESTORE_BACKUP: optionalText,

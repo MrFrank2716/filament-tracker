@@ -11,6 +11,7 @@ import { REPLAYED_HEADER } from '@/idempotency';
 import { authRouter } from '@/routes/auth';
 import { passkeysRouter } from '@/routes/passkeys';
 import { registerActivityRoutes } from '@/routes/activity';
+import { registerAiRoutes } from '@/routes/ai';
 import { registerCatalogRoutes } from '@/routes/catalog';
 import { registerItemRoutes } from '@/routes/items';
 import { registerJobRoutes } from '@/routes/jobs';
@@ -72,6 +73,7 @@ export function createApp(): express.Express {
   registerReferenceAddRoute(workspaceScope);
   registerPrinterRoutes(workspaceScope);
   registerDeviceRoutes(workspaceScope);
+  registerAiRoutes(workspaceScope);
 
   app.use('/api/auth/passkeys', passkeysRouter);
   app.use('/api/auth', authRouter);

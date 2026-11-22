@@ -175,6 +175,21 @@ Once a day the app removes those old files and looks at the disk. When less than
 
 A display is told the server's address from `APP_URL` (or `CLIENT_ORIGIN`). On a local network set it to an address other devices reach, such as `http://192.168.1.20:4000`, not `localhost`.
 
+### AI assistant
+
+The **Ask your workshop** box and the **Today, in short** summary on Overview (see [Dashboard and reports](Dashboard-and-reports.md#ask-your-workshop-ai)). Off unless you set a key. They use Anthropic's Claude API, which you pay for yourself.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | *(none)* | An API key from the Anthropic Console. With none, the assistant is hidden and nothing is sent anywhere |
+| `AI_MODEL` | `claude-haiku-5-5` | Which Claude model answers. The default is the cheapest; a bigger model costs many times more per question |
+| `AI_MONTHLY_BUDGET_USD` | `40` | The most the whole server may spend per calendar month (UTC), in US dollars. Once reached, it pauses until the 1st |
+| `AI_DAILY_QUESTIONS_PER_WORKSPACE` | `20` | Questions each workspace may ask per day (UTC). Each person also gets this many across all their workspaces |
+
+What is sent: the workspace's name and currency, and the figures behind the daily report and the reorder list (item, machine, supplier and job names, quantities and costs). Never members' names or email addresses, notes or uploaded files.
+
+What it costs: with the default model a question is well under a cent, and the daily summary is made at most once per workspace per day. Every call's cost is worked out from what the API reports and counted against the monthly limit before the next call is made. As a second safety net, also set a spending limit for the key in the Anthropic Console.
+
 ## Backups
 
 The database and uploads together are the only things to back up. With Docker, that is the volume mounted at `/data`. A copy on the same disk, or with the same host, is lost along with them, so keep one somewhere else.

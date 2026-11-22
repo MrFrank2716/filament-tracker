@@ -10,6 +10,19 @@ The top row counts what needs attention: **Low stock**, **Overdue** and **Due so
 
 **Before the next job** lists the most pressing things, most urgent first, each with a bar showing how far gone it is. Every line links to where it is dealt with.
 
+### Ask your workshop (AI)
+
+If whoever runs your server has switched the AI assistant on, Overview shows two more things. Without it, neither appears.
+
+- **Today, in short**: a few sentences on what needs doing first and anything notable in the last week. It is written once a day for the whole workspace, and everyone sees the same one.
+- **Ask your workshop**: type a question such as *What's running low?* or *Why did jobs fail this week?* and press **Ask**.
+
+The assistant only knows the figures behind the daily report and the reorder list: stock levels, what to order, jobs over the last 30 days, failures and maintenance. It cannot see anything else, and it cannot change anything. If the answer is not in those figures it says it does not know. Answers are written by AI, so check before acting on one.
+
+Operators, admins and owners can ask; viewers see the summary only. Each workspace has a number of questions a day (20 unless your server says otherwise), shown under the box, and one person cannot ask more than a few in a row. The server also has a monthly spending limit; once it is reached the box says **AI is paused until** the 1st of next month.
+
+Owners can see what their workspace has used this month under **Settings**, **Workspace**, **AI assistant**.
+
 With one machine picked under **Whole workshop**, Overview becomes that machine's own page. See [Machines](Machines.md#a-machines-own-page).
 
 ## Daily report
