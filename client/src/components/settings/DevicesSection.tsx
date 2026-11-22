@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CircleArrowUp, Copy, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react';
+import { CircleArrowUp, Copy, Pencil, Plus, RefreshCw, Trash2, Usb, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge, ErrorNote, Loading, Muted, SectionTitle } from '@/components/ui/Display';
 import { Checkbox, FormGrid, SelectField, TextField } from '@/components/ui/Form';
@@ -11,9 +11,10 @@ import { api } from '@/lib/api';
 import { formatDateTime, locationPath } from '@/lib/format';
 import { patchCached } from '@/lib/store';
 import type { Device, DevicePairing } from '@/lib/types';
+import { FlashDisplay } from '@/components/settings/FlashDisplay';
 import styles from '@/components/settings/Settings.module.css';
 
-type Dialog = { kind: 'add' } | { kind: 'rename'; device: Device };
+type Dialog = { kind: 'add' } | { kind: 'flash' } | { kind: 'rename'; device: Device };
 
 /** Location displays: small screens fixed to a shelf, rack or dry box that show what is stored there. */
 export function DevicesSection({ catalog }: { catalog: Catalog }) {
@@ -57,9 +58,14 @@ export function DevicesSection({ catalog }: { catalog: Catalog }) {
       <SectionTitle
         action={
           canEdit && (
-            <Button size="sm" icon={Plus} onClick={() => setDialog({ kind: 'add' })}>
-              Add display
-            </Button>
+            <div className={styles.danger}>
+              <Button size="sm" icon={Usb} onClick={() => setDialog({ kind: 'flash' })}>
+                Flash a new display
+              </Button>
+              <Button size="sm" icon={Plus} onClick={() => setDialog({ kind: 'add' })}>
+                Add display
+              </Button>
+            </div>
           )
         }
       >
@@ -173,6 +179,7 @@ export function DevicesSection({ catalog }: { catalog: Catalog }) {
         It cannot change amounts or anything else. Removing it here stops it at once.
       </Muted>
 
+      {dialog?.kind === 'flash' && <FlashDisplay locations={locations} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'add' && <AddForm locations={locations} onClose={() => setDialog(null)} onCreated={remember} />}
       {dialog?.kind === 'rename' && <RenameForm device={dialog.device} onClose={() => setDialog(null)} />}
     </>

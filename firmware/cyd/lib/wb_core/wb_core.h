@@ -164,6 +164,21 @@ constexpr size_t MAX_HEATS = 3;
  */
 size_t parseHeats(const char *temps, Heat *out, size_t max);
 
+/** Set-up sent over USB by the web app's flasher, in place of the phone page. */
+struct UsbSetup {
+  char ssid[33];
+  char password[65];
+  char url[128];   // normalised, as normalizeServer gives it
+  char code[16];   // normalised, as normalizeCode gives it
+  bool insecure;
+};
+
+/**
+ * One line of JSON: {"ssid":"...","password":"...","url":"...","code":"...","insecure":false}. Returns null when
+ * it is usable, or why not in a few words.
+ */
+const char *parseUsbSetup(const char *json, size_t len, UsbSetup &out);
+
 /** Copy that always ends in a NUL and never overruns. */
 void copyText(char *out, size_t outLen, const char *in);
 

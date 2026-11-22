@@ -74,14 +74,65 @@ static void handleOta() {
 static void handleOta() {}
 #endif
 
+/**
+ * Set-up over USB, sent by the web app right after it flashed the board (Settings, Displays, Flash a new display):
+ * one line of JSON with the Wi-Fi, the server and a set-up code. Saved the same way the phone page saves them;
+ * the board then restarts, joins the Wi-Fi and swaps the code for its own key. Answers "WBSETUP OK" or
+ * "WBSETUP ERR <why>" on its own line.
+ */
+void setUpOverUsb(const char *line, size_t len) {
+  static wb::UsbSetup setup;
+  const char *why = wb::parseUsbSetup(line, len, setup);
+  if (why) {
+    Serial.printf("\nWBSETUP ERR %s\n", why);
+    return;
+  }
+  wb::copyText(settings.url, sizeof settings.url, setup.url);
+  wb::copyText(settings.code, sizeof settings.code, setup.code);
+  settings.insecure = setup.insecure;
+  settings.token[0] = '\0';
+  store::save(settings);
+  // Kept in the ESP32's own Wi-Fi settings, where the phone page keeps it too.
+  WiFi.persistent(true);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(setup.ssid, setup.password);
+  memset(&setup, 0, sizeof setup);
+  Serial.println("\nWBSETUP OK");
+  Serial.flush();
+  delay(800);
+  ESP.restart();
+}
+
 void loop() {
   display::tick();
   handleOta();
-  // Over USB: "S" sends what is on screen (tools/screenshot.py); "P" and "O" open the printer screen and overview.
+  // Over USB: "S" sends what is on screen (tools/screenshot.py); "P" and "O" open the printer screen and overview;
+  // a line starting with "{" is set-up from the web app's flasher.
+  static char line[400];
+  static size_t lineLen = 0;
+  static bool inLine = false;
   while (Serial.available()) {
     const int key = Serial.read();
-    if (key == 'S') display::sendScreenshot();
-    else if (!inPortal && (key == 'P' || key == 'O')) ui::openScreen(static_cast<char>(key));
+    if (inLine) {
+      if (key == '\n' || key == '\r') {
+        line[lineLen] = '\0';
+        inLine = false;
+        setUpOverUsb(line, lineLen);
+      } else if (lineLen + 1 < sizeof line) {
+        line[lineLen++] = static_cast<char>(key);
+      } else {
+        inLine = false;  // too long to be set-up: dropped
+        Serial.println("\nWBSETUP ERR Too long");
+      }
+    } else if (key == '{') {
+      inLine = true;
+      lineLen = 0;
+      line[lineLen++] = '{';
+    } else if (key == 'S') {
+      display::sendScreenshot();
+    } else if (!inPortal && (key == 'P' || key == 'O')) {
+      ui::openScreen(static_cast<char>(key));
+    }
   }
   if (inPortal) {
     if (portal::process(settings)) {

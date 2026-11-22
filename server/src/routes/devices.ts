@@ -165,6 +165,34 @@ export function registerDeviceRoutes(router: Router): void {
     res.json(await loadDevice(id));
   });
 
+  /**
+   * The newest firmware's boards, for flashing a new display from the browser (Settings, Displays). Only builds
+   * with a full image are listed: that is what goes onto a blank board.
+   */
+  router.get('/firmware', async (_req, res) => {
+    requireEnabled();
+    const manifest = await latestFirmware();
+    const builds = (manifest?.builds ?? []).filter((b) => b.full).map((b) => ({ model: b.model, name: b.name, size: b.full!.size }));
+    res.json({ version: manifest && builds.length ? manifest.version : null, builds });
+  });
+
+  /** A board's full image (bootloader, partition table and app), written at offset 0 by the browser. */
+  router.get('/firmware/:model/full', async (req, res) => {
+    requireEnabled();
+    const manifest = await latestFirmware();
+    const build = manifest?.builds.find((b) => b.model === param(req, 'model'));
+    if (!build?.full) throw notFound('Firmware for that board');
+    const bytes = await firmwareFile(build.full);
+    if (!bytes) throw new HttpError(503, 'The firmware cannot be fetched just now. Try again in a minute.');
+    res.set({
+      'Content-Type': 'application/octet-stream',
+      'Content-Length': String(bytes.length),
+      'Cache-Control': 'no-store',
+      'X-Firmware-Version': manifest!.version,
+    });
+    res.end(bytes);
+  });
+
   /** Removes the display. Its token stops working at once, so the screen goes back to asking for a set-up code. */
   router.delete('/devices/:id', async (req, res) => {
     requireEnabled();

@@ -197,6 +197,28 @@ static void test_firmware_update_offer() {
   TEST_ASSERT_FALSE(o.hasUpdate);
 }
 
+static void test_setup_sent_over_usb() {
+  UsbSetup s;
+  const char *ok = R"({"ssid":"CNC","password":"hunter2hunter2","url":"https://www.wrkbench.xyz/","code":"abcd-efgh-2345"})";
+  TEST_ASSERT_NULL(parseUsbSetup(ok, strlen(ok), s));
+  TEST_ASSERT_EQUAL_STRING("CNC", s.ssid);
+  TEST_ASSERT_EQUAL_STRING("hunter2hunter2", s.password);
+  TEST_ASSERT_EQUAL_STRING("https://www.wrkbench.xyz", s.url);
+  TEST_ASSERT_EQUAL_STRING("ABCDEFGH2345", s.code);
+  TEST_ASSERT_FALSE(s.insecure);
+  const char *open = R"({"ssid":"Guest","password":"","url":"192.168.1.20:4000","code":"ABCDEFGH2345","insecure":true})";
+  TEST_ASSERT_NULL(parseUsbSetup(open, strlen(open), s));
+  TEST_ASSERT_EQUAL_STRING("http://192.168.1.20:4000", s.url);
+  TEST_ASSERT_TRUE(s.insecure);
+  const char *shortPass = R"({"ssid":"CNC","password":"short","url":"https://a.b","code":"ABCDEFGH2345"})";
+  TEST_ASSERT_EQUAL_STRING("Wi-Fi password must be 8 to 63 characters", parseUsbSetup(shortPass, strlen(shortPass), s));
+  const char *noSsid = R"({"ssid":"","password":"","url":"https://a.b","code":"ABCDEFGH2345"})";
+  TEST_ASSERT_NOT_NULL(parseUsbSetup(noSsid, strlen(noSsid), s));
+  const char *badCode = R"({"ssid":"CNC","password":"","url":"https://a.b","code":"ABC"})";
+  TEST_ASSERT_EQUAL_STRING("Set-up code not usable", parseUsbSetup(badCode, strlen(badCode), s));
+  TEST_ASSERT_EQUAL_STRING("Not readable", parseUsbSetup("nope", 4, s));
+}
+
 static int runAll() {
   UNITY_BEGIN();
   RUN_TEST(test_overview_is_read_into_the_fixed_struct);
@@ -209,6 +231,7 @@ static int runAll() {
   RUN_TEST(test_colours_uids_backoff_and_ages);
   RUN_TEST(test_temperature_line_read_as_heaters);
   RUN_TEST(test_firmware_update_offer);
+  RUN_TEST(test_setup_sent_over_usb);
   return UNITY_END();
 }
 

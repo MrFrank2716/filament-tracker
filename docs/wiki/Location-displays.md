@@ -12,11 +12,25 @@ Give it a printer and it also shows what that printer is doing. With an optional
 
 ## Flashing it
 
-The display needs Wrkbench's firmware put on it once, from a computer. Plug it in by USB and follow [firmware/README.md](../../firmware/README.md). In short: install PlatformIO, then run `pio run -d firmware/cyd -e cyd-st7789 -t upload`.
+The display needs Wrkbench's firmware put on it once. The easiest way is from Wrkbench itself, in **Chrome or Edge on a computer** (other browsers and phones cannot reach USB devices):
 
-These boards come with one of two kinds of screen. If the colours look wrong after flashing (white looks black, or everything looks like a photo negative), flash `cyd-ili9341` instead. If flashing stops with "Wrong boot mode", hold the board's **BOOT** button, press and release **RST**, let go of BOOT, and try again.
+1. Plug the display into the computer with a USB cable.
+2. In **Settings**, **Displays**, choose **Flash a new display** (admins and owners).
+3. Choose the kind of board. Leave **Set it up over USB too** on, and fill in the display's name, the location it shows, and your workshop's Wi-Fi name and password.
+4. Press **Connect, flash and set up** and pick the board's USB port when the browser asks (often "USB-SERIAL CH340").
+
+It flashes the newest firmware, adds the display, and sends it your Wi-Fi, this server's address and a set-up code over the cable. The display restarts, joins the Wi-Fi and shows its location; its card turns to **Connected** within a minute or two, and you can unplug it from the computer. The Wi-Fi password goes from the page to the display only, never to Wrkbench. With **Set it up over USB too** off, it only flashes, and you set it up from a phone as below.
+
+- **"The board did not answer"**: some boards do not go into flashing mode by themselves. Hold the board's **BOOT** button, press and release **RST**, let go of BOOT, and try again.
+- **No port is listed**: the computer may need the driver for the board's USB chip (CH340 on most CYDs).
+- **Colours look wrong after flashing** (white looks black, or everything looks like a photo negative): flash again and choose the other 2.8 inch kind of screen.
+- **It did not take its set-up over USB**: the page says why, adds the display anyway and shows its set-up code; finish from a phone as below.
+
+You can also flash from the command line with PlatformIO: see [firmware/README.md](../../firmware/README.md) (`pio run -d firmware/cyd -e cyd-st7789 -t upload`).
 
 ## Setting it up
+
+A display flashed with **Set it up over USB too** is already set up. Otherwise, or after **Set up again**, set it up from a phone:
 
 1. In Wrkbench, open **Settings**, then **Displays**, and choose **Add display**. Give it a name ("Rack A display") and choose the location it shows. Wrkbench shows the server's address and a set-up code. The code works once, for ten minutes. Admins and owners can add displays; a workspace can have up to five.
 2. Power the display. It shows the name and password of its own Wi-Fi network, **Wrkbench-** followed by four characters. Join it from your phone. A set-up page opens (if it does not, go to `192.168.4.1`).
