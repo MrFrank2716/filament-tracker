@@ -103,22 +103,40 @@ export function FlashDisplay({ locations, onClose }: { locations: Array<{ id: st
   const working = stage.kind === 'working';
   const build = firmware.data?.builds.find((b) => b.model === model);
   const passwordOk = password.length === 0 || (password.length >= 8 && password.length <= 63);
-  const ready = !!build && canFlash() && (!setUp || (name.trim() && ssid.trim() && ssid.length <= 32 && passwordOk));
+  // What still stops the button, said under it rather than leaving it greyed out without a reason.
+  const missing = !setUp ? null : !name.trim() ? 'Give the display a name' : !ssid.trim() ? 'Enter the Wi-Fi name' : !passwordOk ? 'A Wi-Fi password has 8 to 63 characters' : null;
+  const ready = !!build && canFlash() && !missing;
 
   const flash = async () => {
     if (!build || !firmware.data?.version) return;
     const version = firmware.data.version;
+    const fail = (error: unknown) => {
+      console.error('Flashing a display failed', error);
+      if (!cancelled.current) setStage({ kind: 'failed', message: error instanceof Error ? error.message : String(error) });
+    };
     let port: SerialPort;
     try {
       // The browser lists the USB serial ports; the person picks the board's (often "USB-SERIAL CH340").
       port = await navigator.serial.requestPort();
-    } catch {
-      return; // closed the browser's picker
+    } catch (error) {
+      // Closing the picker without choosing is not a failure; anything else is said.
+      if (error instanceof DOMException && error.name === 'NotFoundError') return;
+      fail(error);
+      return;
     }
     const update = (step: string, percent: number | null = null) => !cancelled.current && setStage({ kind: 'working', step, percent });
-    // Loaded only now: the flasher is only needed by the few who set up a display.
-    const { ESPLoader, Transport } = await import('esptool-js');
-    const transport = new Transport(port, false);
+    update('Getting ready');
+    let transport: import('esptool-js').Transport;
+    let ESPLoader: typeof import('esptool-js').ESPLoader;
+    try {
+      // Loaded only now: the flasher is only needed by the few who set up a display.
+      const esptool = await import('esptool-js');
+      ESPLoader = esptool.ESPLoader;
+      transport = new esptool.Transport(port, false);
+    } catch (error) {
+      fail(error);
+      return;
+    }
     try {
       update('Downloading the firmware');
       const image = new Uint8Array(await (await api.blob(wsPath(`/firmware/${build.model}/full`)!)).arrayBuffer());
@@ -150,7 +168,7 @@ export function FlashDisplay({ locations, onClose }: { locations: Array<{ id: st
       update('Restarting the board');
       await loader.after('hard_reset');
     } catch (error) {
-      if (!cancelled.current) setStage({ kind: 'failed', message: error instanceof Error ? error.message : String(error) });
+      fail(error);
       return;
     } finally {
       await transport.disconnect().catch(() => {});
@@ -184,7 +202,7 @@ export function FlashDisplay({ locations, onClose }: { locations: Array<{ id: st
       }
       if (!cancelled.current) setStage({ kind: 'done', version, name: created.name, connected: false });
     } catch (error) {
-      if (!cancelled.current) setStage({ kind: 'failed', message: error instanceof Error ? error.message : String(error) });
+      fail(error);
     }
   };
 
@@ -302,6 +320,7 @@ export function FlashDisplay({ locations, onClose }: { locations: Array<{ id: st
             </div>
           )}
           {stage.kind === 'failed' && <ErrorNote>{stage.message}</ErrorNote>}
+          {!working && missing && <Muted>{missing} to start.</Muted>}
         </>
       )}
     </Modal>
