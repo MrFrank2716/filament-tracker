@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
 import { CircleCheck, Wrench } from 'lucide-react';
+import { AskCard } from '@/components/ai/AskCard';
+import { SummaryCard } from '@/components/ai/SummaryCard';
 import { Badge, EmptyState, ErrorNote, Figure, Grid, HeaderStat, Ledger, List, Meter, PageHeader, PageSkeleton, Readout, Row, RowDetail, SectionTitle, Stack, type StatusTone } from '@/components/ui/Display';
 import { useWorkspace, useWsQuery } from '@/context/WorkspaceContext';
 import { useCatalog } from '@/hooks/useCatalog';
 import { formatDate, formatHours, formatNumber, formatQuantity } from '@/lib/format';
 import { describeDue, DUE_STATUS, JOB_STATUS, MACHINE_STATUS } from '@/lib/status';
-import type { Dashboard } from '@/lib/types';
+import type { AiStatus, Dashboard } from '@/lib/types';
 
 /** One line in "Before the next job": stock, service and tooling share a single queue. */
 interface QueueEntry {
@@ -22,6 +24,8 @@ interface QueueEntry {
 export function DashboardPage() {
   const { workspace, money } = useWorkspace();
   const { data, error } = useWsQuery<Dashboard>('/dashboard');
+  // The assistant is only there when the server has it switched on.
+  const { data: ai } = useWsQuery<AiStatus>('/ai/status');
   const { unitById } = useCatalog();
 
   if (error) return <ErrorNote>{error}</ErrorNote>;
@@ -91,6 +95,8 @@ export function DashboardPage() {
         ]}
       />
 
+      {ai?.enabled && <SummaryCard />}
+
       <Stack gap="sm">
         <SectionTitle count={queue.length || undefined}>Before the next job</SectionTitle>
         {queue.length ? (
@@ -118,6 +124,8 @@ export function DashboardPage() {
           </EmptyState>
         )}
       </Stack>
+
+      {ai?.enabled && <AskCard status={ai} />}
 
       <Grid>
         <Stack gap="sm">

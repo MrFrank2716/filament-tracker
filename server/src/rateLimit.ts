@@ -1,4 +1,4 @@
-import type { RequestHandler } from 'express';
+import type { Request, RequestHandler } from 'express';
 import { rateLimit as expressRateLimit } from 'express-rate-limit';
 
 const TOO_MANY = 'Too many requests from this connection. Please try again later.';
@@ -13,16 +13,20 @@ const TOO_MANY = 'Too many requests from this connection. Please try again later
  *
  * Every answer says how much of the allowance is left (the standard RateLimit headers), and a refusal says
  * when to try again (Retry-After).
+ *
+ * `per` counts by something else, such as the signed-in user, for routes that only members reach, with the
+ * `message` to give instead.
  */
-export function rateLimit(max: number, windowMs: number): RequestHandler {
+export function rateLimit(max: number, windowMs: number, per?: { key: (req: Request) => string; message: string }): RequestHandler {
   return expressRateLimit({
     windowMs,
     limit: max,
+    ...(per ? { keyGenerator: per.key } : {}),
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     // The same shape as every other error the API gives, so the web app and displays show it as they always have.
     handler: (_req, res) => {
-      res.status(429).json({ error: TOO_MANY });
+      res.status(429).json({ error: per?.message ?? TOO_MANY });
     },
   });
 }

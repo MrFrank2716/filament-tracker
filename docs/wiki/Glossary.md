@@ -6,6 +6,7 @@ Words used in Wrkbench and in this wiki, in alphabetical order.
 | --- | --- |
 | **Access code** | An 8-character code shown on a Bambu Lab printer's screen. The bridge uses it to read the printer. See [Connecting printers](Connecting-printers.md#before-you-start) |
 | **Activity** | The record of every change made in a workspace, with who made it and when. See [Dashboard and reports](Dashboard-and-reports.md#activity) |
+| **AI assistant** | The optional **Ask your workshop** box and **Today, in short** summary on Overview, answered by AI from the workshop's own figures. See [Dashboard and reports](Dashboard-and-reports.md#ask-your-workshop-ai) |
 | **AMS** | Bambu Lab's Automatic Material System: a unit holding several spools that feeds a printer. In Wrkbench each AMS is a piece of attached hardware. See [AMS and spools](AMS-and-spools.md) |
 | **Attached hardware** | Anything fitted to a machine, such as a filament feeder, tool changer, dryer or rotary module. It can have slots. See [Machines](Machines.md#attached-hardware-and-slots) |
 | **Bridge** | A small program that runs on a computer in your workshop, reads your printers on the local network, and reports to Wrkbench. See [Bridge reference](Bridge-reference.md) |

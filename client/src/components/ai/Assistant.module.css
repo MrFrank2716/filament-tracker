@@ -1,0 +1,54 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.summary {
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+  white-space: pre-line;
+}
+
+.ask {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+}
+
+.ask > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.answer {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-border-strong);
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-md);
+  line-height: var(--leading-normal);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.question {
+  font-weight: var(--weight-medium);
+  margin-bottom: var(--space-1);
+}
+
+.foot {
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+}

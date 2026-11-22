@@ -85,7 +85,8 @@ export function onWatchersChanged(listener: (workspaceId: string) => void): void
 
 /** Tell everyone looking at a workspace that its data changed, after any successful write. */
 export const broadcastChanges: RequestHandler = (req, res, next) => {
-  if (req.method !== 'GET') {
+  // A question to the assistant is a POST but changes nothing, so nobody needs to reload.
+  if (req.method !== 'GET' && !req.path.startsWith('/ai/')) {
     res.on('finish', () => {
       if (res.statusCode < 400) {
         io?.to(room(req.workspaceId)).emit('workspace:changed', { by: req.userId, at: Date.now() });

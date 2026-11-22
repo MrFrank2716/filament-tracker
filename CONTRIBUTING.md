@@ -98,6 +98,7 @@ Where to find things:
 | `server/src/idempotency.ts` | Idempotency keys: a POST repeated with the same `Idempotency-Key` is answered from memory instead of running twice. The web app sends one with every POST (`client/src/lib/idempotency.ts`) |
 | `server/src/services/` | Business logic: stock, jobs and the queue, projects, maintenance, the daily report, the reorder list, spool tags, email, uploads |
 | `server/src/services/backup.ts` | Nightly backups to S3-compatible storage and putting one back; `s3.ts` beside it is the small client it uses. `server/scripts/prestart.ts` runs before each start |
+| `server/src/services/ai.ts` | The optional AI assistant (Overview's question box and daily summary): the Claude API call, what it is sent, and the spending caps. Routes in `server/src/routes/ai.ts`; off without `ANTHROPIC_API_KEY` |
 | `server/src/services/snapshot.ts` | The portable workspace format behind JSON import and export, templates and the seed |
 | `server/src/routes/requests.ts` | Outside job requests: the public routes (the only ones that need no account) and the review queue |
 | `server/src/routes/devices.ts` | Location displays: the routes members use to set them up, and the ones a display calls with its own key (`/api/device`) |

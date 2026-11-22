@@ -34,6 +34,7 @@ const OPERATOR_WRITES: Array<[method: string, path: RegExp]> = [
   ['DELETE', /^\/unknown-tags\/[^/]+$/], // "that spool read at a display is not ours"
   ['POST', /^\/job-requests\/[^/]+\/comments$/],
   ['POST', /^\/job-requests\/[^/]+\/status$/],
+  ['POST', /^\/ai\/ask$/], // a question to the assistant: it reads the workshop's figures and changes nothing
 ];
 
 const operatorMay = (method: string, path: string) => OPERATOR_WRITES.some(([m, pattern]) => m === method && pattern.test(path));

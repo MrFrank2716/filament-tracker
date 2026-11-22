@@ -219,6 +219,8 @@ async function write(req: Request, segments: string[], nameBefore: string, body:
   if (req.method === 'DELETE' && segments.length === 0) return null;
   // Undo writes its own entry.
   if (segments[0] === 'activity') return null;
+  // A question to the assistant changes nothing in the workshop, so it is not part of its history.
+  if (segments[0] === 'ai') return null;
   const name = nameBefore || String(body?.name ?? body?.title ?? '');
   const generic = describe(req.method, segments, name, body);
   const moved = await describeMovements(context.movementIds);
