@@ -305,6 +305,21 @@ describe('printer status for the display', () => {
     });
     expect(fault).toMatchObject({ state: 'Printing', tone: 'error', progress: 0.5, left: '45 min left', error: 'AMS filament ran out.' });
   });
+
+  it('shows the nozzle printing now on a dual-nozzle printer', () => {
+    const nozzle = { diameter: 0.4, type: null };
+    const live = { ...emptyReading(), phase: 'printing' as const, v: 1 as const, machineId: 'm', printerLinkId: 'l', connection: 'live' as const, asOf: 1, endsAt: null, thumbnailRunId: null };
+    const right = { label: 'Right nozzle', temp: { current: 30, target: 0 }, nozzle };
+    const left = { label: 'Left nozzle', temp: { current: 219, target: 220 }, nozzle };
+    const printing = displayPrinter('X2D', { ...live, extruders: [{ ...right, active: false }, { ...left, active: true }] });
+    expect(printing.temps).toMatch(/^Nozzle 219\/220 C/);
+    // A reading saved before nozzles had `active`: the one heating is shown.
+    const older = displayPrinter('X2D', { ...live, extruders: [right, left] as unknown as typeof live.extruders });
+    expect(older.temps).toMatch(/^Nozzle 219\/220 C/);
+    // Both cold: the first, as before.
+    const idle = displayPrinter('X2D', { ...live, extruders: [{ ...right, active: false }, { ...left, temp: { current: 28, target: 0 }, active: false }] });
+    expect(idle.temps).toMatch(/^Nozzle 30 C/);
+  });
 });
 
 describe('wording for the display', () => {

@@ -85,6 +85,7 @@ export function PrinterPanel({ state }: { state: PrinterState }) {
               <dt>{extruder.label}</dt>
               <dd>
                 {[
+                  live && extruder.active && state.extruders.length > 1 ? 'In use' : '',
                   extruder.nozzle.diameter !== null ? `${extruder.nozzle.diameter} mm` : '',
                   extruder.nozzle.type ?? '',
                   live ? degrees(extruder.temp) : '',

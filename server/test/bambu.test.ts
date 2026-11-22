@@ -15,7 +15,7 @@ describe('reading a Bambu status document', () => {
     const reading = readBambu(simDocument(x1c));
     expect(reading.phase).toBe('printing');
     expect(reading.print).toMatchObject({ name: 'bracket_v3', progress: 37, layer: 112, totalLayers: 300, remainingMinutes: 94 });
-    expect(reading.extruders).toEqual([{ label: 'Nozzle', temp: { current: 219, target: 220 }, nozzle: { diameter: 0.4, type: 'Hardened steel' } }]);
+    expect(reading.extruders).toEqual([{ label: 'Nozzle', temp: { current: 219, target: 220 }, nozzle: { diameter: 0.4, type: 'Hardened steel' }, active: true }]);
     expect(reading.modelName).toBe('X1 Carbon');
     expect(reading.firmware).toBe('01.09.00.00');
   });
@@ -46,6 +46,28 @@ describe('reading a Bambu status document', () => {
   it('reads both nozzles of a dual-nozzle printer', () => {
     const { extruders } = readBambu(simDocument(h2d));
     expect(extruders.map((extruder) => [extruder.label, extruder.nozzle.diameter])).toEqual([['Right nozzle', 0.4], ['Left nozzle', 0.6]]);
+  });
+
+  it('finds the nozzle in use on a dual-nozzle printer', () => {
+    const doc = (state: number | undefined, right: number, left: number) => {
+      const d = JSON.parse(JSON.stringify(simDocument(h2d))) as { print: { device: { extruder: { state?: number; info: Array<{ temp: number }> } } } };
+      const extruder = d.print.device.extruder;
+      if (state === undefined) delete extruder.state;
+      else extruder.state = state;
+      extruder.info[0].temp = right;
+      extruder.info[1].temp = left;
+      return readBambu(d as unknown as Doc).extruders.map((e) => [e.label, e.active]);
+    };
+    const hot = (current: number, target: number) => (target << 16) | current;
+    // Bits 4-7 of the state: 0 the right nozzle, 1 the left.
+    expect(doc(0x12, hot(30, 0), hot(219, 220))).toEqual([['Right nozzle', false], ['Left nozzle', true]]);
+    expect(doc(0x02, hot(219, 220), hot(30, 0))).toEqual([['Right nozzle', true], ['Left nozzle', false]]);
+    // No state: the nozzle heating to a target is the one in use.
+    expect(doc(undefined, hot(25, 0), hot(200, 220))).toEqual([['Right nozzle', false], ['Left nozzle', true]]);
+    // The state names a cold nozzle while the other heats: the temperatures win.
+    expect(doc(0x02, hot(30, 0), hot(219, 220))).toEqual([['Right nozzle', false], ['Left nozzle', true]]);
+    // Switching between nozzles (0xF), both cold: none.
+    expect(doc(0xf2, hot(25, 0), hot(25, 0))).toEqual([['Right nozzle', false], ['Left nozzle', false]]);
   });
 
   it('formats error codes the way the printer shows them, with their meaning and the right page', () => {
@@ -159,9 +181,10 @@ describe('a real X2D (recorded, see test/fixtures/x2d.json)', () => {
   it('reads the model, state, both nozzles, bed and chamber', () => {
     expect(reading).toMatchObject({ modelName: 'X2D', phase: 'printing', bed: { current: 55, target: 55 }, chamber: { current: 25, target: null } });
     expect(reading.print).toMatchObject({ name: 'sample_print', totalLayers: 100, remainingMinutes: 30 });
+    // Its state, 274 (0x112), says two nozzles with the left one in use.
     expect(reading.extruders).toEqual([
-      { label: 'Right nozzle', temp: { current: 25, target: 0 }, nozzle: { diameter: 0.4, type: 'Hardened steel' } },
-      { label: 'Left nozzle', temp: { current: 25, target: 0 }, nozzle: { diameter: 0.4, type: 'Hardened steel, high flow' } },
+      { label: 'Right nozzle', temp: { current: 25, target: 0 }, nozzle: { diameter: 0.4, type: 'Hardened steel' }, active: false },
+      { label: 'Left nozzle', temp: { current: 25, target: 0 }, nozzle: { diameter: 0.4, type: 'Hardened steel, high flow' }, active: true },
     ]);
   });
 
@@ -200,6 +223,8 @@ describe('a real H2D running a laser job (recorded, see test/fixtures/h2d-laser.
 
   it('reads it as laser work in progress, with the laser named as the tool fitted', () => {
     expect(reading).toMatchObject({ modelName: 'H2D', phase: 'printing', tool: 'Laser 40W' });
+    // Its state, 32770 (0x8002), says two nozzles with the right one in use.
+    expect(reading.extruders.map((e) => [e.label, e.active])).toEqual([['Right nozzle', true], ['Left nozzle', false]]);
     expect(reading.print).toMatchObject({ name: 'sample_laser_job', kind: 'laser', progress: 19, totalLayers: null, remainingMinutes: 5 });
   });
 

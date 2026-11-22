@@ -195,27 +195,52 @@ function nozzleType(value: unknown): string | null {
   return raw.replace(/_/g, ' ');
 }
 
+/**
+ * Which nozzle of a dual-nozzle printer is printing, by its id.
+ *
+ * `device.extruder.state` is packed: bits 0-3 the number of nozzles, bits 4-7 the nozzle in use, bits 8-11 the one
+ * it is switching to; 0xF in bits 4-7 means it is between nozzles. That layout is Bambu Studio's own reading
+ * (ExtderSystemParser::ParseV2_0 in src/slic3r/GUI/DeviceCore/DevExtruderSystem.cpp), and our recordings agree
+ * (X2D 274 = 0x112: two nozzles, 1 in use; H2D 32770 = 0x8002: two, 0 in use). That the number is the same `id` as
+ * in `extruder.info` (0 right, 1 left) is not stated there, only consistent with it, and the recordings' nozzles
+ * were cold. So the temperatures decide when they disagree: a nozzle with no target set is not printing while the
+ * other one heats. Without a usable state, the nozzle heating to the highest target is taken, else none.
+ */
+function activeNozzle(state: number | null, nozzles: Array<{ id: number; temp: Temp | null }>): number | null {
+  const target = (id: number) => nozzles.find((n) => n.id === id)?.temp?.target ?? 0;
+  const heating = nozzles.filter((n) => (n.temp?.target ?? 0) > 0).sort((a, b) => target(b.id) - target(a.id));
+  const reported = state === null ? null : (state >> 4) & 0xf;
+  if (reported !== null && nozzles.some((n) => n.id === reported)) {
+    if (target(reported) === 0 && heating.length === 1) return heating[0].id;
+    return reported;
+  }
+  return heating[0]?.id ?? null;
+}
+
 function readExtruders(print: Doc): PrinterReading['extruders'] {
   const device = obj(print.device);
-  const extruderInfo = list(obj(device?.extruder)?.info);
+  const extruder = obj(device?.extruder);
+  const extruderInfo = list(extruder?.info);
   if (extruderInfo.length >= 2) {
     // Dual-nozzle printers pack current and target temperature into one number: low half current, high half target.
     const nozzles = list(obj(device?.nozzle)?.info).map(obj);
     const labels = ['Right nozzle', 'Left nozzle'];
-    return extruderInfo.slice(0, 4).map((raw, index) => {
+    const read = extruderInfo.slice(0, 4).map((raw, index) => {
       const entry = obj(raw) ?? {};
       const id = int(entry.id) ?? index;
       const packed = int(entry.temp);
       const nozzle = nozzles.find((candidate) => int(candidate?.id) === id) ?? nozzles[index] ?? null;
       const temp: Temp | null = packed === null ? null : { current: packed & 0xffff, target: (packed >>> 16) & 0xffff };
-      return { label: labels[id] ?? `Nozzle ${id + 1}`, temp, nozzle: { diameter: num(nozzle?.diameter), type: nozzleType(nozzle?.type) } };
+      return { id, label: labels[id] ?? `Nozzle ${id + 1}`, temp, nozzle: { diameter: num(nozzle?.diameter), type: nozzleType(nozzle?.type) } };
     });
+    const active = activeNozzle(int(extruder?.state), read);
+    return read.map(({ id, ...rest }) => ({ ...rest, active: id === active }));
   }
   const current = num(print.nozzle_temper);
   const diameter = num(print.nozzle_diameter);
   const type = nozzleType(print.nozzle_type);
   if (current === null && diameter === null && type === null) return [];
-  return [{ label: 'Nozzle', temp: current === null ? null : { current, target: num(print.nozzle_target_temper) }, nozzle: { diameter, type } }];
+  return [{ label: 'Nozzle', temp: current === null ? null : { current, target: num(print.nozzle_target_temper) }, nozzle: { diameter, type }, active: true }];
 }
 
 export function readBambu(doc: Doc): PrinterReading {
