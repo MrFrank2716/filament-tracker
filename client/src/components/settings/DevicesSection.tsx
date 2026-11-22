@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Copy, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { CircleArrowUp, Copy, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge, ErrorNote, Loading, Muted, SectionTitle } from '@/components/ui/Display';
 import { Checkbox, FormGrid, SelectField, TextField } from '@/components/ui/Form';
@@ -87,8 +87,8 @@ export function DevicesSection({ catalog }: { catalog: Catalog }) {
                 <Muted>
                   {device.paired
                     ? [
-                        device.online ? 'Updating' : `Last seen ${device.lastSeenAt ? formatDateTime(device.lastSeenAt) : 'never'}`,
-                        device.version && `version ${device.version}`,
+                        !device.online && `Last seen ${device.lastSeenAt ? formatDateTime(device.lastSeenAt) : 'never'}`,
+                        device.version && `firmware ${device.version}`,
                         device.hasReader ? 'tag reader connected' : '',
                       ]
                         .filter(Boolean)
@@ -104,6 +104,8 @@ export function DevicesSection({ catalog }: { catalog: Catalog }) {
             {device.paired && !device.online && !pairing && (
               <Muted>Check that it has power and is in reach of the Wi-Fi. If it was reset, make a new set-up code and type it in on the display.</Muted>
             )}
+
+            {device.paired && <FirmwareLine device={device} canEdit={canEdit} />}
 
             <FormGrid>
               <SelectField
@@ -173,6 +175,56 @@ export function DevicesSection({ catalog }: { catalog: Catalog }) {
 
       {dialog?.kind === 'add' && <AddForm locations={locations} onClose={() => setDialog(null)} onCreated={remember} />}
       {dialog?.kind === 'rename' && <RenameForm device={dialog.device} onClose={() => setDialog(null)} />}
+    </>
+  );
+}
+
+/**
+ * Newer firmware for a display, and its update while it runs. The display fetches it on its next poll, restarts
+ * on it and reports the new version, so this follows from the device list refreshing by itself.
+ */
+function FirmwareLine({ device, canEdit }: { device: Device; canEdit: boolean }) {
+  const { wsPath } = useWorkspace();
+  const { run, busy } = useAction();
+  const { firmware } = device;
+
+  if (device.updateTo) {
+    return (
+      <div className={styles.danger}>
+        <Muted>
+          Installing firmware {device.updateTo}. The display downloads it within half a minute, restarts and shows its screen again; this takes a minute or two.
+          {!device.online && ' It is offline just now, so it starts once it is back.'}
+        </Muted>
+        {canEdit && (
+          <Button size="sm" icon={X} onClick={() => run(() => api.delete(wsPath(`/devices/${device.id}/update`)!), 'Update withdrawn')} disabled={busy}>
+            Stop waiting
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {device.updateError && <Muted>The last firmware update did not finish: {device.updateError}. The display kept its firmware {device.version}.</Muted>}
+      {firmware.updateAvailable && firmware.latest && (
+        <div className={styles.danger}>
+          <Muted>
+            Firmware {firmware.latest} is available{device.version ? `; this display runs ${device.version}` : ''}.{' '}
+            {firmware.blocked ? `${firmware.blocked}.` : !device.online ? 'Update it once it is back online.' : ''}
+          </Muted>
+          {canEdit && !firmware.blocked && (
+            <Button
+              size="sm"
+              icon={CircleArrowUp}
+              onClick={() => run(() => api.post(wsPath(`/devices/${device.id}/update`)!, {}), 'Update started')}
+              disabled={busy || !device.online}
+            >
+              Update to {firmware.latest}
+            </Button>
+          )}
+        </div>
+      )}
     </>
   );
 }

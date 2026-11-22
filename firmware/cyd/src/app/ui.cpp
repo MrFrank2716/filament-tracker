@@ -887,6 +887,15 @@ void handle(net::Result &result) {
         showUntagged();
       }
       break;
+    case net::ResultType::Updating:
+      closeCard();
+      showMessageScreen(View::Busy, "Updating firmware", result.message, true);
+      break;
+    case net::ResultType::UpdateFailed:
+      // Back to the location; the next overview would not come while nothing changed.
+      if (overview) showOverview();
+      toast(result.message, lv_color_hex(0x5A2328));
+      break;
     case net::ResultType::Action:
       closeCard();
       toast(result.message, result.ok ? lv_color_hex(0x1F5130) : lv_color_hex(0x5A2328));

@@ -113,6 +113,16 @@ bool parseOverview(const char *json, size_t len, Overview &out) {
   JsonObjectConst printer = doc["printer"];
   out.hasPrinter = !printer.isNull();
   if (out.hasPrinter) readPrinter(printer, out.printer);
+  // An update is only taken when it is whole: a version, a size that fits an app slot and a full MD5.
+  JsonObjectConst update = doc["update"];
+  const char *md5 = update["md5"] | "";
+  const uint32_t size = update["size"] | 0u;
+  if (!update.isNull() && update["version"].is<const char *>() && size > 0 && size <= MAX_FIRMWARE && strlen(md5) == 32) {
+    out.hasUpdate = true;
+    copyText(out.update.version, sizeof out.update.version, update["version"]);
+    out.update.size = size;
+    copyText(out.update.md5, sizeof out.update.md5, md5);
+  }
   return true;
 }
 

@@ -15,6 +15,8 @@ constexpr size_t MAX_ITEMS = 40;
 constexpr size_t MAX_LOCATIONS = 40;
 /** A response bigger than this is refused rather than parsed: the board has no memory to spare. */
 constexpr size_t MAX_RESPONSE = 16 * 1024;
+/** The largest firmware image an app slot holds (min_spiffs.csv: 0x1E0000 bytes). */
+constexpr uint32_t MAX_FIRMWARE = 0x1E0000;
 
 /** One row on the screen, already worded by the server. */
 struct Item {
@@ -64,6 +66,13 @@ struct PrinterInfo {
   TrayInfo trays[MAX_TRAYS];
 };
 
+/** New firmware to install, as the server offers it. */
+struct FirmwareOffer {
+  char version[16];
+  uint32_t size;
+  char md5[33];  // of the whole image, in lowercase hex
+};
+
 struct Overview {
   char v[24];
   int poll;
@@ -81,6 +90,8 @@ struct Overview {
   Place places[MAX_LOCATIONS];
   bool hasPrinter;    // a printer is chosen for this display in Settings
   PrinterInfo printer;
+  bool hasUpdate;     // an admin asked for new firmware: fetch it from /api/device/firmware
+  FirmwareOffer update;
 };
 
 /** What the server said about a tapped tag. */

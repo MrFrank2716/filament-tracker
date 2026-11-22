@@ -177,6 +177,26 @@ static void test_temperature_line_read_as_heaters() {
   TEST_ASSERT_EQUAL_UINT(0, parseHeats("A 1 C  B 2 C  C 3 C  D 4 C", h, MAX_HEATS));
 }
 
+static void test_firmware_update_offer() {
+  static Overview o;
+  const char *json = R"({"v":"u","items":[],"update":{"version":"0.3.1","size":1382576,"md5":"0123456789abcdef0123456789abcdef"}})";
+  TEST_ASSERT_TRUE(parseOverview(json, strlen(json), o));
+  TEST_ASSERT_TRUE(o.hasUpdate);
+  TEST_ASSERT_EQUAL_STRING("0.3.1", o.update.version);
+  TEST_ASSERT_EQUAL_UINT32(1382576, o.update.size);
+  TEST_ASSERT_EQUAL_STRING("0123456789abcdef0123456789abcdef", o.update.md5);
+  const char *none = R"({"v":"w","items":[]})";
+  TEST_ASSERT_TRUE(parseOverview(none, strlen(none), o));
+  TEST_ASSERT_FALSE(o.hasUpdate);
+  // Anything incomplete or too big for an app slot is ignored, not half-taken.
+  const char *noMd5 = R"({"v":"x","update":{"version":"0.3.1","size":1000,"md5":"abc"}})";
+  TEST_ASSERT_TRUE(parseOverview(noMd5, strlen(noMd5), o));
+  TEST_ASSERT_FALSE(o.hasUpdate);
+  const char *tooBig = R"({"v":"y","update":{"version":"0.3.1","size":9000000,"md5":"0123456789abcdef0123456789abcdef"}})";
+  TEST_ASSERT_TRUE(parseOverview(tooBig, strlen(tooBig), o));
+  TEST_ASSERT_FALSE(o.hasUpdate);
+}
+
 static int runAll() {
   UNITY_BEGIN();
   RUN_TEST(test_overview_is_read_into_the_fixed_struct);
@@ -188,6 +208,7 @@ static int runAll() {
   RUN_TEST(test_codes_and_addresses_as_typed);
   RUN_TEST(test_colours_uids_backoff_and_ages);
   RUN_TEST(test_temperature_line_read_as_heaters);
+  RUN_TEST(test_firmware_update_offer);
   return UNITY_END();
 }
 

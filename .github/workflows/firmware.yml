@@ -1,0 +1,79 @@
+# Builds the location display's firmware for every kind of board and runs its tests on the computer.
+# On a pull request that touches the firmware it only checks that everything builds. On a tag such as
+# firmware-v0.3.0 it also publishes the images as a GitHub release, which Wrkbench servers offer to their
+# displays as an update (Settings, Displays). The tag must match WB_VERSION in firmware/cyd/platformio.ini.
+name: Display firmware
+
+on:
+  pull_request:
+    paths:
+      - 'firmware/**'
+      - '.github/workflows/firmware.yml'
+  push:
+    tags: ['firmware-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firmware-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: firmware/cyd
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: platformio-${{ runner.os }}-${{ hashFiles('firmware/cyd/platformio.ini') }}
+
+      - name: Install PlatformIO and esptool
+        run: pip install platformio==6.2.0 esptool==5.6.0
+
+      - name: Check the tag matches the firmware's version
+        if: startsWith(github.ref, 'refs/tags/firmware-v')
+        run: |
+          want="${GITHUB_REF_NAME#firmware-v}"
+          have="$(sed -n 's/.*-DWB_VERSION=\\"\([0-9.]*\)\\".*/\1/p' platformio.ini)"
+          if [ "$want" != "$have" ]; then
+            echo "::error::The tag says $want but WB_VERSION in platformio.ini is $have. Bump it, then tag again."
+            exit 1
+          fi
+
+      - name: Test (wb_core, wb_bambu)
+        run: pio test -e native
+
+      - name: Build every board
+        run: pio run -e cyd-st7789 -e cyd-ili9341 -e cyd24-st7789
+
+      - name: Package
+        run: python tools/package_release.py --out dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: display-firmware
+          path: firmware/cyd/dist/
+
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/firmware-v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#firmware-v}"
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "Display firmware $version" \
+            --notes "Firmware $version for Wrkbench location displays. Servers offer it under Settings, Displays, to displays on firmware 0.3.0 or later; older ones are flashed from a computer once (firmware/README.md)."
