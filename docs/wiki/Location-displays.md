@@ -70,7 +70,7 @@ New firmware for displays is published from time to time. When there is some for
 Nothing is lost: the display keeps its Wi-Fi, its set-up and what it shows.
 
 - **If the download fails** (the Wi-Fi drops, say), the display keeps its old firmware and the card says why. Press **Update** to try again.
-- **If the new firmware will not start or cannot reach Wrkbench**, the display goes back to the firmware it had when it next restarts, and the card says it went back. It does this by itself; unplug it and plug it in again if it seems stuck.
+- **If the new firmware will not start**, or restarts before it has reached Wrkbench, the display goes back to the firmware it had, and the card says it went back. It does this by itself; unplug it and plug it in again if it seems stuck. Once it has reached Wrkbench, or run for ten minutes, it keeps the new firmware.
 - **Stop waiting** on the card withdraws an update the display has not started yet, such as one for a display that is switched off.
 - Displays on firmware older than 0.3.0 cannot update themselves: flash them from a computer once (see [Flashing it](#flashing-it)), and every update after that comes from Settings.
 

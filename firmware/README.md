@@ -48,8 +48,10 @@ an hour. On a pull request the workflow only builds, so a broken build is seen b
 How an update works: the server adds `update` (version, size, MD5) to a display's overview once an admin asks
 for it, and serves the image once at `GET /api/device/firmware`. The display writes it into the spare app slot,
 checks the MD5 and restarts. The new firmware starts on trial (`verifyRollbackLater` in `main.cpp`) and is only
-kept once the server has answered it (`markGood` in `net.cpp`), or after ten minutes; if it restarts before
-then, the bootloader goes back to the old one. A download that fails is reported to `POST /api/device/update-failed`.
+kept once the server has answered it (`markGood` in `net.cpp`), or after ten minutes running, Wi-Fi or not; if it
+restarts before then, the bootloader goes back to the old one. A download that fails is reported to
+`POST /api/device/update-failed`; one that never started (no connection, or the server could not fetch the file) is
+tried again on a later poll.
 Every poll reports the running version as `fw=`.
 
 ## Working on the screens

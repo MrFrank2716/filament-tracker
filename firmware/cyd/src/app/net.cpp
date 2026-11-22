@@ -44,11 +44,12 @@ uint32_t pollMs = 30000;
 unsigned failures = 0;
 bool timeSynced = false;
 bool updateTried = false;  // an update is tried once per start: the server does not offer it twice either
+const char *const NOTHING_WAITING = "The server had no update waiting";
 
 /**
  * A new firmware boots "on trial": the board goes back to the one before if it restarts before this is called.
- * It is called once the server has answered, so a build that crashes or cannot reach Wrkbench is undone by the
- * next restart; and after ten minutes in any case, so a board that is simply offline keeps what it has.
+ * It is called as soon as the server answers, or after ten minutes running in any case. So a build that crashes,
+ * or restarts before it reaches Wrkbench, is undone; one that runs for ten minutes is kept, even with no Wi-Fi.
  */
 void markGood() {
   static bool done = false;
@@ -228,9 +229,12 @@ void pair(const char *code) {
 
 /**
  * Downloads new firmware into the spare app slot, checking its size and MD5 as it goes. Returns why it failed,
- * or null when the image is in place and the board can restart into it.
+ * or null when the image is in place and the board can restart into it. `later` is set when the download never
+ * started for a passing reason (no connection, or the server could not fetch the file just now): the server
+ * still offers it, so it is simply tried again on a later poll.
  */
-const char *download(const wb::FirmwareOffer &update) {
+const char *download(const wb::FirmwareOffer &update, bool &later) {
+  later = true;
   if (!ensureTime()) return "Could not get the time for a secure connection";
   HTTPClient http;
   if (!open(http, "/api/device/firmware")) return "Could not reach the server";
@@ -238,8 +242,13 @@ const char *download(const wb::FirmwareOffer &update) {
   const int status = http.GET();
   if (status != 200) {
     http.end();
-    return status == 404 ? "The server had no update waiting" : status == 503 ? "The server could not fetch the firmware" : "The download did not start";
+    if (status == 404) {
+      later = false;  // withdrawn, or already started once: nothing to report
+      return NOTHING_WAITING;
+    }
+    return status == 503 ? "The server could not fetch the firmware just now" : "The download did not start";
   }
+  later = false;
   if (http.getSize() != static_cast<int>(update.size)) {
     http.end();
     return "The download was not the expected size";
@@ -294,18 +303,24 @@ void install(const wb::FirmwareOffer &update) {
   snprintf(note, sizeof note, "Firmware %s", update.version);
   post(ResultType::Updating, true, note);
   Serial.printf("Updating to %s (%u bytes), free heap %u\n", update.version, static_cast<unsigned>(update.size), static_cast<unsigned>(ESP.getFreeHeap()));
-  const char *failure = download(update);
+  bool later = false;
+  const char *failure = download(update, later);
   if (!failure) {
     Serial.println("Update written, restarting");
     post(ResultType::Updating, true, "Restarting");
     vTaskDelay(pdMS_TO_TICKS(1500));
     ESP.restart();
   }
-  Serial.printf("Update failed: %s\n", failure);
+  Serial.printf("Update failed: %s%s\n", failure, later ? " (will try again)" : "");
+  post(ResultType::UpdateFailed, false, failure);
+  if (later) {
+    updateTried = false;
+    return;
+  }
+  if (failure == NOTHING_WAITING) return;
   char body[160];
   snprintf(body, sizeof body, "{\"message\":\"%s\"}", failure);
   request("POST", "/api/device/update-failed", body);
-  post(ResultType::UpdateFailed, false, failure);
 }
 
 void poll() {
@@ -396,6 +411,8 @@ void untagged() {
 void task(void *) {
   uint32_t nextPoll = 0;
   for (;;) {
+    // Before anything that waits on the network, so a board without Wi-Fi keeps a build after ten minutes too.
+    if (millis() > 10 * 60000) markGood();
     if (WiFi.status() != WL_CONNECTED) {
       if (currentPhase() != Phase::NeedCode) setStatus(Phase::Connecting);
       vTaskDelay(pdMS_TO_TICKS(500));
@@ -436,7 +453,6 @@ void task(void *) {
       }
       continue;
     }
-    if (millis() > 10 * 60000) markGood();
     if (!settings.token[0]) continue;
     poll();
     nextPoll = millis() + (failures ? wb::backoffMs(failures) : pollMs);
