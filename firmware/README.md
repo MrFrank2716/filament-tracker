@@ -49,16 +49,26 @@ does not answer, and the page falls back to showing the set-up code for a phone.
 ## Releasing firmware
 
 Displays update themselves from Settings (see [Updating its firmware](../docs/wiki/Location-displays.md#updating-its-firmware)).
-To publish a version:
+A release needs no commit and no deploy of the app: the version comes from its tag, and servers look for new
+releases by themselves (at most once an hour). Commit your firmware changes to `main` (through a pull request when
+you want the build checked first), then either:
 
-1. Raise `WB_VERSION` in `cyd/platformio.ini`, the one place it is set, and merge the change.
-2. Tag the merge `firmware-v<that version>` (`git tag firmware-v0.3.1 && git push origin firmware-v0.3.1`).
+- **On GitHub:** Releases → **Draft a new release** → choose a new tag `firmware-v0.3.3` on `main` → Publish. Write
+  what changed in the notes; they stay.
+- **From a terminal:** `git tag firmware-v0.3.3 && git push origin firmware-v0.3.3`.
 
-The **Display firmware** workflow (`.github/workflows/firmware.yml`) checks the tag matches `WB_VERSION`, runs the
-tests, builds every board (`cyd-st7789`, `cyd-ili9341`, `cyd24-st7789`) and publishes a GitHub release with
-`tools/package_release.py`'s output: each board's app image (for updates over Wi-Fi), a full image written at
-offset 0 (for flashing a new board) and `firmware-manifest.json` describing them. Servers find the release within
-an hour. On a pull request the workflow only builds, so a broken build is seen before it is merged.
+The **Display firmware** workflow (`.github/workflows/firmware.yml`) builds that version (it sets
+`WB_FIRMWARE_VERSION`, which `tools/version.py` turns into `WB_VERSION`), runs the tests, builds every board
+(`cyd-st7789`, `cyd-ili9341`, `cyd24-st7789`) and attaches `tools/package_release.py`'s output to the release,
+making it first when the tag was pushed from a terminal: each board's app image (for updates over Wi-Fi), a full
+image written at offset 0 (for flashing a new board) and `firmware-manifest.json` describing them. It takes about
+five minutes; until every file is attached, servers keep offering the release before. A tag with a suffix
+(`firmware-v0.3.3-rc1`) makes a pre-release of 0.3.3, offered only by servers with `FIRMWARE_PRERELEASES=true`
+(staging). Displays are offered a version newer than the one they run, so use a new number each time.
+
+Builds on your own computer use `custom_wb_version` in `cyd/platformio.ini`, or `WB_FIRMWARE_VERSION` when set.
+On a pull request the workflow only builds, so a broken build is seen before it is merged. Commits that only touch
+`firmware/` or `docs/` do not redeploy the app (`railway.json` lists what does).
 
 How an update works: the server adds `update` (version, size, MD5) to a display's overview once an admin asks
 for it, and serves the image once at `GET /api/device/firmware`. The display writes it into the spare app slot,

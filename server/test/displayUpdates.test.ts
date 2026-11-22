@@ -204,3 +204,39 @@ describe('flashing a new display from the browser', () => {
     warn.mockRestore();
   });
 });
+
+describe('finding the newest firmware on GitHub', () => {
+  const manifestFor = (version: string) => ({
+    version,
+    builds: [{ model: 'cyd-28-st7789', name: '2.8 inch', app: { file: `app-${version}.bin`, size: 1, sha256: 'a'.repeat(64), md5: 'b'.repeat(32) } }],
+  });
+  const release = (tag: string, prerelease: boolean, files: string[]) => ({
+    tag_name: tag,
+    draft: false,
+    prerelease,
+    assets: files.map((name) => ({ name, browser_download_url: `https://files.test/${tag}/${name}` })),
+  });
+
+  it('takes the newest release whose files are all attached, and skips pre-releases', async () => {
+    const releases = [
+      // Made on the website a moment ago: its manifest is up, its image not yet.
+      release('firmware-v0.3.5', false, ['firmware-manifest.json']),
+      release('firmware-v0.3.6-rc1', true, ['firmware-manifest.json', 'app-0.3.6.bin']),
+      release('firmware-v0.3.4', false, ['firmware-manifest.json', 'app-0.3.4.bin']),
+      release('bridge-v1.2.0', false, []),
+    ];
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (new URL(url).hostname === 'api.github.com') return new Response(JSON.stringify(releases));
+      const tag = url.split('/')[3];
+      return new Response(JSON.stringify(manifestFor(tag.slice(10).split('-')[0])));
+    });
+    try {
+      const { fromGitHub } = await import('@/services/firmware');
+      const found = await fromGitHub('owner/repo');
+      expect(found?.manifest.version).toBe('0.3.4');
+      expect(found?.locate('app-0.3.4.bin')).toBe('https://files.test/firmware-v0.3.4/app-0.3.4.bin');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

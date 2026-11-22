@@ -9,7 +9,8 @@ Wrkbench server reads (server/src/services/firmware.ts):
 - wrkbench-display-<version>-<model>-full.bin: bootloader, partition table and app in one, written at offset 0
   to flash a new board from the browser.
 
-The version comes from WB_VERSION in platformio.ini, the only place it is set.
+The version is WB_FIRMWARE_VERSION when set (a release's tag), else custom_wb_version in platformio.ini, the same
+as tools/version.py gives the builds.
 """
 
 import argparse
@@ -36,11 +37,14 @@ OFFSETS = [("0x1000", "bootloader.bin"), ("0x8000", "partitions.bin"), ("0xe000"
 
 
 def version() -> str:
-    text = (HERE / "platformio.ini").read_text(encoding="utf-8")
-    match = re.search(r'-DWB_VERSION=\\"(\d+\.\d+\.\d+)\\"', text)
-    if not match:
-        sys.exit("WB_VERSION in platformio.ini must be a plain version such as 0.3.0")
-    return match.group(1)
+    """The version the builds were made with: WB_FIRMWARE_VERSION (a release's tag), else custom_wb_version."""
+    ver = os.environ.get("WB_FIRMWARE_VERSION", "").strip()
+    if not ver:
+        match = re.search(r"^custom_wb_version\s*=\s*(\S+)", (HERE / "platformio.ini").read_text(encoding="utf-8"), re.M)
+        ver = match.group(1) if match else ""
+    if not re.fullmatch(r"\d+\.\d+\.\d+", ver):
+        sys.exit(f"The firmware version must be a plain version such as 0.3.3, not {ver!r}")
+    return ver
 
 
 def describe(path: Path) -> dict:

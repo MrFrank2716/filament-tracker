@@ -95,7 +95,8 @@ const releaseSchema = z.array(
   }),
 );
 
-async function fromGitHub(repo: string): Promise<Catalog | null> {
+/** Exported for tests: the newest complete firmware release of `repo` on GitHub. */
+export async function fromGitHub(repo: string): Promise<{ manifest: FirmwareManifest; locate: (file: string) => string | null } | null> {
   const response = await fetchWithTimeout(`https://api.github.com/repos/${repo}/releases?per_page=30`, 'application/vnd.github+json');
   if (!response.ok) throw new Error(`GitHub answered ${response.status}`);
   const releases = releaseSchema.parse(await response.json());
@@ -103,15 +104,19 @@ async function fromGitHub(repo: string): Promise<Catalog | null> {
   const candidates = releases
     .filter((r) => !r.draft && (env.FIRMWARE_PRERELEASES || !r.prerelease) && /^firmware-v\d+\.\d+\.\d+/.test(r.tag_name))
     .sort((a, b) => (compareVersions(b.tag_name.slice(10).split('-')[0], a.tag_name.slice(10).split('-')[0]) ?? 0));
-  const release = candidates[0];
-  if (!release) return null;
-  const urls = new Map(release.assets.map((asset) => [asset.name, asset.browser_download_url]));
-  const manifestUrl = urls.get('firmware-manifest.json');
-  if (!manifestUrl) return null;
-  const manifestResponse = await fetchWithTimeout(manifestUrl, 'application/json');
-  if (!manifestResponse.ok) throw new Error(`The firmware manifest answered ${manifestResponse.status}`);
-  const manifest = manifestSchema.parse(await manifestResponse.json());
-  return { manifest, locate: (file) => urls.get(file) ?? null };
+  // The newest release whose files are all there. One made on GitHub's website gets its files a few minutes
+  // later from the workflow, manifest first; until then the one before it is offered, never "nothing".
+  for (const release of candidates) {
+    const urls = new Map(release.assets.map((asset) => [asset.name, asset.browser_download_url]));
+    const manifestUrl = urls.get('firmware-manifest.json');
+    if (!manifestUrl) continue;
+    const manifestResponse = await fetchWithTimeout(manifestUrl, 'application/json');
+    if (!manifestResponse.ok) throw new Error(`The firmware manifest answered ${manifestResponse.status}`);
+    const manifest = manifestSchema.parse(await manifestResponse.json());
+    const complete = manifest.builds.every((b) => urls.has(b.app.file) && (!b.full || urls.has(b.full.file)));
+    if (complete) return { manifest, locate: (file) => urls.get(file) ?? null };
+  }
+  return null;
 }
 
 async function loadCatalog(): Promise<Catalog | null> {

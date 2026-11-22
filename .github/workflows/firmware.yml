@@ -1,7 +1,14 @@
 # Builds the location display's firmware for every kind of board and runs its tests on the computer.
-# On a pull request that touches the firmware it only checks that everything builds. On a tag such as
-# firmware-v0.3.0 it also publishes the images as a GitHub release, which Wrkbench servers offer to their
-# displays as an update (Settings, Displays). The tag must match WB_VERSION in firmware/cyd/platformio.ini.
+#
+# On a pull request that touches the firmware it only checks that everything builds.
+#
+# On a tag such as firmware-v0.3.3 it builds that version and publishes it, which Wrkbench servers then offer to
+# their displays (Settings, Displays). The version comes from the tag, so a release needs no commit. Either:
+# - on GitHub, Releases, "Draft a new release", a new tag firmware-v0.3.3 on main, Publish: this workflow then
+#   attaches the images and firmware-manifest.json to that release; or
+# - push the tag (git tag firmware-v0.3.3 && git push origin firmware-v0.3.3): this workflow makes the release.
+# A tag with a suffix (firmware-v0.3.3-rc1) is published as a pre-release of 0.3.3, offered only by servers with
+# FIRMWARE_PRERELEASES=true.
 name: Display firmware
 
 on:
@@ -44,15 +51,18 @@ jobs:
       - name: Install PlatformIO and esptool
         run: pip install platformio==6.2.0 esptool==5.6.0
 
-      - name: Check the tag matches the firmware's version
+      - name: Take the version from the tag
         if: startsWith(github.ref, 'refs/tags/firmware-v')
         run: |
-          want="${GITHUB_REF_NAME#firmware-v}"
-          have="$(sed -n 's/.*-DWB_VERSION=\\"\([0-9.]*\)\\".*/\1/p' platformio.ini)"
-          if [ "$want" != "$have" ]; then
-            echo "::error::The tag says $want but WB_VERSION in platformio.ini is $have. Bump it, then tag again."
+          tag="${GITHUB_REF_NAME#firmware-v}"
+          version="${tag%%-*}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Name the tag firmware-v<version>, such as firmware-v0.3.3 (or firmware-v0.3.3-rc1 for a pre-release)."
             exit 1
           fi
+          echo "WB_FIRMWARE_VERSION=$version" >> "$GITHUB_ENV"
+          if [ "$tag" != "$version" ]; then echo "PRERELEASE=1" >> "$GITHUB_ENV"; fi
+          echo "Building firmware $version"
 
       - name: Test (wb_core, wb_bambu)
         run: pio test -e native
@@ -73,7 +83,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          version="${GITHUB_REF_NAME#firmware-v}"
-          gh release create "$GITHUB_REF_NAME" dist/* \
-            --title "Display firmware $version" \
-            --notes "Firmware $version for Wrkbench location displays. Servers offer it under Settings, Displays, to displays on firmware 0.3.0 or later; older ones are flashed from a computer once (firmware/README.md)."
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            # Made on GitHub's website: keep its title and notes, and add the files.
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* ${PRERELEASE:+--prerelease} \
+              --title "Display firmware $WB_FIRMWARE_VERSION" \
+              --notes "Firmware $WB_FIRMWARE_VERSION for Wrkbench location displays. Servers offer it under Settings, Displays, to displays on firmware 0.3.0 or later; older ones are flashed once (Settings, Displays, Flash a new display)."
+          fi
