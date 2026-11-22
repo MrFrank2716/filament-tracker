@@ -31,6 +31,21 @@ and a tap on the bottom strip toggles colour inversion.
 - **Touch lands in the wrong place:** flash the bring-up env, note the raw readings at the four corners, and set
   `-DWB_TOUCH_X_MIN=… -DWB_TOUCH_X_MAX=… -DWB_TOUCH_Y_MIN=… -DWB_TOUCH_Y_MAX=…`.
 
+## Flashing from the browser
+
+**Settings → Displays → Flash a new display** writes the newest release's full image (`…-full.bin`, served by
+`GET /api/workspaces/:wid/firmware/:model/full`) at offset 0 with [esptool-js](https://github.com/espressif/esptool-js)
+over Web Serial (Chrome and Edge on a computer). With **Set it up over USB too** it then adds the display and sends
+one line of JSON over the same port at 115200 baud:
+
+```json
+{"ssid":"Workshop","password":"…","url":"https://wrkbench.example.com","code":"ABCD-EFGH-2345"}
+```
+
+The firmware (0.3.2 and later) saves it as the phone page would (`setUpOverUsb` in `main.cpp`, checked by
+`wb::parseUsbSetup`), answers `WBSETUP OK` or `WBSETUP ERR <why>` and restarts into its new set-up. Older firmware
+does not answer, and the page falls back to showing the set-up code for a phone.
+
 ## Releasing firmware
 
 Displays update themselves from Settings (see [Updating its firmware](../docs/wiki/Location-displays.md#updating-its-firmware)).

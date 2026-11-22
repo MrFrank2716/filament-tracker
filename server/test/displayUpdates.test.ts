@@ -26,6 +26,9 @@ function publish(version: string, options: { corrupt?: boolean } = {}) {
   const app = randomBytes(4096);
   const file = `wrkbench-display-${version}-cyd-28-st7789.bin`;
   writeFileSync(path.join(dir, file), options.corrupt ? randomBytes(4096) : app);
+  const full = randomBytes(8192);
+  const fullFile = `wrkbench-display-${version}-cyd-28-st7789-full.bin`;
+  writeFileSync(path.join(dir, fullFile), full);
   const manifest = {
     version,
     builds: [
@@ -33,12 +36,13 @@ function publish(version: string, options: { corrupt?: boolean } = {}) {
         model: 'cyd-28-st7789',
         name: '2.8 inch, ST7789 screen',
         app: { file, size: app.length, sha256: createHash('sha256').update(app).digest('hex'), md5: createHash('md5').update(app).digest('hex') },
+        full: { file: fullFile, size: full.length, sha256: createHash('sha256').update(full).digest('hex') },
       },
     ],
   };
   writeFileSync(path.join(dir, 'firmware-manifest.json'), JSON.stringify(manifest));
   resetFirmwareCache();
-  return { bytes: app, md5: manifest.builds[0].app.md5 };
+  return { bytes: app, md5: manifest.builds[0].app.md5, full };
 }
 
 /** A display set up with this model and firmware; returns its id and token. */
@@ -173,6 +177,30 @@ describe('updating a display from Settings', () => {
     expect((await app.raw('GET', '/device/firmware', token)).status).toBe(503);
     // Still offered, so it is fetched again once the file is put right.
     expect((await poll(token, '0.3.0')).body).toHaveProperty('update');
+    warn.mockRestore();
+  });
+});
+
+describe('flashing a new display from the browser', () => {
+  it('lists the boards of the newest firmware and serves their full images to members', async () => {
+    const { full } = publish('0.3.6');
+    const viewer = await member('viewer@example.test', workspaceId, 'viewer');
+    const list = await app.call('GET', ws('/firmware'), viewer);
+    expect(list.body).toEqual({ version: '0.3.6', builds: [{ model: 'cyd-28-st7789', name: '2.8 inch, ST7789 screen', size: full.length }] });
+
+    const image = await app.raw('GET', ws('/firmware/cyd-28-st7789/full'), viewer);
+    expect(image.status).toBe(200);
+    expect(image.headers.get('x-firmware-version')).toBe('0.3.6');
+    expect(Buffer.from(await image.arrayBuffer()).equals(full)).toBe(true);
+    expect((await app.raw('GET', ws('/firmware/cyd-99-unknown/full'), viewer)).status).toBe(404);
+    expect((await app.raw('GET', ws('/firmware/cyd-28-st7789/full'), '')).status).toBe(401);
+  });
+
+  it('lists nothing while no firmware is published', async () => {
+    rmSync(dir, { recursive: true, force: true });
+    resetFirmwareCache();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect((await app.call('GET', ws('/firmware'), admin)).body).toEqual({ version: null, builds: [] });
     warn.mockRestore();
   });
 });

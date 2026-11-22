@@ -240,6 +240,24 @@ void formatAgo(uint32_t seconds, char *out, size_t outLen) {
   else snprintf(out, outLen, "%u h ago", static_cast<unsigned>(seconds / 3600));
 }
 
+const char *parseUsbSetup(const char *json, size_t len, UsbSetup &out) {
+  memset(&out, 0, sizeof out);
+  JsonDocument doc;
+  if (deserializeJson(doc, json, len) != DeserializationError::Ok || !doc.is<JsonObject>()) return "Not readable";
+  const char *ssid = doc["ssid"] | "";
+  const char *password = doc["password"] | "";
+  const size_t ssidLen = strlen(ssid), passwordLen = strlen(password);
+  if (ssidLen == 0 || ssidLen > 32) return "Wi-Fi name must be 1 to 32 characters";
+  // WPA2 wants 8 to 63 characters; an open network has none.
+  if (passwordLen != 0 && (passwordLen < 8 || passwordLen > 63)) return "Wi-Fi password must be 8 to 63 characters";
+  if (!normalizeServer(doc["url"] | "", out.url, sizeof out.url)) return "Server address not usable";
+  if (!normalizeCode(doc["code"] | "", out.code, sizeof out.code)) return "Set-up code not usable";
+  copyText(out.ssid, sizeof out.ssid, ssid);
+  copyText(out.password, sizeof out.password, password);
+  out.insecure = doc["insecure"] | false;
+  return nullptr;
+}
+
 size_t parseHeats(const char *temps, Heat *out, size_t max) {
   size_t count = 0;
   const char *p = temps ? temps : "";
