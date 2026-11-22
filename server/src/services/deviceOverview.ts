@@ -229,7 +229,14 @@ export function displayPrinter(name: string, state: PrinterState | null): Displa
       });
     }
   }
-  const extruder = state.extruders[0]?.temp;
+  // The nozzle printing now: on a dual-nozzle printer the first is the right one, often not the one in use. Readings
+  // saved before `active` existed fall back to the one heating to the highest target. Still worded "Nozzle", so
+  // displays scale its dial the same whichever nozzle it is.
+  const extruder = (
+    state.extruders.find((e) => e.active) ??
+    [...state.extruders].sort((a, b) => (b.temp?.target ?? 0) - (a.temp?.target ?? 0)).find((e) => (e.temp?.target ?? 0) > 0) ??
+    state.extruders[0]
+  )?.temp;
   return {
     ...base,
     state: state.connection === 'live' ? (print?.kind === 'laser' && state.phase === 'printing' ? 'Laser job' : phaseWord) : CONNECTION_WORDS[state.connection],

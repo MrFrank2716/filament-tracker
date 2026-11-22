@@ -90,7 +90,7 @@ Repeat for each printer.
 
 Open **Machines**. The printer's card now shows:
 
-- a grey panel with what it is doing: state, the print's name and progress, time left, nozzle size and type, temperatures, and any error codes (each links to the maker's explanation);
+- a grey panel with what it is doing: state, the print's name and progress, time left, nozzle size and type (on a two-nozzle printer, the one printing now is marked **In use**), temperatures, and any error codes (each links to the maker's explanation);
 - its AMS units as attached hardware, marked "read from the printer", with humidity and temperature;
 - each slot showing what the printer sees in that tray.
 

@@ -677,7 +677,8 @@ export interface PrinterState {
   tool?: string | null;
   bed: PrinterTemp | null;
   chamber: PrinterTemp | null;
-  extruders: Array<{ label: string; temp: PrinterTemp | null; nozzle: { diameter: number | null; type: string | null } }>;
+  /** `active`: the nozzle printing now; missing on readings saved by older versions. */
+  extruders: Array<{ label: string; temp: PrinterTemp | null; nozzle: { diameter: number | null; type: string | null }; active?: boolean }>;
   feeders: PrinterFeeder[];
   errors: PrinterError[];
   wifiSignal: number | null;

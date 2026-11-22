@@ -87,8 +87,11 @@ export interface PrinterReading {
   tool: string | null;
   bed: Temp | null;
   chamber: Temp | null;
-  /** One per extruder: one entry on most printers, two on dual-nozzle ones. */
-  extruders: Array<{ label: string; temp: Temp | null; nozzle: { diameter: number | null; type: string | null } }>;
+  /**
+   * One per extruder: one entry on most printers, two on dual-nozzle ones. `active` is the nozzle printing now
+   * (always the only one on a single-nozzle printer); readings saved before it existed lack it.
+   */
+  extruders: Array<{ label: string; temp: Temp | null; nozzle: { diameter: number | null; type: string | null }; active: boolean }>;
   /** Filament feeders in the printer's own order, then outside spool holders. */
   feeders: Feeder[];
   errors: PrinterError[];
