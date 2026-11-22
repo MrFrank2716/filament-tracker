@@ -26,6 +26,9 @@ and a tap on the bottom strip toggles colour inversion.
   `$env:PLATFORMIO_WORKSPACE_DIR = "C:\wbpio"`), or turn on Windows long paths.
 - **"Wrong boot mode detected" when flashing:** some boards do not enter flashing mode by themselves. Hold the
   **BOOT** button, press and release **RST**, then release BOOT, and flash again.
+- **Everything looks like a negative** (a white background, black spools white) on a 2.8" ST7789 board: its
+  builds switch the panel's inversion off (`WB_INVERT=0` in `cyd-st7789`). If yours looks like a negative the other
+  way round, remove it, or try `cyd-ili9341`.
 - **Red and blue swapped:** set `-DTFT_RGB_ORDER` the other way in the env's build flags. The USB-C board with an
   ST7789 needs `TFT_BGR`, which `cyd-st7789` already sets.
 - **Touch lands in the wrong place:** flash the bring-up env, note the raw readings at the four corners, and set
