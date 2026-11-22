@@ -54,6 +54,14 @@ const schema = z.object({
   // Location displays: small screens on shelves that show what is stored there. DEVICES_ENABLED=false refuses them.
   DEVICES_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
   DEVICE_MAX_PER_WORKSPACE: z.coerce.number().int().min(0).max(100).default(5),
+  // Firmware updates for displays, from Settings. The newest build is looked up among the GitHub releases of
+  // FIRMWARE_REPO tagged firmware-v*, or read from FIRMWARE_DIR (a folder holding firmware-manifest.json and its
+  // files) when that is set. FIRMWARE_UPDATES=false offers none. FIRMWARE_PRERELEASES=true also offers releases
+  // marked as pre-releases, for trying a build on a test server first.
+  FIRMWARE_UPDATES: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
+  FIRMWARE_REPO: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'FIRMWARE_REPO must look like owner/name').default('hussxin5046/filament-tracker'),
+  FIRMWARE_DIR: optionalText,
+  FIRMWARE_PRERELEASES: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   UPLOAD_EXTENSIONS: z.string().default('3mf,stl,step,stp,obj,amf,gcode,nc,svg,dxf,pdf,png,jpg,jpeg,txt'),
   // Backups to S3-compatible storage somewhere else (Cloudflare R2, Backblaze B2, Amazon S3, MinIO ...).
   // Set the endpoint, bucket and both keys to switch them on; with none set there are no backups.

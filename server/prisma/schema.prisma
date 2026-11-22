@@ -736,6 +736,12 @@ model Device {
   version          String    @default("")
   /// Whether its tag reader answered on the last poll.
   hasReader        Boolean   @default(false)
+  /// The firmware version an admin asked it to install. Cleared once it reports that version, or when the update fails.
+  updateTo         String?
+  /// When it started downloading that firmware: an update is offered once, so a build that fails is not retried in a loop.
+  updateStartedAt  DateTime?
+  /// Why the last update did not finish, for its card in Settings. Cleared by the next update or a successful one.
+  updateError      String?
   lastSeenAt       DateTime?
   createdAt        DateTime  @default(now())
 

@@ -31,6 +31,29 @@ and a tap on the bottom strip toggles colour inversion.
 - **Touch lands in the wrong place:** flash the bring-up env, note the raw readings at the four corners, and set
   `-DWB_TOUCH_X_MIN=… -DWB_TOUCH_X_MAX=… -DWB_TOUCH_Y_MIN=… -DWB_TOUCH_Y_MAX=…`.
 
+## Releasing firmware
+
+Displays update themselves from Settings (see [Updating its firmware](../docs/wiki/Location-displays.md#updating-its-firmware)).
+To publish a version:
+
+1. Raise `WB_VERSION` in `cyd/platformio.ini`, the one place it is set, and merge the change.
+2. Tag the merge `firmware-v<that version>` (`git tag firmware-v0.3.1 && git push origin firmware-v0.3.1`).
+
+The **Display firmware** workflow (`.github/workflows/firmware.yml`) checks the tag matches `WB_VERSION`, runs the
+tests, builds every board (`cyd-st7789`, `cyd-ili9341`, `cyd24-st7789`) and publishes a GitHub release with
+`tools/package_release.py`'s output: each board's app image (for updates over Wi-Fi), a full image written at
+offset 0 (for flashing a new board) and `firmware-manifest.json` describing them. Servers find the release within
+an hour. On a pull request the workflow only builds, so a broken build is seen before it is merged.
+
+How an update works: the server adds `update` (version, size, MD5) to a display's overview once an admin asks
+for it, and serves the image once at `GET /api/device/firmware`. The display writes it into the spare app slot,
+checks the MD5 and restarts. The new firmware starts on trial (`verifyRollbackLater` in `main.cpp`) and is only
+kept once the server has answered it (`markGood` in `net.cpp`), or after ten minutes running, Wi-Fi or not; if it
+restarts before then, the bootloader goes back to the old one. A download that fails is reported to
+`POST /api/device/update-failed`; one that never started (no connection, or the server could not fetch the file) is
+tried again on a later poll.
+Every poll reports the running version as `fw=`.
+
 ## Working on the screens
 
 - **See the screen from the computer:** `python tools/screenshot.py COM3 shot.png` (any port name) asks the display
@@ -48,7 +71,7 @@ and a tap on the bottom strip toggles colour inversion.
 | Path | What it is |
 |---|---|
 | `cyd/platformio.ini` | Board, libraries (pinned) and the panel variants |
-| `cyd/src/app/` | The display: `main` (start-up), `display` (screen, touch, LVGL), `portal` (set-up page for a phone), `net` (server, on its own task), `ui` (screens), `store` (saved settings), `reader_pn532` (optional tag reader) |
+| `cyd/src/app/` | The display: `main` (start-up), `display` (screen, touch, LVGL), `portal` (set-up page for a phone), `net` (server and firmware updates, on its own task), `ui` (screens), `store` (saved settings), `reader_pn532` (optional tag reader) |
 | `cyd/src/bringup/` | Colour bars and touch test for a new board |
 | `cyd/lib/wb_core/` | Parsing and tidying with no Arduino code in it, so it is tested on a computer |
 | `cyd/lib/wb_bambu/` | The keys that unlock a Bambu Lab spool tag (SHA-256, HMAC and HKDF with no Arduino code), also tested on a computer |

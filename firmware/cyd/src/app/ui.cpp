@@ -486,6 +486,58 @@ void onNewCode(lv_event_t *) {
   showCode(nullptr);
 }
 
+constexpr int TRAYS_TOP = H - 36 - 22;  // where the spool boxes along the bottom start
+
+/** The top of a heater's dial scale, in C. */
+int heatScale(const char *label) {
+  if (!strcmp(label, "Nozzle")) return 350;
+  if (!strcmp(label, "Bed")) return 120;
+  if (!strcmp(label, "Chamber")) return 70;
+  return 100;
+}
+
+/**
+ * One heater: a 270-degree dial with the temperature in the middle, and beside it the name and what it is
+ * set to. Blue while heating, green at its target, orange while hot with no target (cooling), grey when cold.
+ */
+void addDial(lv_obj_t *s, const wb::Heat &h, int x, int y, int size, int cellW) {
+  lv_color_t colour;
+  if (h.target > 0) colour = abs(h.current - h.target) <= 5 ? OK : ACCENT;
+  else colour = h.current >= 50 ? WARN : lv_color_hex(0x55606C);
+
+  lv_obj_t *arc = lv_arc_create(s);
+  lv_obj_set_size(arc, size, size);
+  lv_obj_align(arc, LV_ALIGN_TOP_LEFT, x, y);
+  lv_arc_set_rotation(arc, 135);
+  lv_arc_set_bg_angles(arc, 0, 270);
+  lv_arc_set_range(arc, 0, heatScale(h.label));
+  lv_arc_set_value(arc, LV_CLAMP(0, h.current, heatScale(h.label)));
+  lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_style_bg_opa(arc, LV_OPA_TRANSP, LV_PART_KNOB);
+  lv_obj_set_style_pad_all(arc, 0, LV_PART_KNOB);
+  lv_obj_set_style_arc_width(arc, 6, LV_PART_MAIN);
+  lv_obj_set_style_arc_width(arc, 6, LV_PART_INDICATOR);
+  lv_obj_set_style_arc_color(arc, lv_color_hex(0x2A3038), LV_PART_MAIN);
+  lv_obj_set_style_arc_color(arc, colour, LV_PART_INDICATOR);
+
+  char text[24];
+  snprintf(text, sizeof text, "%d\xC2\xB0", h.current);
+  lv_obj_t *value = label(arc, text, size >= 56 ? &lv_font_montserrat_20 : &lv_font_montserrat_14);
+  lv_obj_center(value);
+
+  const int textX = x + size + 8, textW = cellW - size - 12;
+  lv_obj_t *name = label(s, h.label, &lv_font_montserrat_14, TEXT);
+  lv_obj_set_width(name, textW);
+  oneLine(name);
+  lv_obj_align(name, LV_ALIGN_TOP_LEFT, textX, y + size / 2 - 18);
+  if (h.target > 0) snprintf(text, sizeof text, "Set %d\xC2\xB0", h.target);
+  else snprintf(text, sizeof text, "Off");
+  lv_obj_t *set = label(s, text, &lv_font_montserrat_14, h.target > 0 ? colour : MUTED);
+  lv_obj_set_width(set, textW);
+  oneLine(set);
+  lv_obj_align(set, LV_ALIGN_TOP_LEFT, textX, y + size / 2 + 1);
+}
+
 /** The printer beside the display: what it is doing, its temperatures, any error, and the spools loaded. */
 void showPrinter() {
   if (!overview || !overview->hasPrinter) {
@@ -525,21 +577,46 @@ void showPrinter() {
     lv_obj_align(bar, LV_ALIGN_TOP_LEFT, 10, y);
     y += 14;
   }
-  // Job, layer and temperatures, one muted line each when known.
-  const char *lines[] = {p.job, p.layer, p.temps};
-  for (const char *text : lines) {
-    if (!text[0]) continue;
-    lv_obj_t *l = label(s, text, &lv_font_montserrat_14, text == p.job ? TEXT : MUTED);
+  // The job on one line, with the layer at its right.
+  if (p.job[0] || p.layer[0]) {
+    int layerW = 0;
+    if (p.layer[0]) {
+      lv_obj_t *l = label(s, p.layer, &lv_font_montserrat_14, MUTED);
+      lv_obj_align(l, LV_ALIGN_TOP_RIGHT, -10, y);
+      lv_obj_update_layout(l);
+      layerW = lv_obj_get_width(l) + 10;
+    }
+    if (p.job[0]) {
+      lv_obj_t *j = label(s, p.job, &lv_font_montserrat_14, TEXT);
+      lv_obj_set_width(j, W - 20 - layerW);
+      oneLine(j);
+      lv_obj_align(j, LV_ALIGN_TOP_LEFT, 10, y);
+    }
+    y += 19;
+  }
+
+  // Temperatures as dials, sized to the room left above the spools; as text if the line is not understood.
+  wb::Heat heats[wb::MAX_HEATS];
+  const size_t heatCount = wb::parseHeats(p.temps, heats, wb::MAX_HEATS);
+  const int bottom = p.trayCount ? TRAYS_TOP : H - 6;
+  const int errorRoom = p.error[0] ? 34 : 0;
+  if (heatCount) {
+    const int size = LV_CLAMP(44, bottom - 4 - errorRoom - y, 64);
+    const int cellW = (W - 20) / static_cast<int>(heatCount);
+    for (size_t i = 0; i < heatCount; i++) addDial(s, heats[i], 10 + static_cast<int>(i) * cellW, y, size, cellW);
+    y += size + 4;
+  } else if (p.temps[0]) {
+    lv_obj_t *l = label(s, p.temps, &lv_font_montserrat_14, MUTED);
     lv_obj_set_width(l, W - 20);
     oneLine(l);
     lv_obj_align(l, LV_ALIGN_TOP_LEFT, 10, y);
     y += 19;
   }
-  if (p.error[0]) {
+  if (p.error[0] && bottom - y >= 17) {
     lv_obj_t *e = label(s, p.error, &lv_font_montserrat_14, DANGER);
-    lv_obj_set_width(e, W - 20);
-    lv_label_set_long_mode(e, LV_LABEL_LONG_WRAP);
-    lv_obj_align(e, LV_ALIGN_TOP_LEFT, 10, y + 2);
+    lv_obj_set_size(e, W - 20, LV_MIN(34, (bottom - y) / 17 * 17));
+    lv_label_set_long_mode(e, LV_LABEL_LONG_DOT);
+    lv_obj_align(e, LV_ALIGN_TOP_LEFT, 10, y);
   }
 
   // Spools along the bottom: colour, its place, the material; the one feeding now is outlined.
@@ -809,6 +886,15 @@ void handle(net::Result &result) {
       } else {
         showUntagged();
       }
+      break;
+    case net::ResultType::Updating:
+      closeCard();
+      showMessageScreen(View::Busy, "Updating firmware", result.message, true);
+      break;
+    case net::ResultType::UpdateFailed:
+      // Back to the location; the next overview would not come while nothing changed.
+      if (overview) showOverview();
+      toast(result.message, lv_color_hex(0x5A2328));
       break;
     case net::ResultType::Action:
       closeCard();

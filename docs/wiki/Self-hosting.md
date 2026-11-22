@@ -168,6 +168,10 @@ Once a day the app removes those old files and looks at the disk. When less than
 | --- | --- | --- |
 | `DEVICES_ENABLED` | `true` | `false` refuses [location displays](Location-displays.md). Must be exactly `true` or `false` |
 | `DEVICE_MAX_PER_WORKSPACE` | `5` | Most displays per workspace |
+| `FIRMWARE_UPDATES` | `true` | `false` stops offering [firmware updates](Location-displays.md#updating-its-firmware) to displays |
+| `FIRMWARE_REPO` | `hussxin5046/filament-tracker` | The GitHub repository whose `firmware-v*` releases are offered to displays. The server looks for a new one at most once an hour |
+| `FIRMWARE_DIR` | (none) | A folder holding `firmware-manifest.json` and its images (from a release, or `tools/package_release.py`), used instead of GitHub: for a server with no internet access, or your own builds |
+| `FIRMWARE_PRERELEASES` | `false` | `true` also offers releases marked as pre-releases, for trying a build on a test server first |
 
 A display is told the server's address from `APP_URL` (or `CLIENT_ORIGIN`). On a local network set it to an address other devices reach, such as `http://192.168.1.20:4000`, not `localhost`.
 

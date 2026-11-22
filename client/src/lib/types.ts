@@ -582,6 +582,17 @@ export interface Device {
   online: boolean;
   paired: boolean;
   pairingExpiresAt: string | null;
+  /** The firmware version it was asked to install, until it reports running it or the update fails. */
+  updateTo: string | null;
+  /** Why the last update did not finish. */
+  updateError: string | null;
+  /** The newest published firmware for its board, and whether it can be updated from Settings. */
+  firmware: {
+    latest: string | null;
+    updateAvailable: boolean;
+    /** Why it cannot be updated from here, when it cannot. */
+    blocked: string | null;
+  };
   /** Only in the answer to adding a display or asking for a new code. */
   pairing?: DevicePairing;
 }

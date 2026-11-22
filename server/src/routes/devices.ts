@@ -11,6 +11,7 @@ import { isStickerTag } from '@/integrations/spoolMatch';
 import { rateLimit } from '@/rateLimit';
 import { notifyWorkspaceSoon } from '@/realtime';
 import { describeActivity, logSystemActivity } from '@/services/activity';
+import { boardOf, buildFor, compareVersions, firmwareFile, latestFirmware, MIN_UPDATABLE, type FirmwareManifest } from '@/services/firmware';
 import { buildOverview, displayPrinter, displayRow, forDisplay, itemSelect, locationTree, MAX_ROWS, POLL_SECONDS } from '@/services/deviceOverview';
 import { itemForKey, readTagKey, readUid, spoolKey, tagIdFor } from '@/services/deviceTags';
 import { appUrl } from '@/services/mail';
@@ -56,6 +57,7 @@ async function issuePairing(deviceId: string) {
 
 const deviceSelect = {
   id: true, name: true, kind: true, locationId: true, machineId: true, canWrite: true, model: true, version: true, hasReader: true,
+  updateTo: true, updateError: true,
   lastSeenAt: true, createdAt: true, tokenHash: true, pairingExpiresAt: true,
   location: { select: { name: true } },
   machine: { select: { name: true } },
@@ -65,8 +67,25 @@ type DeviceRow = Prisma.DeviceGetPayload<{ select: typeof deviceSelect }>;
 
 const isOnline = (lastSeenAt: Date | null) => lastSeenAt !== null && Date.now() - lastSeenAt.getTime() < ONLINE_MS;
 
-const presentDevice = ({ tokenHash, pairingExpiresAt, location, machine, ...device }: DeviceRow) => ({
+/**
+ * What Settings says about a display's firmware: the newest build for its board, and whether it can be updated
+ * from here (or why not, in a few words).
+ */
+function firmwareOf(device: Pick<DeviceRow, 'model' | 'version' | 'tokenHash'>, manifest: FirmwareManifest | null) {
+  const build = manifest?.builds.find((b) => b.model === boardOf(device.model));
+  const latest = manifest && build ? manifest.version : null;
+  const newer = latest ? compareVersions(latest, device.version) : null;
+  let blocked: string | null = null;
+  if (latest && newer !== null && newer > 0) {
+    if (device.tokenHash === null) blocked = 'Set it up first';
+    else if ((compareVersions(device.version, MIN_UPDATABLE) ?? -1) < 0) blocked = 'Flash it from a computer once to get updates from here';
+  }
+  return { latest, updateAvailable: newer !== null && newer > 0, blocked };
+}
+
+const presentDevice = ({ tokenHash, pairingExpiresAt, location, machine, ...device }: DeviceRow, manifest: FirmwareManifest | null = null) => ({
   ...device,
+  firmware: firmwareOf({ ...device, tokenHash }, manifest),
   locationName: location?.name ?? null,
   machineName: machine?.name ?? null,
   online: tokenHash !== null && isOnline(device.lastSeenAt),
@@ -75,13 +94,14 @@ const presentDevice = ({ tokenHash, pairingExpiresAt, location, machine, ...devi
   pairingExpiresAt: pairingExpiresAt && pairingExpiresAt > new Date() ? pairingExpiresAt : null,
 });
 
-const loadDevice = async (id: string) => presentDevice(await prisma.device.findUniqueOrThrow({ where: { id }, select: deviceSelect }));
+const loadDevice = async (id: string) => presentDevice(await prisma.device.findUniqueOrThrow({ where: { id }, select: deviceSelect }), await latestFirmware());
 
 export function registerDeviceRoutes(router: Router): void {
   router.get('/devices', async (req, res) => {
     requireEnabled();
     const devices = await prisma.device.findMany({ where: { workspaceId: req.workspaceId }, orderBy: { createdAt: 'asc' }, select: deviceSelect });
-    res.json(devices.map(presentDevice));
+    const manifest = await latestFirmware();
+    res.json(devices.map((device) => presentDevice(device, manifest)));
   });
 
   router.post('/devices', async (req, res) => {
@@ -115,6 +135,32 @@ export function registerDeviceRoutes(router: Router): void {
     const id = param(req, 'id');
     await assertInWorkspace(prisma, req.workspaceId, { location: input.locationId, machine: input.machineId });
     const updated = await prisma.device.updateMany({ where: { id, workspaceId: req.workspaceId }, data: input });
+    if (updated.count !== 1) throw notFound('Display');
+    res.json(await loadDevice(id));
+  });
+
+  /**
+   * Asks the display to install the newest firmware for its board. It picks this up on its next poll (within
+   * half a minute), downloads it, restarts and reports the new version; the card shows it updating until then.
+   */
+  router.post('/devices/:id/update', async (req, res) => {
+    requireEnabled();
+    const id = param(req, 'id');
+    const device = await prisma.device.findFirst({ where: { id, workspaceId: req.workspaceId }, select: deviceSelect });
+    if (!device) throw notFound('Display');
+    const firmware = firmwareOf(device, await latestFirmware());
+    if (!firmware.latest || !firmware.updateAvailable) throw new HttpError(409, 'There is no newer firmware for this display');
+    if (firmware.blocked) throw new HttpError(409, firmware.blocked);
+    await prisma.device.update({ where: { id }, data: { updateTo: firmware.latest, updateStartedAt: null, updateError: null } });
+    describeActivity(`Asked display ${device.name} to update its firmware to ${firmware.latest}`, { type: 'device', id });
+    res.json(await loadDevice(id));
+  });
+
+  /** Withdraws an update the display has not started yet, or stops waiting for one that never finished. */
+  router.delete('/devices/:id/update', async (req, res) => {
+    requireEnabled();
+    const id = param(req, 'id');
+    const updated = await prisma.device.updateMany({ where: { id, workspaceId: req.workspaceId }, data: { updateTo: null, updateStartedAt: null } });
     if (updated.count !== 1) throw notFound('Display');
     res.json(await loadDevice(id));
   });
@@ -156,6 +202,7 @@ const pairInput = z.object({
 
 const authedSelect = {
   id: true, workspaceId: true, name: true, locationId: true, machineId: true, canWrite: true, hasReader: true, lastSeenAt: true,
+  model: true, version: true, updateTo: true, updateStartedAt: true,
   workspace: { select: { name: true } },
   machine: { select: { name: true } },
 } as const;
@@ -175,14 +222,50 @@ const deviceAuth: RequestHandler = async (req, res, next) => {
   next();
 };
 
-/** Note that the display is alive, at most once a minute. Settings is told when it comes back, so its card turns green. */
-async function touch(device: AuthedDevice, hasReader: boolean | null): Promise<void> {
+/**
+ * Note that the display is alive, at most once a minute, and the firmware version it runs whenever that changes.
+ * Settings is told when it comes back or changed, so its card turns green or shows the new version.
+ */
+async function touch(device: AuthedDevice, hasReader: boolean | null, version: string | null): Promise<void> {
   const stale = !device.lastSeenAt || Date.now() - device.lastSeenAt.getTime() > TOUCH_MS;
   const readerChanged = hasReader !== null && hasReader !== device.hasReader;
-  if (!stale && !readerChanged) return;
+  const versionChanged = version !== null && version !== device.version;
+  if (!stale && !readerChanged && !versionChanged) return;
   const wasOnline = isOnline(device.lastSeenAt);
-  await prisma.device.update({ where: { id: device.id }, data: { lastSeenAt: new Date(), ...(hasReader === null ? {} : { hasReader }) } });
-  if (!wasOnline || readerChanged) notifyWorkspaceSoon(device.workspaceId);
+  await prisma.device.update({
+    where: { id: device.id },
+    data: { lastSeenAt: new Date(), ...(hasReader === null ? {} : { hasReader }), ...(versionChanged ? { version } : {}) },
+  });
+  if (versionChanged) device.version = version;
+  if (!wasOnline || readerChanged || versionChanged) notifyWorkspaceSoon(device.workspaceId);
+}
+
+/** How long a display may take from fetching new firmware to reporting it before the update counts as failed. */
+const UPDATE_MS = 10 * 60_000;
+
+/**
+ * Where an update asked for in Settings stands, from what the display just reported, and what to offer it.
+ * Offered once: after the display has fetched the file it is not offered again, so a build that fails to start
+ * (the display goes back to its old firmware by itself) is never retried in a loop.
+ */
+async function updateFor(device: AuthedDevice) {
+  if (!device.updateTo) return null;
+  const finish = async (updateError: string | null, summary: string) => {
+    await prisma.device.update({ where: { id: device.id }, data: { updateTo: null, updateStartedAt: null, updateError } });
+    await logSystemActivity({ workspaceId: device.workspaceId, actor: device.name, action: 'device.update', entityType: 'device', entityId: device.id, summary });
+    notifyWorkspaceSoon(device.workspaceId);
+    return null;
+  };
+  if (device.version === device.updateTo) return finish(null, `Display ${device.name} now runs firmware ${device.version}`);
+  if (device.updateStartedAt) {
+    if (Date.now() - device.updateStartedAt.getTime() < UPDATE_MS) return null;
+    return finish(`It went back to firmware ${device.version || 'it had'}`, `Display ${device.name} could not install firmware ${device.updateTo}`);
+  }
+  const found = await buildFor(device.model);
+  if (!found || found.version !== device.updateTo) {
+    return finish('That firmware is no longer offered', `Display ${device.name} was not updated: firmware ${device.updateTo} is no longer offered`);
+  }
+  return { version: found.version, size: found.build.app.size, md5: found.build.app.md5 };
 }
 
 function requireWrite(device: AuthedDevice): void {
@@ -224,15 +307,44 @@ deviceRouter.use(rateLimit(120, 60_000), deviceAuth);
 deviceRouter.get('/overview', async (req, res) => {
   const device = deviceOf(res);
   const nfc = req.query.nfc === '1' ? true : req.query.nfc === '0' ? false : null;
-  await touch(device, nfc);
+  const fw = typeof req.query.fw === 'string' && /^[\w.+-]{1,40}$/.test(req.query.fw) ? req.query.fw : null;
+  await touch(device, nfc, fw);
+  const update = await updateFor(device);
   const asked = typeof req.query.location === 'string' && req.query.location ? req.query.location : null;
   if (asked && !(await prisma.location.count({ where: { id: asked, workspaceId: device.workspaceId } }))) throw notFound('Location');
-  const overview = await buildOverview(prisma, device, asked ?? device.locationId, printerBeside(device));
+  const overview = await buildOverview(prisma, device, asked ?? device.locationId, printerBeside(device), update);
   if (typeof req.query.since === 'string' && req.query.since === overview.v) {
     res.status(304).end();
     return;
   }
   res.json(overview);
+});
+
+/** The firmware an update asked for, as one binary. Fetching it starts the update: it is not offered again. */
+deviceRouter.get('/firmware', async (_req, res) => {
+  const device = deviceOf(res);
+  const found = device.updateTo && !device.updateStartedAt ? await buildFor(device.model) : null;
+  if (!found || found.version !== device.updateTo) throw new HttpError(404, 'No update is waiting for this display');
+  const bytes = await firmwareFile(found.build.app);
+  if (!bytes) throw new HttpError(503, 'The firmware cannot be fetched just now. It will be tried again.');
+  await prisma.device.update({ where: { id: device.id }, data: { updateStartedAt: new Date() } });
+  res.set({ 'Content-Type': 'application/octet-stream', 'Content-Length': String(bytes.length), 'Cache-Control': 'no-store' });
+  res.end(bytes);
+});
+
+const failedInput = z.object({ message: z.string().trim().min(1).max(120) });
+
+/** The display could not install the update (a broken download, say); it keeps running what it had. */
+deviceRouter.post('/update-failed', async (req, res) => {
+  const device = deviceOf(res);
+  const { message } = parse(failedInput, req.body);
+  if (device.updateTo) {
+    const why = forDisplay(message, 120);
+    await prisma.device.update({ where: { id: device.id }, data: { updateTo: null, updateStartedAt: null, updateError: why } });
+    await logSystemActivity({ workspaceId: device.workspaceId, actor: device.name, action: 'device.update', entityType: 'device', entityId: device.id, summary: `Display ${device.name} could not install firmware ${device.updateTo}: ${why}` });
+    notifyWorkspaceSoon(device.workspaceId);
+  }
+  res.status(204).end();
 });
 
 /** The status of the printer chosen as "beside" this display, from the live readings the bridge sends. */

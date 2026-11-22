@@ -3,6 +3,7 @@
 #include <ArduinoJson.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 
@@ -112,6 +113,16 @@ bool parseOverview(const char *json, size_t len, Overview &out) {
   JsonObjectConst printer = doc["printer"];
   out.hasPrinter = !printer.isNull();
   if (out.hasPrinter) readPrinter(printer, out.printer);
+  // An update is only taken when it is whole: a version, a size that fits an app slot and a full MD5.
+  JsonObjectConst update = doc["update"];
+  const char *md5 = update["md5"] | "";
+  const uint32_t size = update["size"] | 0u;
+  if (!update.isNull() && update["version"].is<const char *>() && size > 0 && size <= MAX_FIRMWARE && strlen(md5) == 32) {
+    out.hasUpdate = true;
+    copyText(out.update.version, sizeof out.update.version, update["version"]);
+    out.update.size = size;
+    copyText(out.update.md5, sizeof out.update.md5, md5);
+  }
   return true;
 }
 
@@ -227,6 +238,40 @@ void formatAgo(uint32_t seconds, char *out, size_t outLen) {
   if (seconds < 60) snprintf(out, outLen, "just now");
   else if (seconds < 3600) snprintf(out, outLen, "%u min ago", static_cast<unsigned>(seconds / 60));
   else snprintf(out, outLen, "%u h ago", static_cast<unsigned>(seconds / 3600));
+}
+
+size_t parseHeats(const char *temps, Heat *out, size_t max) {
+  size_t count = 0;
+  const char *p = temps ? temps : "";
+  while (*p) {
+    while (*p == ' ') p++;
+    if (!*p) break;
+    if (count == max) return 0;
+    Heat &h = out[count];
+    // The label: letters up to the space before the number.
+    size_t n = 0;
+    while (isalpha(static_cast<unsigned char>(*p))) {
+      if (n + 1 < sizeof h.label) h.label[n++] = *p;
+      p++;
+    }
+    h.label[n] = 0;
+    if (!n || *p != ' ') return 0;
+    p++;
+    if (!isdigit(static_cast<unsigned char>(*p))) return 0;
+    char *end = nullptr;
+    h.current = static_cast<int>(strtol(p, &end, 10));
+    p = end;
+    h.target = 0;
+    if (*p == '/') {
+      if (!isdigit(static_cast<unsigned char>(p[1]))) return 0;
+      h.target = static_cast<int>(strtol(p + 1, &end, 10));
+      p = end;
+    }
+    if (p[0] != ' ' || p[1] != 'C' || (p[2] && p[2] != ' ')) return 0;
+    p += 2;
+    count++;
+  }
+  return count;
 }
 
 }  // namespace wb
