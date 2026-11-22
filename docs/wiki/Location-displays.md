@@ -6,7 +6,7 @@ Give it a printer and it also shows what that printer is doing. With an optional
 
 ## What to buy
 
-- **The display**: an ESP32-2432S028R, sold as the "Cheap Yellow Display" or CYD. Get the **2.8 inch version with a USB-C port**. They cost little and need no soldering.
+- **The display**: an ESP32-2432S028R, sold as the "Cheap Yellow Display" or CYD. Get the **2.8 inch version with a USB-C port**. They cost little and need no soldering. A **2.4 inch CYD with an ST7789 IPS screen** works too: flash `cyd24-st7789` instead.
 - **A USB-C cable and a USB power supply** to run it. A phone charger is enough.
 - **Optional, a tag reader**: a PN532 NFC module (the common red or blue board) and four jumper wires. Set the module's switches to **I2C**. Readers on SPI, such as the RC522, are not supported: the CYD has no free pins for them.
 
@@ -45,7 +45,7 @@ If the code was mistyped or has run out, the display shows a keyboard: make a ne
 
 When a display has a **Printer beside it** (see below), a line under the top bar shows that printer: a dot, its state and, while it prints, how far along it is and the time left, with a thin progress line. The dot is blue while it works, green when idle or finished, orange when paused or warning, red when it has stopped or reports a fault, and grey when it is not reporting (the line then says why, such as "Bridge offline"). Updates come every 15 seconds while it prints.
 
-Tap that line for the printer's own screen: progress and time left, the job's name, the layer, nozzle and bed temperatures, the printer's worst error in red, and up to eight spools along the bottom (A1 is AMS 1 slot 1) with the one feeding now outlined. Tap the top bar to go back; it also goes back by itself after two minutes.
+Tap that line for the printer's own screen: progress and time left, the job's name and layer, a dial each for the nozzle and bed temperatures (blue while heating, green at the set temperature, orange while still hot with the heater off), the printer's worst error in red, and up to eight spools along the bottom (A1 is AMS 1 slot 1) with the one feeding now outlined. Tap the top bar to go back; it also goes back by itself after two minutes.
 
 The status comes from a [connected printer](Connecting-printers.md), so it needs a bridge. A machine that is not connected to one shows "Not connected".
 
@@ -57,6 +57,24 @@ In **Settings**, **Displays**, each display has:
 - **Printer beside it**: its status shows on the display (see below), and it is the printer used for "going into the printer" when a spool is tapped.
 - **Allow changes from this display**: on by default. When it is off, tapping a tag only shows the spool.
 - **Rename**, **New set-up code** (to set it up again, say after it was reset) and **Remove**. Removing a display stops it at once: its screen goes back to asking for a code.
+- Its **firmware** version, and **Update to …** when newer firmware has been published for its kind of board.
+
+## Updating its firmware
+
+New firmware for displays is published from time to time. When there is some for a display, its card in **Settings**, **Displays** says so and has an **Update to 0.3.1** button (for admins and owners).
+
+1. Press **Update**. The display picks it up within half a minute, while it is connected.
+2. Its screen shows **Updating firmware** and how far along the download is, then it restarts on the new firmware. It takes a minute or two; leave it plugged in.
+3. Its card shows the new version once the display is back.
+
+Nothing is lost: the display keeps its Wi-Fi, its set-up and what it shows.
+
+- **If the download fails** (the Wi-Fi drops, say), the display keeps its old firmware and the card says why. Press **Update** to try again.
+- **If the new firmware will not start**, or restarts before it has reached Wrkbench, the display goes back to the firmware it had, and the card says it went back. It does this by itself; unplug it and plug it in again if it seems stuck. Once it has reached Wrkbench, or run for ten minutes, it keeps the new firmware.
+- **Stop waiting** on the card withdraws an update the display has not started yet, such as one for a display that is switched off.
+- Displays on firmware older than 0.3.0 cannot update themselves: flash them from a computer once (see [Flashing it](#flashing-it)), and every update after that comes from Settings.
+
+On your own server, see [Self-hosting](Self-hosting.md) for where the firmware comes from.
 
 ## The tag reader
 

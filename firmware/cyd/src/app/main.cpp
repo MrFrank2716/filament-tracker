@@ -17,6 +17,10 @@
 #define WB_VERSION "dev"
 #endif
 
+// New firmware starts on trial: the board goes back to the one before if it restarts before net.cpp confirms it
+// (once Wrkbench has answered). The Arduino core confirms every start at once unless this says otherwise.
+extern "C" bool verifyRollbackLater() { return true; }
+
 namespace {
 
 store::Settings settings;

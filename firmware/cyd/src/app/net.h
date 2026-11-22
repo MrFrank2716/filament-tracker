@@ -55,6 +55,8 @@ enum class ResultType : uint8_t {
   Paired,        // message: the display's name
   PairFailed,    // message: why
   Unauthorized,  // the token stopped working: removed or set up again elsewhere
+  Updating,      // new firmware is being installed; message: how far along. The board restarts when done
+  UpdateFailed,  // message: why; the display keeps running what it had
 };
 
 struct Result {

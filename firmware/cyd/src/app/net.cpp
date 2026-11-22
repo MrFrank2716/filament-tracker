@@ -4,6 +4,8 @@
 #include <HTTPClient.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <Update.h>
+#include <esp_ota_ops.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
@@ -13,6 +15,9 @@
 
 #include "certs.h"
 
+#ifndef WB_BOARD
+#define WB_BOARD "28"  // screen size in tenths of an inch, for the model name the server records
+#endif
 #ifndef WB_VERSION
 #define WB_VERSION "dev"
 #endif
@@ -38,6 +43,24 @@ char browsing[32] = "";
 uint32_t pollMs = 30000;
 unsigned failures = 0;
 bool timeSynced = false;
+bool updateTried = false;  // an update is tried once per start: the server does not offer it twice either
+const char *const NOTHING_WAITING = "The server had no update waiting";
+
+/**
+ * A new firmware boots "on trial": the board goes back to the one before if it restarts before this is called.
+ * It is called as soon as the server answers, or after ten minutes running in any case. So a build that crashes,
+ * or restarts before it reaches Wrkbench, is undone; one that runs for ten minutes is kept, even with no Wi-Fi.
+ */
+void markGood() {
+  static bool done = false;
+  if (done) return;
+  done = true;
+  esp_ota_img_states_t state;
+  if (esp_ota_get_state_partition(esp_ota_get_running_partition(), &state) == ESP_OK && state == ESP_OTA_IMG_PENDING_VERIFY) {
+    esp_ota_mark_app_valid_cancel_rollback();
+    Serial.println("New firmware confirmed");
+  }
+}
 
 void setStatus(Phase phase, const char *message = nullptr, bool ok = false) {
   xSemaphoreTake(lock, portMAX_DELAY);
@@ -82,14 +105,8 @@ bool ensureTime() {
   return false;
 }
 
-/**
- * One request. Returns the HTTP status (negative for a network error) with the body in `response`.
- * HTTP/1.0 so the body never arrives chunked, and a size cap so a surprise cannot run the board out of memory.
- */
-int request(const char *method, const char *path, const char *body = nullptr) {
-  responseLen = 0;
-  response[0] = '\0';
-  if (!ensureTime()) return -100;
+/** Opens `path` on the server with the display's token. HTTP/1.0 so a body never arrives chunked. */
+bool open(HTTPClient &http, const char *path) {
   static WiFiClient plain;
   static WiFiClientSecure secure;
   const bool https = wb::isHttps(settings.url);
@@ -98,12 +115,24 @@ int request(const char *method, const char *path, const char *body = nullptr) {
     else secure.setCACert(WB_ROOT_CERTS);
   }
   String url = String(settings.url) + path;
-  HTTPClient http;
   http.useHTTP10(true);
   http.setTimeout(10000);
   http.setConnectTimeout(8000);
-  if (!(https ? http.begin(secure, url) : http.begin(plain, url))) return -101;
+  if (!(https ? http.begin(secure, url) : http.begin(plain, url))) return false;
   if (settings.token[0]) http.addHeader("Authorization", String("Bearer ") + settings.token);
+  return true;
+}
+
+/**
+ * One request. Returns the HTTP status (negative for a network error) with the body in `response`.
+ * A size cap so a surprise cannot run the board out of memory.
+ */
+int request(const char *method, const char *path, const char *body = nullptr) {
+  responseLen = 0;
+  response[0] = '\0';
+  if (!ensureTime()) return -100;
+  HTTPClient http;
+  if (!open(http, path)) return -101;
   http.addHeader("Accept", "application/json");
   int status;
   if (body) {
@@ -112,6 +141,7 @@ int request(const char *method, const char *path, const char *body = nullptr) {
   } else {
     status = http.sendRequest(method);
   }
+  if (status > 0) markGood();
   // A 304 has no body; waiting for one would hold the connection until it times out.
   if (status > 0 && status != 304) {
     const int size = http.getSize();
@@ -164,7 +194,7 @@ void unauthorized() {
 void pair(const char *code) {
   setStatus(Phase::Pairing);
   char body[200];
-  snprintf(body, sizeof body, "{\"code\":\"%s\",\"model\":\"cyd-28-%s%s\",\"version\":\"%s\"}", code, WB_PANEL, readerPresent ? "+pn532" : "", WB_VERSION);
+  snprintf(body, sizeof body, "{\"code\":\"%s\",\"model\":\"cyd-%s-%s%s\",\"version\":\"%s\"}", code, WB_BOARD, WB_PANEL, readerPresent ? "+pn532" : "", WB_VERSION);
   settings.token[0] = '\0';
   const int status = request("POST", "/api/device/pair", body);
   if (status <= 0 || status >= 500 || status == 429) {
@@ -197,9 +227,106 @@ void pair(const char *code) {
   post(ResultType::PairFailed, false, message);
 }
 
+/**
+ * Downloads new firmware into the spare app slot, checking its size and MD5 as it goes. Returns why it failed,
+ * or null when the image is in place and the board can restart into it. `later` is set when the download never
+ * started for a passing reason (no connection, or the server could not fetch the file just now): the server
+ * still offers it, so it is simply tried again on a later poll.
+ */
+const char *download(const wb::FirmwareOffer &update, bool &later) {
+  later = true;
+  if (!ensureTime()) return "Could not get the time for a secure connection";
+  HTTPClient http;
+  if (!open(http, "/api/device/firmware")) return "Could not reach the server";
+  http.setTimeout(20000);
+  const int status = http.GET();
+  if (status != 200) {
+    http.end();
+    if (status == 404) {
+      later = false;  // withdrawn, or already started once: nothing to report
+      return NOTHING_WAITING;
+    }
+    return status == 503 ? "The server could not fetch the firmware just now" : "The download did not start";
+  }
+  later = false;
+  if (http.getSize() != static_cast<int>(update.size)) {
+    http.end();
+    return "The download was not the expected size";
+  }
+  if (!Update.begin(update.size)) {
+    http.end();
+    return "No room for the new firmware";
+  }
+  Update.setMD5(update.md5);
+  static uint8_t chunk[2048];  // only the network task runs this
+  WiFiClient *stream = http.getStreamPtr();
+  uint32_t written = 0, lastData = millis();
+  int shown = -1;
+  while (written < update.size && millis() - lastData < 20000) {
+    const int available = stream->available();
+    if (available <= 0) {
+      if (!stream->connected()) break;
+      vTaskDelay(pdMS_TO_TICKS(5));
+      continue;
+    }
+    const size_t want = min(static_cast<size_t>(available), min(sizeof chunk, static_cast<size_t>(update.size - written)));
+    const size_t got = stream->readBytes(chunk, want);
+    if (got == 0) continue;
+    if (Update.write(chunk, got) != got) {
+      Update.abort();
+      http.end();
+      return "Writing the new firmware failed";
+    }
+    written += got;
+    lastData = millis();
+    const int percent = static_cast<int>(written * 100ULL / update.size);
+    if (percent / 10 != shown) {
+      shown = percent / 10;
+      char note[48];
+      snprintf(note, sizeof note, "Firmware %s: %d%%", update.version, percent);
+      post(ResultType::Updating, true, note);
+    }
+  }
+  http.end();
+  if (written != update.size) {
+    Update.abort();
+    return "The download broke off";
+  }
+  if (!Update.end()) return Update.getError() == UPDATE_ERROR_MD5 ? "The download was damaged (checksum)" : "The new firmware was refused";
+  return nullptr;
+}
+
+/** Installs the firmware the server offered and restarts into it, or tells the server why it could not. */
+void install(const wb::FirmwareOffer &update) {
+  updateTried = true;
+  char note[48];
+  snprintf(note, sizeof note, "Firmware %s", update.version);
+  post(ResultType::Updating, true, note);
+  Serial.printf("Updating to %s (%u bytes), free heap %u\n", update.version, static_cast<unsigned>(update.size), static_cast<unsigned>(ESP.getFreeHeap()));
+  bool later = false;
+  const char *failure = download(update, later);
+  if (!failure) {
+    Serial.println("Update written, restarting");
+    post(ResultType::Updating, true, "Restarting");
+    vTaskDelay(pdMS_TO_TICKS(1500));
+    ESP.restart();
+  }
+  Serial.printf("Update failed: %s%s\n", failure, later ? " (will try again)" : "");
+  post(ResultType::UpdateFailed, false, failure);
+  if (later) {
+    updateTried = false;
+    return;
+  }
+  if (failure == NOTHING_WAITING) return;
+  char body[160];
+  snprintf(body, sizeof body, "{\"message\":\"%s\"}", failure);
+  request("POST", "/api/device/update-failed", body);
+}
+
 void poll() {
-  char path[160];
-  snprintf(path, sizeof path, "/api/device/overview?nfc=%d%s%s%s%s", readerPresent ? 1 : 0, lastV[0] ? "&since=" : "", lastV, browsing[0] ? "&location=" : "", browsing);
+  char path[200];
+  snprintf(path, sizeof path, "/api/device/overview?nfc=%d&fw=%s%s%s%s%s", readerPresent ? 1 : 0, WB_VERSION, lastV[0] ? "&since=" : "", lastV,
+           browsing[0] ? "&location=" : "", browsing);
   const int status = request("GET", path);
   if (status == 304) {
     failures = 0;
@@ -220,7 +347,11 @@ void poll() {
       pollMs = static_cast<uint32_t>(overview->poll) * 1000;
       failures = 0;
       setStatus(Phase::Online, nullptr, true);
+      // Copied first: the screen frees the overview once it has drawn it.
+      const bool update = overview->hasUpdate && !updateTried;
+      const wb::FirmwareOffer offered = overview->update;
       post(ResultType::Overview, true, "", overview);
+      if (update) install(offered);
       return;
     }
     free(overview);
@@ -280,6 +411,8 @@ void untagged() {
 void task(void *) {
   uint32_t nextPoll = 0;
   for (;;) {
+    // Before anything that waits on the network, so a board without Wi-Fi keeps a build after ten minutes too.
+    if (millis() > 10 * 60000) markGood();
     if (WiFi.status() != WL_CONNECTED) {
       if (currentPhase() != Phase::NeedCode) setStatus(Phase::Connecting);
       vTaskDelay(pdMS_TO_TICKS(500));

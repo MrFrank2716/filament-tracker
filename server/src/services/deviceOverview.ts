@@ -120,6 +120,13 @@ export function displayRow(item: ItemRow, shownLocationId: string | null, locati
 /** Low stock first, then by name: what needs attention is at the top of a small screen. */
 const byAttention = (a: DisplayRow, b: DisplayRow) => Number(b.low) - Number(a.low) || a.name.localeCompare(b.name);
 
+/** New firmware the display should fetch from /api/device/firmware and install. */
+export interface DisplayUpdate {
+  version: string;
+  size: number;
+  md5: string;
+}
+
 export interface Overview {
   v: string;
   poll: number;
@@ -132,6 +139,7 @@ export interface Overview {
   items: DisplayRow[];
   locations: Array<{ id: string; name: string }>;
   printer: DisplayPrinter | null;
+  update?: DisplayUpdate;
 }
 
 // ---- The printer beside the display ---------------------------------------------------------
@@ -242,6 +250,7 @@ export async function buildOverview(
   device: { workspaceId: string; name: string; canWrite: boolean; workspace: { name: string } },
   locationId: string | null,
   printer: DisplayPrinter | null = null,
+  update: DisplayUpdate | null = null,
 ): Promise<Overview> {
   const tree = await locationTree(db, device.workspaceId);
   const shown = locationId ? tree.byId.get(locationId) : undefined;
@@ -268,6 +277,8 @@ export async function buildOverview(
     items: rows.slice(0, MAX_ROWS),
     locations,
     printer,
+    // Only when there is one, so displays that are not updating see the same overview as before.
+    ...(update ? { update } : {}),
   };
   const v = createHash('sha256').update(JSON.stringify(body)).digest('base64url').slice(0, 12);
   return { v, ...body };
