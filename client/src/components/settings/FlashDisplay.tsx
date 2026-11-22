@@ -134,7 +134,8 @@ export function FlashDisplay({ locations, onClose }: { locations: Array<{ id: st
             'If no port was listed, the computer may need the CH340 USB driver.',
         );
       }
-      if (!/^ESP32(?!-[A-Z])/.test(chip)) throw new Error(`That board is an ${chip}, not the ESP32 a CYD has. Check the port you chose.`);
+      // The family, not the description: a CYD's chip describes itself as e.g. "ESP32-D0WD-V3 (revision 3)".
+      if (loader.chip.CHIP_NAME !== 'ESP32') throw new Error(`That board is an ${chip}, not the ESP32 a CYD has. Check the port you chose.`);
 
       update(eraseAll ? 'Erasing the board' : 'Writing the firmware', eraseAll ? null : 0);
       await loader.writeFlash({
