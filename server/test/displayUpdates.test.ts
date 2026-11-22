@@ -226,7 +226,7 @@ describe('finding the newest firmware on GitHub', () => {
       release('bridge-v1.2.0', false, []),
     ];
     vi.stubGlobal('fetch', async (url: string) => {
-      if (url.includes('api.github.com')) return new Response(JSON.stringify(releases));
+      if (new URL(url).hostname === 'api.github.com') return new Response(JSON.stringify(releases));
       const tag = url.split('/')[3];
       return new Response(JSON.stringify(manifestFor(tag.slice(10).split('-')[0])));
     });
